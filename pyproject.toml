@@ -13,6 +13,7 @@ readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
     "numpy>=2.5.1",
+    "polars>=1.43.2",
     "scipy>=1.18.0",
 ]
 
@@ -20,14 +21,12 @@ dependencies = [
 dev = [
     "hatchling>=1.31.0",
     "pytest>=9.1.1",
+    "ruff>=0.16.1",
     "ty>=0.0.66",
 ]
 dev-helpers = [
     "ipython>=9.16.1",
 ]
-
-[tool.pytest.ini_options]
-pythonpath = ["."]
 
 [tool.hatch.build.targets.wheel]
 packages = ["qte"]
