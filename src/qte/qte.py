@@ -231,21 +231,25 @@ def estimate_or_qte(
     return estimate.to_polars().join(get_se(bs_res), on="q").sort("q")
 
 
-def _compute_f(outcome_grid_val, preds, ps, outcome, treated) -> float:
+def _compute_f(outcome_grid_val, preds, outcome, weight1, weight2, adj) -> float:
     f_cond = (preds <= outcome_grid_val).mean(axis=1)
-    return np.mean(f_cond + (treated / ps) * ((outcome <= outcome_grid_val) - f_cond))
+    return (
+        np.mean(weight1 * f_cond + weight2 * ((outcome <= outcome_grid_val) - f_cond))
+        / adj
+    )
 
 
-def _compute_aipw_q(
+def _compute_aipw_term_for_qte(
     qs: NDArray,
     grid: NDArray,
     or_preds: NDArray,
-    ps: NDArray,
     outcome: NDArray,
-    treatment: NDArray,
+    weight2: NDArray,
+    weight1: ArrayLike,
+    adj: float = 1,
 ) -> NDArray:
     f0 = np.fromiter(
-        (_compute_f(o, or_preds, ps, outcome, treatment) for o in grid),
+        (_compute_f(o, or_preds, outcome, weight1, weight2, adj) for o in grid),
         float,
     )
     f0 = np.maximum.accumulate(np.maximum(np.minimum(1, f0), 0))
@@ -261,6 +265,7 @@ def _compute_aipw_qte(
     *,
     ps_x_formular: str | None = None,
     or_x_formular: str | None = None,
+    weights_c: str | None = None,
     target: CausalTarget = CausalTarget.QTE,
     or_quantiles: NDArray = np.arange(0.01, 0.99, 0.01),
 ):
@@ -277,13 +282,13 @@ def _compute_aipw_qte(
     outcome_grid = ds[outcome_c].unique().sort().to_numpy()
 
     if target == CausalTarget.QTE:
-        q0 = _compute_aipw_q(
+        q0 = _compute_aipw_term_for_qte(
             qs,
             outcome_grid,
             preds,
-            1 - ps,
             ds[outcome_c].to_numpy(),
-            1 - ds[treatment_c].to_numpy(),
+            weight1=1,
+            weight2=(1 - ds[treatment_c].to_numpy()) / (1 - ps),
         )
 
         # Treated
@@ -291,17 +296,28 @@ def _compute_aipw_qte(
             treated, outcome_c, or_x_formular, or_quantiles
         )
         preds_treated = _predict_outcome_model(ors_treated, ds, flatten=False)
-        q1 = _compute_aipw_q(
+        q1 = _compute_aipw_term_for_qte(
             qs,
             outcome_grid,
             preds_treated,
-            ps,
             ds[outcome_c].to_numpy(),
-            ds[treatment_c].to_numpy(),
+            weight1=1,
+            weight2=ds[treatment_c].to_numpy() / ps,
         )
 
     if target == CausalTarget.QTT:
-        ...
+        q0 = _compute_aipw_term_for_qte(
+            qs,
+            outcome_grid,
+            preds,
+            ds[outcome_c].to_numpy(),
+            weight1=ps,
+            weight2=((1 - ds[treatment_c].to_numpy()) * ps) / (1 - ps),
+            adj=ps.mean(),
+        )
+        q1 = get_quantiles(
+            qs, treated[outcome_c].to_numpy(), w=_make_weights(weights_c, treated)
+        )
     return QteResult(qs, q1, q0)
 
 
@@ -314,6 +330,7 @@ def estimate_aipw_qte(
     target: CausalTarget = CausalTarget.QTE,
     or_x_formular: str | None = None,
     ps_x_formular: FormularRhs | None = None,
+    weights_c: str | None = None,
     n_bootstrap_iter: int = 100,
 ) -> pl.DataFrame:
     fcn = partial(
@@ -323,6 +340,7 @@ def estimate_aipw_qte(
         or_x_formular=or_x_formular,
         ps_x_formular=ps_x_formular,
         qs=qs,
+        weights_c=weights_c,
         target=target,
     )
     estimate = fcn(ds)
