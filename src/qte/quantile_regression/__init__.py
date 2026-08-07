@@ -6,7 +6,7 @@ from numpy.typing import NDArray
 from qte.quantile_regression import rq_fortran
 
 
-def fast_quantreg(
+def _fast_quantreg(
     X: NDArray[np.float64], y: NDArray[np.float64], q: float
 ) -> NDArray[np.float64]:
     n_obs, n_coeffs = X.shape
@@ -52,5 +52,5 @@ class QuantileRegression:
     def fit(self, qs: NDArray) -> QuantileRegressionResult:
         fml = Formula(self.formula)
         y, X = fml.get_model_matrix(self.ds, output="numpy")
-        coeffs = np.column_stack([fast_quantreg(X, y.ravel(), q) for q in qs])
+        coeffs = np.column_stack([_fast_quantreg(X, y.ravel(), q) for q in qs])
         return QuantileRegressionResult(coeffs, x=X, formula=fml)
