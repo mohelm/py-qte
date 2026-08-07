@@ -9,3 +9,5 @@ def _make_q(n: int) -> NDArray:
 QUARTILES = _make_q(4)
 QUANTILES = _make_q(5)
 DECILES = _make_q(10)
+PERCENTILES = _make_q(100)
+MEDIAN = _make_q(2)

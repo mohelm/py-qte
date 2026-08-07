@@ -12,10 +12,13 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
+    "altair>=6.2.2",
     "formulaic>=1.2.2",
+    "great-tables>=0.23.0",
     "numpy>=2.5.1",
     "polars>=1.43.2",
     "pyarrow>=25.0.0",
+    "rich>=15.0.0",
     "scipy>=1.18.0",
     "statsmodels>=0.14.6",
 ]
@@ -34,8 +37,9 @@ dev-helpers = [
     "ipython>=9.16.1",
 ]
 
-
-
+[tool.uv.sources]
+multimark = { git = "https://github.com/posit-dev/multimark", tag = "v0.2.3" }
 
 [tool.uv]
 no-build-isolation = true
+

@@ -1,0 +1,5 @@
+QUANTILE_ID = "q"
+EFFECT_ID = "effect"
+SE_ID = "se"
+CI_LB_ID = "ci_lb"
+CI_UB_ID = "ci_ub"
