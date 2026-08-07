@@ -5,6 +5,7 @@ import numpy as np
 import polars as pl
 import statsmodels.formula.api as smf
 from numpy.typing import ArrayLike, NDArray
+from statsmodels.discrete.discrete_model import BinaryResultsWrapper
 
 from qte.bootstrap import perform_bootstrap
 from qte.custom_types import ColumnName, DataFrame, FormularRhs
@@ -43,11 +44,11 @@ def _compute_simple_qte(
     return QteResult(qs, q_t, q_c)
 
 
-def _estimate_propensity_score(ds: pl.DataFrame, treatment_c: str, x_formular: str):
-    ps_full_formular = f"{treatment_c} ~ {x_formular}"
-
+def _estimate_propensity_score(
+    ds: pl.DataFrame, treatment_c: str, x_formular: str
+) -> BinaryResultsWrapper:
     ds_as_dict = {col.name: col.to_numpy() for col in ds.iter_columns()}
-    return smf.logit(formula=ps_full_formular, data=ds_as_dict).fit(disp=0)
+    return smf.logit(formula=f"{treatment_c}~{x_formular}", data=ds_as_dict).fit(disp=0)
 
 
 def _prepare_dataset_for_stats_models(ds: pl.DataFrame) -> dict[str, NDArray]:
@@ -148,9 +149,10 @@ def _estimate_outcome_model(
 
 
 def _predict_outcome_model(
-    or_: QuantileRegressionResult, ds: pl.DataFrame | None = None
+    or_: QuantileRegressionResult, ds: pl.DataFrame | None = None, flatten: bool = True
 ) -> NDArray[np.float64]:
-    return np.sort(or_.predict(ds), axis=1).flatten()
+    preds = np.sort(or_.predict(ds), axis=1)
+    return preds.flatten() if flatten else preds
 
 
 def _make_weights(
@@ -229,19 +231,100 @@ def estimate_or_qte(
     return estimate.to_polars().join(get_se(bs_res), on="q").sort("q")
 
 
-def estimate_aipw_qte(
+def _compute_f(outcome_grid_val, preds, ps, outcome, treated) -> float:
+    f_cond = (preds <= outcome_grid_val).mean(axis=1)
+    return np.mean(f_cond + (treated / ps) * ((outcome <= outcome_grid_val) - f_cond))
+
+
+def _compute_aipw_q(
+    qs: NDArray,
+    grid: NDArray,
+    or_preds: NDArray,
+    ps: NDArray,
+    outcome: NDArray,
+    treatment: NDArray,
+) -> NDArray:
+    f0 = np.fromiter(
+        (_compute_f(o, or_preds, ps, outcome, treatment) for o in grid),
+        float,
+    )
+    f0 = np.maximum.accumulate(np.maximum(np.minimum(1, f0), 0))
+    u, indices = np.unique(f0, return_index=True)
+    return np.interp(qs, u, grid[indices])
+
+
+def _compute_aipw_qte(
     ds: pl.DataFrame,
     outcome_c: str,
     treatment_c: str,
     qs: NDArray[np.float64] = (0.5,),
     *,
-    pw_x_formular: str | None = None,
+    ps_x_formular: str | None = None,
     or_x_formular: str | None = None,
-    weight_c: str | None = None,
-    n_bootstrap_iter: int = 100,
     target: CausalTarget = CausalTarget.QTE,
+    or_quantiles: NDArray = np.arange(0.01, 0.99, 0.01),
 ):
+    treated, control = (
+        ds.filter(pl.col(treatment_c) == 1),
+        ds.filter(pl.col(treatment_c) == 0),
+    )
+    ps = _estimate_propensity_score(ds, treatment_c, ps_x_formular).predict()
+    ors_control = _estimate_outcome_model(
+        control, outcome_c, or_x_formular, or_quantiles
+    )
+    preds = _predict_outcome_model(ors_control, ds, flatten=False)
+
+    outcome_grid = ds[outcome_c].unique().sort().to_numpy()
+
     if target == CausalTarget.QTE:
-        ...
+        q0 = _compute_aipw_q(
+            qs,
+            outcome_grid,
+            preds,
+            1 - ps,
+            ds[outcome_c].to_numpy(),
+            1 - ds[treatment_c].to_numpy(),
+        )
+
+        # Treated
+        ors_treated = _estimate_outcome_model(
+            treated, outcome_c, or_x_formular, or_quantiles
+        )
+        preds_treated = _predict_outcome_model(ors_treated, ds, flatten=False)
+        q1 = _compute_aipw_q(
+            qs,
+            outcome_grid,
+            preds_treated,
+            ps,
+            ds[outcome_c].to_numpy(),
+            ds[treatment_c].to_numpy(),
+        )
+
     if target == CausalTarget.QTT:
         ...
+    return QteResult(qs, q1, q0)
+
+
+def estimate_aipw_qte(
+    ds: pl.DataFrame,
+    outcome_c: str,
+    treatment_c: str,
+    qs: ArrayLike = (0.5,),
+    *,
+    target: CausalTarget = CausalTarget.QTE,
+    or_x_formular: str | None = None,
+    ps_x_formular: FormularRhs | None = None,
+    n_bootstrap_iter: int = 100,
+) -> pl.DataFrame:
+    fcn = partial(
+        _compute_aipw_qte,
+        outcome_c=outcome_c,
+        treatment_c=treatment_c,
+        or_x_formular=or_x_formular,
+        ps_x_formular=ps_x_formular,
+        qs=qs,
+        target=target,
+    )
+    estimate = fcn(ds)
+    bs_res = perform_bootstrap(ds, fcn=fcn, n_iter=n_bootstrap_iter)
+    return estimate.to_polars().join(get_se(bs_res), on="q").sort("q")

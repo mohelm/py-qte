@@ -6,6 +6,7 @@ from polars.testing import assert_series_equal
 from qte.constants import QUARTILES
 from qte.qte import (
     CausalTarget,
+    estimate_aipw_qte,
     estimate_ipw_qte,
     estimate_or_qte,
     estimate_simple_qte,
@@ -88,6 +89,37 @@ def test_estimate_or_qte_with_lalonde(lalonde_psid, estimate_params, expected_re
     xf = "age + I(age**2) + education + black + hispanic + married + nodegree"
     res = estimate_or_qte(
         lalonde_psid, "re78", "treat", or_x_formular=xf, **estimate_params
+    )
+    assert_series_equal(pl.Series("q", expected_results["q"]), res["q"])
+    assert_series_equal(
+        pl.Series("effect", expected_results["effect"]), res["effect"], rel_tol=0.01
+    )
+
+
+AIPW_TEST_CASES = [
+    (
+        {"target": CausalTarget.QTE, "qs": QUARTILES, "n_bootstrap_iter": 10},
+        {"q": QUARTILES, "effect": [-7646.724, -12684.516, -16522.675]},
+    ),
+    # (
+    #    {"target": CausalTarget.QTT, "qs": QUARTILES, "n_bootstrap_iter": 10},
+    #    {"q": QUARTILES, "effect": [-3196.046, -5933.218, -7265.786]},
+    # ),
+]
+
+
+@pytest.mark.parametrize("estimate_params,expected_results", AIPW_TEST_CASES)
+def test_estimate_aipw_qte_with_lalonde(
+    lalonde_psid, estimate_params, expected_results
+):
+    xf = "age + I(age**2) + education + black + hispanic + married + nodegree"
+    res = estimate_aipw_qte(
+        lalonde_psid,
+        "re78",
+        "treat",
+        or_x_formular=xf,
+        ps_x_formular=xf,
+        **estimate_params,
     )
     assert_series_equal(pl.Series("q", expected_results["q"]), res["q"])
     assert_series_equal(
