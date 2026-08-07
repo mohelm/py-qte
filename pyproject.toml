@@ -27,11 +27,15 @@ dev = [
     "ruff>=0.16.1",
     "ty>=0.0.66",
     "pytest-sugar>=1.1.1",
+    "ninja>=1.13.0",
+    "meson-python>=0.20.0",
 ]
 dev-helpers = [
     "ipython>=9.16.1",
 ]
 
-[tool.hatch.build.targets.wheel]
-packages = ["qte"]
 
+
+
+[tool.uv]
+no-build-isolation = true
