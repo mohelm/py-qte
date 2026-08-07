@@ -11,10 +11,13 @@ class QteResult:
     qs: NDArray[np.float64]
     q_val_t: NDArray[np.float64]
     q_val_c: NDArray[np.float64]
-    qte: None | NDArray[np.float64] = None
+    effects: None | NDArray[np.float64] = None
 
     def __post_init__(self) -> None:
-        self.qte = self.q_val_t - self.q_val_c
+        self.effects = self.q_val_t - self.q_val_c
 
     def to_polars(self) -> pl.DataFrame:
-        return pl.from_dict(dataclasses.asdict(self))
+        return pl.from_dict(dataclasses.asdict(self)).rename({
+            "effects": "effect",
+            "qs": "q",
+        })

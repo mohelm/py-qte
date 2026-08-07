@@ -1,11 +1,11 @@
 import numpy as np
 
-from qte.stats import get_quantile, get_quantiles
+from qte.stats import get_quantiles
 
 
 def test_get_quantile():
     data = np.array([-1, 0, 1])
-    res = get_quantile(0.5, data)
+    res = get_quantiles(0.5, data)
     assert np.isclose(res, 0)
 
 
