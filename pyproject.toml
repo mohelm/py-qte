@@ -37,8 +37,6 @@ dev-helpers = [
     "ipython>=9.16.1",
 ]
 
-[tool.uv.sources]
-multimark = { git = "https://github.com/posit-dev/multimark", tag = "v0.2.3" }
 
 [tool.uv]
 no-build-isolation = true
