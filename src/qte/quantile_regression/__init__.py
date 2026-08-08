@@ -32,16 +32,19 @@ def _fast_quantreg(
 
 
 class QuantileRegressionResult:
-    def __init__(self, coefficients: NDArray, x: NDArray[np.float64], formula: Formula):
+    def __init__(
+        self, coefficients: NDArray, x_fit: NDArray[np.float64], formula: Formula
+    ):
         self.coefficients = coefficients
-        self._x = x
+        self._x_fit = x_fit
         self.formula = formula
 
     def predict(self, ds: pl.DataFrame | None = None) -> NDArray:
-        if ds is not None:
-            _, X = self.formula.get_model_matrix(ds, output="numpy")
-            return X @ self.coefficients
-        return self._x @ self.coefficients
+        return (
+            self.formula.rhs.get_model_matrix(ds, output="numpy")
+            if ds is not None
+            else self._x_fit
+        ) @ self.coefficients
 
 
 class QuantileRegression:
@@ -53,4 +56,4 @@ class QuantileRegression:
         fml = Formula(self.formula)
         y, X = fml.get_model_matrix(self.ds, output="numpy")
         coeffs = np.column_stack([_fast_quantreg(X, y.ravel(), q) for q in qs])
-        return QuantileRegressionResult(coeffs, x=X, formula=fml)
+        return QuantileRegressionResult(coeffs, x_fit=X, formula=fml)
