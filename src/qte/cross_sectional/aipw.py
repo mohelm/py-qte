@@ -26,10 +26,25 @@ def _compute_aipw_term_for_qte(
     weight1: ArrayLike,
     adj: float = 1,
 ) -> NDArray:
-    f0 = np.fromiter(
-        (_compute_f(o, or_preds, outcome, weight1, weight2, adj) for o in grid),
-        float,
-    )
+    n_obs, n_qs = or_preds.shape
+    weights = np.repeat(
+        (np.broadcast_to(weight1, n_obs) - np.broadcast_to(weight2, n_obs)) / n_qs, n_qs
+    )  # (n_obs x n_qs times 1)
+    or_preds_flat = or_preds.flatten()
+    sorter = np.argsort(or_preds_flat)
+    or_preds_flat_sorted = or_preds_flat[sorter]
+    cdf_or = np.concatenate(([0.0], np.cumsum(weights[sorter])))
+
+    sorter = np.argsort(outcome)
+    outcome_sorted = outcome[sorter]
+    cdf_outcome = np.concatenate((
+        [0.0],
+        np.cumsum(np.broadcast_to(weight2, n_obs)[sorter]),
+    ))
+    idx_or = np.searchsorted(or_preds_flat_sorted, grid, side="right")
+    idx_outcome = np.searchsorted(outcome_sorted, grid, side="right")
+    f0 = (cdf_or[idx_or] + cdf_outcome[idx_outcome]) / (n_obs * adj)
+
     f0 = np.maximum.accumulate(np.maximum(np.minimum(1, f0), 0))
     u, indices = np.unique(f0, return_index=True)
     return np.interp(qs, u, grid[indices])
