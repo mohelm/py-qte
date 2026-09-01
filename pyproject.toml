@@ -6,38 +6,37 @@ build-backend = "mesonpy"
 name = "py-qte"
 version = "0.1.0"
 description = "Quantile Treatment Effects"
-authors = [
-    { name = "Moritz Helm", email = "mohelm84@gmail.com" }
-]
+authors = [{ name = "Moritz Helm", email = "mohelm84@gmail.com" }]
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
-    "altair>=6.2.2",
-    "formulaic>=1.2.2",
-    "great-tables>=0.23.0",
-    "numpy>=2.5.1",
-    "polars>=1.43.2",
-    "pyarrow>=25.0.0",
-    "rich>=15.0.0",
-    "scipy>=1.18.0",
-    "statsmodels>=0.14.6",
+  "altair>=6.2.2",
+  "formulaic>=1.2.2",
+  "great-tables>=0.23.0",
+  "numpy>=2.5.1",
+  "polars>=1.43.2",
+  "pyarrow>=25.0.0",
+  "rich>=15.0.0",
+  "scipy>=1.18.0",
+  "statsmodels>=0.14.6",
 ]
 
 [dependency-groups]
 dev = [
-    "pytest>=9.1.1",
-    "ruff>=0.16.1",
-    "ty>=0.0.66",
-    "pytest-sugar>=1.1.1",
-    "ninja>=1.13.0",
-    "meson-python>=0.20.0",
-    "vl-convert-python>=1.7.0",
+  "pytest>=9.1.1",
+  "ruff>=0.16.1",
+  "ty>=0.0.66",
+  "pytest-sugar>=1.1.1",
+  "ninja>=1.13.0",
+  "meson-python>=0.20.0",
+  "vl-convert-python>=1.7.0",
+  "pillow>=12.3.0",
 ]
-dev-helpers = [
-    "ipython>=9.16.1",
-]
+dev-helpers = ["ipython>=9.16.1"]
 
 
 [tool.uv]
 no-build-isolation = true
 
+[tool.ty.src]
+exclude = ["tests", "src/qte/changes_in_changes"]

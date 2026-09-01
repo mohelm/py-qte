@@ -29,3 +29,12 @@ def load_lalonde(
         _make_lalonde_filename(controls_source, use_panel_structure),
     ) as path:
         return pl.read_parquet(path)
+
+
+def load_mpdta() -> pl.DataFrame:
+    """
+    Load the minimum wage panel dataset (mpdta) used in the did and qte packages.
+    Contains county-level teen employment data from 2003-2007.
+    """
+    with importlib.resources.path("qte.datasets", "mpdta.parquet") as path:
+        return pl.read_parquet(path)

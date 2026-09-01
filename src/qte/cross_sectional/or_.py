@@ -15,8 +15,8 @@ def compute_or_qte(
     treatment_c: ColumnName,
     qs: NDArray[np.float64] = (0.5,),  # type: ignore
     *,
+    or_x_formular: str,
     weights_c: ColumnName | None = None,
-    or_x_formular: str | None = None,
     target: CausalTarget = CausalTarget.QTE,
     or_quantiles: NDArray = PERCENTILES,
 ) -> _QteIntermediateResult:

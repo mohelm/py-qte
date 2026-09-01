@@ -3,7 +3,7 @@ import polars as pl
 from formulaic import Formula
 from numpy.typing import NDArray
 
-from qte.quantile_regression import rq_fortran
+from qte.quantile_regression import rq_fortran  # type: ignore
 
 
 def _fast_quantreg(
@@ -41,7 +41,7 @@ class QuantileRegressionResult:
 
     def predict(self, ds: pl.DataFrame | None = None) -> NDArray:
         return (
-            self.formula.rhs.get_model_matrix(ds, output="numpy")
+            self.formula.rhs.get_model_matrix(ds, output="numpy")  # type: ignore
             if ds is not None
             else self._x_fit
         ) @ self.coefficients

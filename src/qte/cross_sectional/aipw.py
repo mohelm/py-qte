@@ -37,10 +37,12 @@ def _compute_aipw_term_for_qte(
 
     sorter = np.argsort(outcome)
     outcome_sorted = outcome[sorter]
-    cdf_outcome = np.concatenate((
-        [0.0],
-        np.cumsum(np.broadcast_to(weight2, n_obs)[sorter]),
-    ))
+    cdf_outcome = np.concatenate(
+        (
+            [0.0],
+            np.cumsum(np.broadcast_to(weight2, n_obs)[sorter]),
+        )
+    )
     idx_or = np.searchsorted(or_preds_flat_sorted, grid, side="right")
     idx_outcome = np.searchsorted(outcome_sorted, grid, side="right")
     f0 = (cdf_or[idx_or] + cdf_outcome[idx_outcome]) / (n_obs * adj)
@@ -54,14 +56,16 @@ def compute_aipw_qte(
     ds: pl.DataFrame,
     outcome_c: str,
     treatment_c: str,
-    qs: NDArray[np.float64] = (0.5,),
+    qs: ArrayLike = (0.5,),
     *,
-    ps_x_formular: str | None = None,
-    or_x_formular: str | None = None,
+    ps_x_formular: str,
+    or_x_formular: str,
     weights_c: str | None = None,
     target: CausalTarget = CausalTarget.QTE,
     or_quantiles: NDArray = PERCENTILES,
 ):
+
+    qs = np.array(qs)
     treated, control = (
         ds.filter(pl.col(treatment_c) == 1),
         ds.filter(pl.col(treatment_c) == 0),
