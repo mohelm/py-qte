@@ -1,12 +1,12 @@
-# qte — Quantile Treatment Effects in Python 
+# qte — Quantile Treatment Effects in Python
 
-This is an attempt at a Python implementation of the qte R package by Brantly Callaway from [here](https://github.com/bcallaway11/qte). 
+This is an attempt at a Python implementation of the qte R package by Brantly Callaway from [here](https://github.com/bcallaway11/qte).
 
 The main **features** are:
   - Availability of **cross-sectional quantile treatment effects** and quantile treatment effects  on the treated estimators (simple ,IPW, outcome regression, doubly robust);
-- **Fast**: 
-  - as opposed to the R-package we can use highly optimized Numpy functions for computing weighted quantiles; 
-  - quantile regression is magnitudes faster than in other Python packages since we use highly optimized Fortran code directly; 
+- **Fast**:
+  - as opposed to the R-package we can use highly optimized Numpy functions for computing weighted quantiles;
+  - quantile regression is magnitudes faster than in other Python packages since we use highly optimized Fortran code directly;
   - parallelism for bootstrapped standard errors;
   - batching and vectorization in performance critical places;
   - built natively on [Polars](https://github.com/pola-rs/polars);
@@ -34,16 +34,23 @@ The main **features** are:
        ps_x_formular="age + education",
    )
 
-   print(res)  # Rich table (not shown good for console) 
+   print(res)  # Rich table (not shown good for console)
    res.plot()  # Vega-Altair plot (see below)
    res.tabulate() # Great Tables output (see below)
  ```
 
-### QTE Results Plot
-![AIPW QTE Results](assets/aipw_qte_results.svg)
-
-### QTE Results Table
-![AIPW QTE Table](assets/aipw_qte_table.png)
+### QTE Results Plot and Table
+<table width="100%" border="0" cellpadding="0" cellspacing="0">
+  <tr>
+    <td width="48%" valign="top" align="center">
+      <img src="assets/aipw_qte_results.svg" width="100%">
+    </td>
+    <td width="4%"></td>
+    <td width="48%" valign="top" align="center">
+      <img src="assets/aipw_qte_table.png" width="100%">
+    </td>
+  </tr>
+</table>
 
 ---
 

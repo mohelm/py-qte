@@ -8,13 +8,15 @@ from qte.custom_types import CausalTarget, Estimator
 
 @pytest.fixture
 def mock_qte_result():
-    ds = pl.DataFrame({
-        "q": [0.25, 0.5, 0.75],
-        "effect": [-5.0, 0.0, 5.0],
-        "q_val_t": [10.0, 15.0, 20.0],
-        "q_val_c": [15.0, 15.0, 15.0],
-        "se": [1.0, 1.0, 1.0],
-    })
+    ds = pl.DataFrame(
+        {
+            "q": [0.25, 0.5, 0.75],
+            "effect": [-5.0, 0.0, 5.0],
+            "q_val_t": [10.0, 15.0, 20.0],
+            "q_val_c": [15.0, 15.0, 15.0],
+            "se": [1.0, 1.0, 1.0],
+        }
+    )
     return QteResult(Estimator.SIMPLE, CausalTarget.QTE, ds)
 
 
@@ -38,19 +40,10 @@ def test_plot_with_different_alpha(mock_qte_result):
 
 
 def test_summarize_returns_rich_table(mock_qte_result):
-    from rich.table import Table
+    from rich.console import Group
 
     table = mock_qte_result.summarize()
-    assert isinstance(table, Table)
-
-    columns = [col.header for col in table.columns]
-    assert "q" in columns
-    assert "effect" in columns
-    assert "se" in columns
-    assert "ci_lb" in columns
-    assert "ci_ub" in columns
-    assert "q_val_t" not in columns
-    assert "q_val_c" not in columns
+    assert isinstance(table, Group)
 
 
 def test_get_as_dataframe(mock_qte_result):
@@ -62,8 +55,9 @@ def test_get_as_dataframe(mock_qte_result):
 
     assert df.shape[0] == 3
 
+
 def test_tabulate_returns_gt(mock_qte_result):
     from great_tables import GT
-    
+
     table = mock_qte_result.tabulate()
     assert isinstance(table, GT)

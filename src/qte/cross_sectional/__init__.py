@@ -38,7 +38,10 @@ def estimate_simple_qte(
     bs_res = perform_bootstrap(ds, fcn=fcn, n_iter=n_bootstrap_iter)
     res = estimate.to_polars().join(get_se(bs_res), on=QUANTILE_ID)
     return QteResult(
-        _res=res, causal_target=CausalTarget.QTE, estimator=Estimator.SIMPLE
+        _res=res,
+        causal_target=CausalTarget.QTE,
+        estimator=Estimator.SIMPLE,
+        outcome_variable=outcome_c,
     )
 
 
@@ -48,8 +51,8 @@ def estimate_ipw_qte(
     treatment_c: ColumnName,
     qs: ArrayLike = MEDIAN,
     *,
-    target: CausalTarget = CausalTarget.QTE,
     ps_x_formular: FormularRhs,
+    target: CausalTarget = CausalTarget.QTE,
     weight_c: str | None = None,
     n_bootstrap_iter: int = 100,
 ) -> QteResult:
@@ -66,7 +69,13 @@ def estimate_ipw_qte(
     estimate = fcn(ds)
     bs_res = perform_bootstrap(ds, fcn=fcn, n_iter=n_bootstrap_iter)
     res = estimate.to_polars().join(get_se(bs_res), on=QUANTILE_ID)
-    return QteResult(_res=res, causal_target=target, estimator=Estimator.IPW)
+    return QteResult(
+        _res=res,
+        causal_target=target,
+        estimator=Estimator.IPW,
+        outcome_variable=outcome_c,
+        ps_x_formular=ps_x_formular,
+    )
 
 
 def estimate_or_qte(
@@ -75,8 +84,8 @@ def estimate_or_qte(
     treatment_c: str,
     qs: ArrayLike = MEDIAN,
     *,
+    or_x_formular: str,
     target: CausalTarget = CausalTarget.QTE,
-    or_x_formular: str | None = None,
     weights_c: str | None = None,
     n_bootstrap_iter: int = 100,
 ) -> QteResult:
@@ -93,7 +102,13 @@ def estimate_or_qte(
     estimate = fcn(ds)
     bs_res = perform_bootstrap(ds, fcn=fcn, n_iter=n_bootstrap_iter)
     res = estimate.to_polars().join(get_se(bs_res), on=QUANTILE_ID)
-    return QteResult(_res=res, causal_target=target, estimator=Estimator.OR)
+    return QteResult(
+        _res=res,
+        causal_target=target,
+        estimator=Estimator.OR,
+        outcome_variable=outcome_c,
+        or_x_formular=or_x_formular,
+    )
 
 
 def estimate_aipw_qte(
@@ -102,9 +117,9 @@ def estimate_aipw_qte(
     treatment_c: str,
     qs: ArrayLike = (0.5,),
     *,
+    ps_x_formular: FormularRhs,
+    or_x_formular: FormularRhs,
     target: CausalTarget = CausalTarget.QTE,
-    or_x_formular: str | None = None,
-    ps_x_formular: FormularRhs | None = None,
     weights_c: str | None = None,
     n_bootstrap_iter: int = 100,
 ) -> QteResult:
@@ -122,4 +137,11 @@ def estimate_aipw_qte(
     estimate = fcn(ds)
     bs_res = perform_bootstrap(ds, fcn=fcn, n_iter=n_bootstrap_iter)
     res = estimate.to_polars().join(get_se(bs_res), on=QUANTILE_ID)
-    return QteResult(_res=res, causal_target=target, estimator=Estimator.AIPW)
+    return QteResult(
+        _res=res,
+        causal_target=target,
+        estimator=Estimator.AIPW,
+        outcome_variable=outcome_c,
+        ps_x_formular=ps_x_formular,
+        or_x_formular=or_x_formular,
+    )

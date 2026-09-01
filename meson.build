@@ -34,4 +34,3 @@ py.extension_module('rq_fortran',
 
 # Use install_subdir to recursively copy all pure Python files instead of listing them one-by-one!
 install_subdir('src/qte', install_dir: py.get_install_dir(), exclude_directories: ['__pycache__', 'quantile_regression/_ext'])
-

@@ -20,10 +20,12 @@ def make_data(n_treated: int = 500, n_control: int | None = None) -> pl.DataFram
     rng = np.random.default_rng()
     treated_outcome = rng.normal(0, 1, n_treated)
     control_outcome = rng.normal(1, 1, n_control)
-    return pl.from_dict({
-        "outcome": np.r_[treated_outcome, control_outcome],
-        "treated": np.r_[np.ones((n_treated,)), np.zeros((n_control,))],
-    })
+    return pl.from_dict(
+        {
+            "outcome": np.r_[treated_outcome, control_outcome],
+            "treated": np.r_[np.ones((n_treated,)), np.zeros((n_control,))],
+        }
+    )
 
 
 def test_estimate_qte():
