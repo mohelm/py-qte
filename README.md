@@ -21,23 +21,24 @@ The main **features** are:
 # Example
 
  ```python
-   import polars as pl
-
    from qte.cross_sectional import estimate_aipw_qte
+   from qte.datasets import load_lalonde
 
-   df = pl.read_csv("lalonde.csv")
+   ds = load_lalonde()
 
    res = estimate_aipw_qte(
-       ds=df,
+       ds=ds,
        outcome_c="re78",
        treatment_c="treat",
        or_x_formular="age + education",
        ps_x_formular="age + education",
    )
 
-   print(res)
+   print(res)  # Rich table (not shown good for console) 
+   res.plot()  # Vega-Altair plot (see below)
  ```
- 
+
+![AIPW QTE Results](assets/aipw_qte_results.svg)
 
 ---
 
