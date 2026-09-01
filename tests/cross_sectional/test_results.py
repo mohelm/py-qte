@@ -61,3 +61,9 @@ def test_get_as_dataframe(mock_qte_result):
     assert "ci_ub" in df.columns
 
     assert df.shape[0] == 3
+
+def test_tabulate_returns_gt(mock_qte_result):
+    from great_tables import GT
+    
+    table = mock_qte_result.tabulate()
+    assert isinstance(table, GT)

@@ -36,9 +36,14 @@ The main **features** are:
 
    print(res)  # Rich table (not shown good for console) 
    res.plot()  # Vega-Altair plot (see below)
+   res.tabulate() # Great Tables output (see below)
  ```
 
+### QTE Results Plot
 ![AIPW QTE Results](assets/aipw_qte_results.svg)
+
+### QTE Results Table
+![AIPW QTE Table](assets/aipw_qte_table.png)
 
 ---
 

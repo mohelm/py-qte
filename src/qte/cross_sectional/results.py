@@ -6,6 +6,7 @@ from typing import ClassVar
 import altair as alt
 import numpy as np
 import polars as pl
+from great_tables import GT
 from numpy.typing import NDArray
 from rich import box
 from rich.console import Console
@@ -159,4 +160,10 @@ class QteResult:
             _make_line_layer(CI_LB_ID, stroke_dash=(8, 8)),
             _make_line_layer(CI_UB_ID, stroke_dash=(8, 8)),
             data=_ds,
+        )
+
+    def tabulate(self, alpha: float = 0.95) -> GT:
+        _ds = self._add_ci(alpha).drop(self._exclude_from_tables)
+        return (
+            GT(_ds).tab_header(title="Quantile Effects Summary").fmt_number(decimals=2)
         )
