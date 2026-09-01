@@ -3,10 +3,9 @@ from dataclasses import dataclass, field
 from io import StringIO
 from typing import ClassVar
 
+import altair as alt
 import numpy as np
 import polars as pl
-from altair import Chart
-from great_tables import GT
 from numpy.typing import NDArray
 from rich import box
 from rich.console import Console
@@ -15,7 +14,7 @@ from rich.table import Table
 from scipy.stats import norm
 
 from qte.custom_types import CausalTarget, Estimator
-from qte.names import EFFECT_ID, QUANTILE_ID, SE_ID
+from qte.names import CI_LB_ID, CI_UB_ID, EFFECT_ID, QUANTILE_ID, SE_ID
 
 
 def _format_qte_result_for_console(
@@ -63,7 +62,7 @@ class _QteIntermediateResult:
     qs: NDArray[np.float64]
     q_val_t: NDArray[np.float64]
     q_val_c: NDArray[np.float64]
-    effects: None | NDArray[np.float64] = None
+    effects: NDArray[np.float64] | None = None
 
     def __post_init__(self) -> None:
         self.effects = self.q_val_t - self.q_val_c
@@ -89,15 +88,11 @@ class QteResult:
     def _add_ci(self, alpha: float) -> pl.DataFrame:
         alpha_half = (1 - alpha) / 2
         return self._res.with_columns(
-            CI_LB_ID=pl.col(EFFECT_ID) + norm.ppf(1 - alpha_half) * pl.col(SE_ID),
-            CI_UB_ID=pl.col(EFFECT_ID) + norm.ppf(alpha_half),
+            **{
+                CI_LB_ID: pl.col(EFFECT_ID) + norm.ppf(alpha_half) * pl.col(SE_ID),
+                CI_UB_ID: pl.col(EFFECT_ID) + norm.ppf(1 - alpha_half) * pl.col(SE_ID),
+            },
         )
-
-    def plot(self, alpha: float = 0.95) -> GT:
-        pass
-
-    def tabulate(self, alpha: float = 0.95) -> Chart:
-        pass
 
     def _make_table_for_console(self, alpha: float) -> Table:
         return _format_qte_result_for_console(
@@ -116,3 +111,52 @@ class QteResult:
 
     def get_as_dataframe(self, alpha: float = 0.95) -> pl.DataFrame:
         return self._add_ci(alpha=alpha)
+
+    def plot(self, alpha: float = 0.9) -> alt.LayerChart | alt.FacetChart:
+        _ds = self._add_ci(alpha)
+        zero = (
+            alt
+            .Chart()
+            .encode(y=alt.datum(0))
+            .mark_rule(color="grey", strokeDash=(4, 4))
+        )
+        tooltip = [
+            alt.Tooltip("q", title="Quantile"),
+            alt.Tooltip(
+                CI_LB_ID,
+                title="CI Lower Bound:",
+                format=".2f",
+            ),
+            alt.Tooltip(
+                "effect",
+                title="Effect Size:",
+                format=".2f",
+            ),
+            alt.Tooltip(
+                CI_UB_ID,
+                title="CI Upper Bound:",
+                format=".2f",
+            ),
+            alt.Tooltip("q_val_c", title="Baseline:", format=".2f"),
+            alt.Tooltip("q_val_t", title="Baseline + Effect:", format=".2f"),
+        ]
+
+        def _make_line_layer(
+            y: str, stroke_dash: tuple[int, int] = (1, 0)
+        ) -> alt.LayerChart:
+            x = alt.X("q:Q", title="Quantile")
+            base = alt.Chart()
+            line_chart = base.mark_line(
+                color="black", strokeDash=list(stroke_dash)
+            ).encode(x=x, y=alt.Y(y, title=""))
+            point_chart = base.mark_point(color="black", fill="black").encode(
+                x=x, y=alt.Y(y, title=""), tooltip=tooltip
+            )
+            return alt.layer(line_chart, point_chart, zero)
+
+        return alt.layer(
+            _make_line_layer("effect"),
+            _make_line_layer(CI_LB_ID, stroke_dash=(8, 8)),
+            _make_line_layer(CI_UB_ID, stroke_dash=(8, 8)),
+            data=_ds,
+        )
