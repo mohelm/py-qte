@@ -7,8 +7,11 @@ from numpy.typing import NDArray
 from rich.console import Group
 from scipy.stats import norm
 
-from qte.changes_in_changes.custom_types import BasePeriod, ControlGroup
 from qte.names import CI_LB_ID, CI_UB_ID, EFFECT_ID, SE_ID
+from qte.nonlinear_difference_in_differences.custom_types import (
+    BasePeriod,
+    ControlGroup,
+)
 from qte.presentation.altair_charts import make_plot
 from qte.presentation.tables.gt_tables import format_qte_result_combined_gt
 from qte.presentation.tables.rich_tables import _format_qte_result_for_console
@@ -40,7 +43,7 @@ class CicResult:
     _qtt: pl.DataFrame
     _att: pl.DataFrame
     outcome: str
-    group: str
+    group: str | None
     base_period: BasePeriod
     control_group: ControlGroup
 

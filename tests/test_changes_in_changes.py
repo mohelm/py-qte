@@ -1,6 +1,8 @@
 import polars as pl
 
-from qte.changes_in_changes import estimate_changes_in_changes_for_panel
+from qte.nonlinear_difference_in_differences.changes_in_changes import (
+    estimate_changes_in_changes_for_panel,
+)
 
 
 def test_estimate_changes_in_changes_for_panel(mpdata):

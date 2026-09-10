@@ -1,5 +1,5 @@
 from collections.abc import Callable, Iterable, Iterator
-from functools import Placeholder, partial
+from functools import partial
 from itertools import product
 from typing import NamedTuple
 
@@ -7,13 +7,22 @@ import numpy as np
 import polars as pl
 from numpy.typing import ArrayLike, NDArray
 
-from qte.changes_in_changes.aggregate import (
+from qte.constants import MEDIAN
+from qte.names import EFFECT_ID, QUANTILE_ID
+from qte.nonlinear_difference_in_differences.aggregate import (
     aggregate_group_time_effects_again,
     aggregate_group_time_effects_again_by_group,
 )
-from qte.changes_in_changes.custom_types import BasePeriod, ControlGroup
-from qte.changes_in_changes.results import CicResult, CicResults, GroupTimeEffect
-from qte.constants import MEDIAN
+from qte.nonlinear_difference_in_differences.custom_types import (
+    BasePeriod,
+    CicAggregations,
+    ControlGroup,
+)
+from qte.nonlinear_difference_in_differences.results import (
+    CicResult,
+    CicResults,
+    GroupTimeEffect,
+)
 
 
 class Ecdf(NamedTuple):
@@ -133,7 +142,7 @@ def _compute_group_time_effect(
     tp: int,
     outcome_c,
     unit_c,
-    weight_c: str | None,
+    weight_c: str,
 ) -> GroupTimeEffect:
     _group_time_extractor = partial(
         _get_group_data,
@@ -168,12 +177,6 @@ def weights_to_dict(d: pl.DataFrame) -> dict[tuple[int, int], float]:
     return dict(zip(zip(d["group"], d["time_period"]), d["weight"]))
 
 
-class CicAggregations(NamedTuple):
-    group: tuple[pl.DataFrame, pl.DataFrame]
-    overall: tuple[pl.DataFrame, pl.DataFrame]
-    event_study: tuple[pl.DataFrame, pl.DataFrame]
-
-
 def _compute_changes_in_changes_for_panel(
     ds: pl.DataFrame,
     outcome_c: str,
@@ -182,7 +185,7 @@ def _compute_changes_in_changes_for_panel(
     unit_c: str,
     qs: ArrayLike = MEDIAN,
     *,
-    weight_c: str | None = None,
+    weight_c: str,
     base_period: BasePeriod = BasePeriod.UNIVERSAL,
     control_group: ControlGroup = ControlGroup.NEVER_TREATED,
     n_anticipation_periods=0,
@@ -311,7 +314,7 @@ def perform_bootstrap(
             .drop("new_id")
         )
 
-        yield fcn(boot_ds)._asdict()
+        yield fcn(boot_ds)
 
 
 class Estimates(NamedTuple):
@@ -320,23 +323,25 @@ class Estimates(NamedTuple):
 
 
 def stack_dict_bootstraps(
-    boot_iter: Iterable[dict[str, Estimates]],
-    aggregations: tuple[str, ...],
+    boot_iter: Iterable[CicAggregations],
+    aggregations: Iterable[tuple[str, str | None]],
 ) -> dict[str, Estimates]:
     runs = list(boot_iter)
 
     return {
         aggregation: Estimates(
             qtes=pl.concat(
-                r[aggregation][0].with_columns(boot_id=i) for i, r in enumerate(runs)
+                r[aggregation].qtt.with_columns(boot_id=i) for i, r in enumerate(runs)
             )
-            .group_by(*([grouper, "qs"] if grouper is not None else ["qs"]))
-            .agg(se=pl.col("effect").std()),
+            .group_by(
+                *([grouper, QUANTILE_ID] if grouper is not None else [QUANTILE_ID])
+            )
+            .agg(se=pl.col(EFFECT_ID).std()),
             atts=pl.concat(
-                r[aggregation][1].with_columns(boot_id=i) for i, r in enumerate(runs)
+                r[aggregation].att.with_columns(boot_id=i) for i, r in enumerate(runs)
             )
             .group_by(grouper if grouper is not None else [])
-            .agg(se=pl.col("effect").std()),
+            .agg(se=pl.col(EFFECT_ID).std()),
         )
         for aggregation, grouper in aggregations
     }
@@ -355,7 +360,7 @@ def estimate_changes_in_changes_for_panel(
     base_period: BasePeriod = BasePeriod.UNIVERSAL,
     control_group: ControlGroup = ControlGroup.NEVER_TREATED,
     n_bootstrap_iter: int = 1000,
-) -> CicResult:
+) -> CicResults:
     if weight_c is None:
         weight_c = "_w"
         ds = ds.with_columns(pl.lit(1).alias(weight_c))
@@ -372,33 +377,39 @@ def estimate_changes_in_changes_for_panel(
     )
     fcn = partial(
         _compute_changes_in_changes_for_panel,
-        Placeholder,
-        outcome_c,
-        treatment_group_c,
-        time_c,
-        unit_c,
-        qs,
+        outcome_c=outcome_c,
+        treatment_group_c=treatment_group_c,
+        time_c=time_c,
+        unit_c=unit_c,
+        qs=qs,
         weight_c=weight_c,
+        base_period=base_period,
         control_group=control_group,
         n_anticipation_periods=n_anticipation_periods,
     )
-    estimate = fcn(ds)._asdict()
-    bs_res = perform_bootstrap(ds, fcn, unit_c, n_iter=n_bootstrap_iter)
-    groupers = [(k, v[2]) for k, v in estimate.items()]
-    aggs = stack_dict_bootstraps(bs_res, groupers)
-    other_result_parts = {
-        "outcome": outcome_c,
-        "base_period": base_period,
-        "control_group": control_group,
-    }
+    estimate: CicAggregations = fcn(ds)
+    bs_iterations = perform_bootstrap(ds, fcn, unit_c, n_iter=n_bootstrap_iter)
+    # We must explicitly type cast iteration items to silence ty
+    groupers: list[tuple[str, str | None]] = [
+        (agg_name, agg.group) for agg_name, agg in estimate.items()
+    ]
+    bs_aggs = stack_dict_bootstraps(bs_iterations, groupers)
     combined = {
-        k: CicResult(
-            val[0].join(aggs[k].qtes, on=["qs", val[2] if val[2] is not None else []]),
-            val[1].join(aggs[k].atts, on=[val[2] if val[2] is not None else []]),
-            group=val[2],
-            **other_result_parts,
+        agg_name: CicResult(
+            agg.qtt.join(
+                bs_aggs[agg_name].qtes,
+                on=[QUANTILE_ID, agg.group] if agg.group is not None else [QUANTILE_ID],
+            ),
+            agg.att.join(
+                bs_aggs[agg_name].atts,
+                on=[agg.group] if agg.group is not None else [],
+            ),
+            group=agg.group,
+            outcome=outcome_c,
+            base_period=base_period,
+            control_group=control_group,
         )
-        for k, val in estimate.items()
+        for agg_name, agg in estimate.items()
     }
 
     return CicResults(**combined)

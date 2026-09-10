@@ -23,14 +23,14 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+  "meson-python>=0.20.0",
+  "ninja>=1.13.0",
+  "pillow>=12.3.0",
+  "pytest-sugar>=1.1.1",
   "pytest>=9.1.1",
   "ruff>=0.16.1",
   "ty>=0.0.66",
-  "pytest-sugar>=1.1.1",
-  "ninja>=1.13.0",
-  "meson-python>=0.20.0",
   "vl-convert-python>=1.7.0",
-  "pillow>=12.3.0",
 ]
 dev-helpers = ["ipython>=9.16.1"]
 

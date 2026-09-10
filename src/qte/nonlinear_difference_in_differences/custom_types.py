@@ -1,4 +1,7 @@
 from enum import StrEnum
+from typing import NamedTuple
+
+import polars as pl
 
 
 class ControlGroup(StrEnum):
@@ -9,3 +12,12 @@ class ControlGroup(StrEnum):
 class BasePeriod(StrEnum):
     UNIVERSAL = "universal"
     VARYING = "varying"
+
+
+class CicAggregation(NamedTuple):
+    qtt: pl.DataFrame
+    att: pl.DataFrame
+    group: str | None
+
+
+CicAggregations = dict[str, CicAggregation]
