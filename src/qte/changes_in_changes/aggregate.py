@@ -65,24 +65,20 @@ def aggregate_group_time_effects_again_by_group(
     ecdf_o = G @ ecdf_on_grid_o
     ecdf_cf = G @ ecdf_on_grid_cf
     qtts = pl.concat(
-        pl.DataFrame(
-            {
-                dim_name: d,
-                "qs": qs,
-                "q_t": Ecdf(y_grid, ecdf_o[i_d]).evaluate_inverse(qs),
-                "q_c": Ecdf(y_grid, ecdf_cf[i_d]).evaluate_inverse(qs),
-            }
-        )
+        pl.DataFrame({
+            dim_name: d,
+            "qs": qs,
+            "q_t": Ecdf(y_grid, ecdf_o[i_d]).evaluate_inverse(qs),
+            "q_c": Ecdf(y_grid, ecdf_cf[i_d]).evaluate_inverse(qs),
+        })
         for i_d, d in enumerate(unique_dims)
     ).with_columns((pl.col("q_t") - pl.col("q_c")).alias(EFFECT_ID))
 
-    atts = pl.DataFrame(
-        {
-            dim_name: unique_dims,
-            "mean_t": G @ means_o,
-            "mean_c": G @ means_cf,
-        }
-    ).with_columns((pl.col("mean_t") - pl.col("mean_c")).alias(EFFECT_ID))
+    atts = pl.DataFrame({
+        dim_name: unique_dims,
+        "mean_t": G @ means_o,
+        "mean_c": G @ means_cf,
+    }).with_columns((pl.col("mean_t") - pl.col("mean_c")).alias(EFFECT_ID))
     return (qtts, atts, dim_name)
 
 
@@ -96,18 +92,14 @@ def aggregate_group_time_effects_again(
         _merge_group_time_effects_on_grid(gtes, weights, y_grid)
     )
 
-    qtes = pl.DataFrame(
-        {
-            "qs": qs,
-            "q_t": Ecdf(y_grid, ecdf_on_grid_o.sum(axis=0)).evaluate_inverse(qs),
-            "q_c": Ecdf(y_grid, ecdf_on_grid_cf.sum(axis=0)).evaluate_inverse(qs),
-        }
-    ).with_columns((pl.col("q_t") - pl.col("q_c")).alias(EFFECT_ID))
+    qtes = pl.DataFrame({
+        "qs": qs,
+        "q_t": Ecdf(y_grid, ecdf_on_grid_o.sum(axis=0)).evaluate_inverse(qs),
+        "q_c": Ecdf(y_grid, ecdf_on_grid_cf.sum(axis=0)).evaluate_inverse(qs),
+    }).with_columns((pl.col("q_t") - pl.col("q_c")).alias(EFFECT_ID))
 
-    atts = pl.DataFrame(
-        {
-            "mean_t": [means_o.sum()],
-            "mean_c": [means_cf.sum()],
-        }
-    ).with_columns((pl.col("mean_t") - pl.col("mean_c")).alias(EFFECT_ID))
+    atts = pl.DataFrame({
+        "mean_t": [means_o.sum()],
+        "mean_c": [means_cf.sum()],
+    }).with_columns((pl.col("mean_t") - pl.col("mean_c")).alias(EFFECT_ID))
     return (qtes, atts, None)

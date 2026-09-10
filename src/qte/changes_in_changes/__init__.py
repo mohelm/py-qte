@@ -1,5 +1,4 @@
 from collections.abc import Callable, Iterable, Iterator
-from enum import StrEnum
 from functools import Placeholder, partial
 from itertools import product
 from typing import NamedTuple
@@ -12,6 +11,7 @@ from qte.changes_in_changes.aggregate import (
     aggregate_group_time_effects_again,
     aggregate_group_time_effects_again_by_group,
 )
+from qte.changes_in_changes.custom_types import BasePeriod, ControlGroup
 from qte.changes_in_changes.results import CicResult, CicResults, GroupTimeEffect
 from qte.constants import MEDIAN
 
@@ -27,35 +27,44 @@ class Ecdf(NamedTuple):
         return self.values[idx]
 
 
-class CicComparisonGroup(StrEnum):
-    NOT_YET_TREATED = "not_yet_treated"
-    NEVER_TREATED = "never_treated"
+def _make_base_period(
+    treated_group: int,
+    time_period: int,
+    n_anticipation_periods: int,
+    base_period: BasePeriod,
+) -> int:
+    # In the post-treatment period we always compare to the earlist pre-treatment period
+    # (accounting for anticipation).
+    reference_period = treated_group - n_anticipation_periods - 1
 
-
-class BasePeriod(StrEnum):
-    UNIVERAL = "universal"
-    VARYING = "varying"
+    # However, in the pre-treatment period we might want to compare to a time period that is prior
+    # to the per-treatment period in question ("varying" time period)
+    if (time_period < treated_group) & (base_period == BasePeriod.VARYING):
+        reference_period = time_period - n_anticipation_periods - 1
+    return reference_period
 
 
 def _get_data_for_two_by_two(
     ds: pl.DataFrame,
-    treatment_group_c: str,
-    time_c,
     treated_group: int,
     time_period: int,
+    reference_period: int,
     n_anticipation_periods: int,
-    control_group: CicComparisonGroup,
+    treatment_group_c: str,
+    time_c: str,
+    control_group: ControlGroup,
 ) -> pl.DataFrame:
-    base_period = treated_group - n_anticipation_periods - 1
-    # Varying case?
-    filter_ = (pl.col(treatment_group_c) == treated_group) | (
-        pl.col(treatment_group_c).is_infinite()
-    )
-    if control_group == CicComparisonGroup.NOT_YET_TREATED:
-        filter_ = filter_ | pl.col(treatment_group_c) > time_period
+
+    is_treated_g = pl.col(treatment_group_c) == treated_group
+    is_control_g = pl.col(treatment_group_c).is_infinite()
+    if control_group == ControlGroup.NOT_YET_TREATED:
+        is_control_g = is_control_g | (
+            pl.col(treatment_group_c) > time_period + n_anticipation_periods
+        )
 
     return ds.filter(
-        filter_ & pl.col(time_c).is_in((time_period, base_period))
+        (is_treated_g | is_control_g)
+        & pl.col(time_c).is_in((time_period, reference_period))
     ).with_columns(
         _is_treated=pl.col(treatment_group_c) == treated_group,
         _is_post=pl.col(time_c) == time_period,
@@ -119,25 +128,13 @@ def _get_ecdf(y: NDArray, w: NDArray) -> dict[str, NDArray]:
 
 
 def _compute_group_time_effect(
-    ds: pl.DataFrame,
+    two_by_two_data: pl.DataFrame,
     g: int,
     tp: int,
     outcome_c,
-    treatment_group_c,
-    time_c,
     unit_c,
     weight_c: str | None,
-    n_anticipation_periods,
 ) -> GroupTimeEffect:
-    two_by_two_data = _get_data_for_two_by_two(
-        ds,
-        treatment_group_c,
-        time_c,
-        g,
-        tp,
-        n_anticipation_periods,
-        CicComparisonGroup.NEVER_TREATED,
-    )
     _group_time_extractor = partial(
         _get_group_data,
         two_by_two_data,
@@ -186,6 +183,8 @@ def _compute_changes_in_changes_for_panel(
     qs: ArrayLike = MEDIAN,
     *,
     weight_c: str | None = None,
+    base_period: BasePeriod = BasePeriod.UNIVERSAL,
+    control_group: ControlGroup = ControlGroup.NEVER_TREATED,
     n_anticipation_periods=0,
 ) -> CicAggregations:
 
@@ -199,20 +198,27 @@ def _compute_changes_in_changes_for_panel(
     y_grid = np.linspace(outcome.min(), outcome.max(), outcome_grid_size)
 
     # Compute group time effects
+    time_periods = ds[time_c].unique().sort()
+    if base_period == BasePeriod.VARYING:
+        time_periods = time_periods.slice(1)
+    treated_groups = ds[treatment_group_c].unique().sort()[:-1]  # TODO: FIX
+
+    names = {"outcome_c": outcome_c, "weight_c": weight_c, "unit_c": unit_c}
     group_time_effects = [
-        _compute_group_time_effect(
+        _get_data_for_two_by_two(
             ds,
             g,
             tp,
-            outcome_c,
+            rp,
+            n_anticipation_periods,
             treatment_group_c,
             time_c,
-            unit_c,
-            weight_c,
-            n_anticipation_periods,
-        )
-        for tp, g in product(ds[time_c].unique(), ds[treatment_group_c].unique())
-        if tp >= g
+            control_group,
+        ).pipe(_compute_group_time_effect, g, tp, **names)
+        for tp, g in product(time_periods, treated_groups)
+        if (rp := _make_base_period(g, tp, n_anticipation_periods, base_period))
+        in time_periods
+        and not (tp == rp and base_period == BasePeriod.UNIVERSAL)
     ]
 
     group_level_effect_weights = (
@@ -224,9 +230,12 @@ def _compute_changes_in_changes_for_panel(
         .filter(pl.col("time_period") >= pl.col("group"))
         .with_columns(weight=pl.col("weight") / pl.col("weight").sum().over("group"))
     )
+    post_trt_group_time_effects = [
+        gte for gte in group_time_effects if gte.tp >= gte.group
+    ]
     group_te = aggregate_group_time_effects_again_by_group(
         qs,
-        group_time_effects,
+        post_trt_group_time_effects,
         group_level_effect_weights.pipe(weights_to_dict),
         y_grid,
         dim_id=lambda gte: gte.group,
@@ -253,7 +262,10 @@ def _compute_changes_in_changes_for_panel(
         )
     )
     agg_te = aggregate_group_time_effects_again(
-        qs, group_time_effects, overall_effect_weights.pipe(weights_to_dict), y_grid
+        qs,
+        post_trt_group_time_effects,
+        overall_effect_weights.pipe(weights_to_dict),
+        y_grid,
     )
 
     event_study_period = pl.col("time_period") - pl.col("group")
@@ -339,9 +351,11 @@ def estimate_changes_in_changes_for_panel(
     qs: ArrayLike = MEDIAN,
     *,
     weight_c: str | None = None,
-    n_bootstrap_iter: int = 1000,
     n_anticipation_periods=0,
-):
+    base_period: BasePeriod = BasePeriod.UNIVERSAL,
+    control_group: ControlGroup = ControlGroup.NEVER_TREATED,
+    n_bootstrap_iter: int = 1000,
+) -> CicResult:
     if weight_c is None:
         weight_c = "_w"
         ds = ds.with_columns(pl.lit(1).alias(weight_c))
@@ -365,13 +379,18 @@ def estimate_changes_in_changes_for_panel(
         unit_c,
         qs,
         weight_c=weight_c,
+        control_group=control_group,
         n_anticipation_periods=n_anticipation_periods,
     )
     estimate = fcn(ds)._asdict()
     bs_res = perform_bootstrap(ds, fcn, unit_c, n_iter=n_bootstrap_iter)
     groupers = [(k, v[2]) for k, v in estimate.items()]
     aggs = stack_dict_bootstraps(bs_res, groupers)
-    other_result_parts = {"outcome": outcome_c}
+    other_result_parts = {
+        "outcome": outcome_c,
+        "base_period": base_period,
+        "control_group": control_group,
+    }
     combined = {
         k: CicResult(
             val[0].join(aggs[k].qtes, on=["qs", val[2] if val[2] is not None else []]),

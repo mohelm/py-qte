@@ -7,6 +7,7 @@ from numpy.typing import NDArray
 from rich.console import Group
 from scipy.stats import norm
 
+from qte.changes_in_changes.custom_types import BasePeriod, ControlGroup
 from qte.names import CI_LB_ID, CI_UB_ID, EFFECT_ID, SE_ID
 from qte.presentation.altair_charts import make_plot
 from qte.presentation.tables.gt_tables import format_qte_result_combined_gt
@@ -40,6 +41,8 @@ class CicResult:
     _att: pl.DataFrame
     outcome: str
     group: str
+    base_period: BasePeriod
+    control_group: ControlGroup
 
     def _make_table_header_content(self, alpha: float) -> dict[str, Any]:
         header_content = {"Outcome": self.outcome}
