@@ -1,7 +1,7 @@
 import polars as pl
 import pytest
 
-from qte.datasets import load_lalonde
+from qte.datasets import load_lalonde, load_mpdta
 
 
 @pytest.mark.parametrize(
@@ -30,3 +30,19 @@ def test_load_lalonde(
 
     for col in expected_cols:
         assert col in df.columns
+
+
+def test_mpdta():
+    ds = load_mpdta()
+    assert isinstance(ds, pl.DataFrame)
+    assert ds.shape == (2500, 6)
+    expected_columns = [
+        "lemp",
+        "first.treat",
+        "year",
+        "countyreal",
+        "lpop",
+        "countyreal",
+    ]
+    for c in expected_columns:
+        assert c in ds.columns
