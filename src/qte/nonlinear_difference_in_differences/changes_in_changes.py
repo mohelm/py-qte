@@ -112,19 +112,6 @@ def _compute_kcic(pre_trt: NDArray, pre_ctrl: NDArray, post_ctrl: NDArray) -> ND
     return post_ctrl["o"][idx_k]
 
 
-def _get_ecdf(y: NDArray, w: NDArray) -> dict[str, NDArray]:
-    sorter = np.argsort(y)
-    y_sorted = y[sorter]
-    w_sorted = w[sorter]
-
-    # Handle exact ties: accumulate weights for identical outcome values
-    y_unique, indices = np.unique(y_sorted, return_inverse=True)
-    w_unique = np.bincount(indices, weights=w_sorted)
-
-    w_norm = w_unique / w_unique.sum()
-    return {"o": y_unique, "ecdf": np.cumsum(w_norm), "w": w_unique}
-
-
 def _compute_group_time_effect(
     two_by_two_data: pl.DataFrame,
     g: int,
