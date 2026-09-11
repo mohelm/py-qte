@@ -2,7 +2,7 @@ from collections.abc import Callable
 
 import numpy as np
 import polars as pl
-from numpy.typing import NDArray
+from numpy.typing import ArrayLike, NDArray
 
 from qte.names import (
     EFFECT_ID,
@@ -12,11 +12,11 @@ from qte.names import (
     QUANTILE_ID,
     QUANTILE_TREATED_VAL_ID,
 )
-from qte.nonlinear_difference_in_differences.custom_types import (
+from qte.non_linear_did.custom_types import (
     CicAggregation,
     WeightsLookup,
 )
-from qte.nonlinear_difference_in_differences.results import GroupTimeEffect
+from qte.non_linear_did.results import GroupTimeEffect
 from qte.stats import Ecdf
 
 
@@ -31,11 +31,7 @@ def get_weights_for_overall_effect(ds: pl.DataFrame) -> WeightsLookup:
             weight=(pl.col("weight") / pl.col("weight").sum().over("group"))
             * (
                 pl.col("weight").first().over("group")
-                / (
-                    (
-                        pl.col("weight").first().over("group") / pl.len().over("group")
-                    ).sum()
-                )
+                / ((pl.col("weight").first().over("group") / pl.len().over("group")).sum())
             ),
         )
         .pipe(_weights_to_dict)
@@ -64,29 +60,26 @@ def _merge_group_time_effects_on_grid(
     gtes = [g for g in gtes if (g.group, g.tp) in weights]
     weights_ = np.array([weights[(gte.group, gte.tp)] for gte in gtes])[:, None]
 
-    ecdfs_on_grid_o = (
-        np.array([g.ecdf_observed.evaluate(y_grid) for g in gtes]) * weights_
-    )
-    ecdfs_on_grid_cf = (
-        np.array([g.ecdf_counterfact.evaluate(y_grid) for g in gtes]) * weights_
-    )
+    ecdfs_on_grid_o = np.array([g.ecdf_observed.evaluate(y_grid) for g in gtes]) * weights_
+    ecdfs_on_grid_cf = np.array([g.ecdf_counterfact.evaluate(y_grid) for g in gtes]) * weights_
     means_o = np.array([gte.mean_observed for gte in gtes]) * weights_.squeeze()
     means_cf = np.array([gte.mean_countfact for gte in gtes]) * weights_.squeeze()
     return (ecdfs_on_grid_o, ecdfs_on_grid_cf, means_o, means_cf)
 
 
 def aggregate_group_time_effects_again_by_group(
-    qs,
+    qs: ArrayLike,
     gtes: list[GroupTimeEffect],
     weights: dict[tuple[int, int], float],
-    y_grid,
+    y_grid: NDArray,
     *,
     dim_id: Callable,
     dim_name: str,
 ) -> CicAggregation:
 
-    ecdf_on_grid_o, ecdf_on_grid_cf, means_o, means_cf = (
-        _merge_group_time_effects_on_grid(gtes, weights, y_grid)
+    qs = np.array(qs)
+    ecdf_on_grid_o, ecdf_on_grid_cf, means_o, means_cf = _merge_group_time_effects_on_grid(
+        gtes, weights, y_grid
     )
 
     dims = np.array([dim_id(gte) for gte in gtes])
@@ -100,19 +93,13 @@ def aggregate_group_time_effects_again_by_group(
             {
                 dim_name: d,
                 f"{QUANTILE_ID}": qs,
-                f"{QUANTILE_TREATED_VAL_ID}": Ecdf(
-                    y_grid, ecdf_o[i_d]
-                ).evaluate_inverse(qs),
-                f"{QUANTILE_CONTROL_VAL_ID}": Ecdf(
-                    y_grid, ecdf_cf[i_d]
-                ).evaluate_inverse(qs),
+                f"{QUANTILE_TREATED_VAL_ID}": Ecdf(y_grid, ecdf_o[i_d]).evaluate_inverse(qs),
+                f"{QUANTILE_CONTROL_VAL_ID}": Ecdf(y_grid, ecdf_cf[i_d]).evaluate_inverse(qs),
             }
         )
         for i_d, d in enumerate(unique_dims)
     ).with_columns(
-        (pl.col(QUANTILE_TREATED_VAL_ID) - pl.col(QUANTILE_CONTROL_VAL_ID)).alias(
-            EFFECT_ID
-        )
+        (pl.col(QUANTILE_TREATED_VAL_ID) - pl.col(QUANTILE_CONTROL_VAL_ID)).alias(EFFECT_ID)
     )
     atts = pl.DataFrame(
         {
@@ -125,29 +112,28 @@ def aggregate_group_time_effects_again_by_group(
 
 
 def aggregate_group_time_effects_again(
-    qs,
+    qs: ArrayLike,
     gtes: list[GroupTimeEffect],
     weights: dict[tuple[int, int], float],
-    y_grid,
+    y_grid: NDArray,
 ) -> CicAggregation:
-    ecdf_on_grid_o, ecdf_on_grid_cf, means_o, means_cf = (
-        _merge_group_time_effects_on_grid(gtes, weights, y_grid)
+    ecdf_on_grid_o, ecdf_on_grid_cf, means_o, means_cf = _merge_group_time_effects_on_grid(
+        gtes, weights, y_grid
     )
+    qs = np.array(qs)
 
     qtes = pl.DataFrame(
         {
             f"{QUANTILE_ID}": qs,
-            f"{QUANTILE_TREATED_VAL_ID}": Ecdf(
-                y_grid, ecdf_on_grid_o.sum(axis=0)
-            ).evaluate_inverse(qs),
+            f"{QUANTILE_TREATED_VAL_ID}": Ecdf(y_grid, ecdf_on_grid_o.sum(axis=0)).evaluate_inverse(
+                qs
+            ),
             f"{QUANTILE_CONTROL_VAL_ID}": Ecdf(
                 y_grid, ecdf_on_grid_cf.sum(axis=0)
             ).evaluate_inverse(qs),
         }
     ).with_columns(
-        (pl.col(QUANTILE_TREATED_VAL_ID) - pl.col(QUANTILE_CONTROL_VAL_ID)).alias(
-            EFFECT_ID
-        )
+        (pl.col(QUANTILE_TREATED_VAL_ID) - pl.col(QUANTILE_CONTROL_VAL_ID)).alias(EFFECT_ID)
     )
 
     atts = pl.DataFrame(

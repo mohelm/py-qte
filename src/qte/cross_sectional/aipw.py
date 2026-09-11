@@ -17,14 +17,6 @@ from qte.names import (
 from qte.stats import estimate_outcome_model, estimate_propensity_score, get_quantiles
 
 
-def _compute_f(outcome_grid_val, preds, outcome, weight1, weight2, adj) -> float:
-    f_cond = (preds <= outcome_grid_val).mean(axis=1)
-    return (
-        np.mean(weight1 * f_cond + weight2 * ((outcome <= outcome_grid_val) - f_cond))
-        / adj
-    )
-
-
 def _compute_aipw_term_for_qte(
     qs: NDArray,
     grid: NDArray,
@@ -71,7 +63,7 @@ def compute_aipw_qte(
     weights_c: str | None = None,
     target: CausalTarget = CausalTarget.QTE,
     or_quantiles: NDArray = PERCENTILES,
-):
+) -> _QteIntermediateResult:
 
     qs = np.array(qs)
     treated, control = (
@@ -79,9 +71,7 @@ def compute_aipw_qte(
         ds.filter(pl.col(treatment_c) == 0),
     )
     ps = estimate_propensity_score(ds, treatment_c, ps_x_formular).predict()
-    ors_control = estimate_outcome_model(
-        control, outcome_c, or_x_formular, or_quantiles
-    )
+    ors_control = estimate_outcome_model(control, outcome_c, or_x_formular, or_quantiles)
     preds = predict_outcome_model(ors_control, ds, flatten=False)
 
     outcome_grid = ds[outcome_c].unique().sort().to_numpy()
@@ -96,9 +86,7 @@ def compute_aipw_qte(
             weight2=(1 - ds[treatment_c].to_numpy()) / (1 - ps),
         )
 
-        ors_treated = estimate_outcome_model(
-            treated, outcome_c, or_x_formular, or_quantiles
-        )
+        ors_treated = estimate_outcome_model(treated, outcome_c, or_x_formular, or_quantiles)
         preds_treated = predict_outcome_model(ors_treated, ds, flatten=False)
         q1 = _compute_aipw_term_for_qte(
             qs,
@@ -119,9 +107,7 @@ def compute_aipw_qte(
             weight2=((1 - ds[treatment_c].to_numpy()) * ps) / (1 - ps),
             adj=ps.mean(),
         )
-        q1 = get_quantiles(
-            qs, treated[outcome_c].to_numpy(), w=make_weights(weights_c, treated)
-        )
+        q1 = get_quantiles(qs, treated[outcome_c].to_numpy(), w=make_weights(weights_c, treated))
     return _QteIntermediateResult(
         qtt=pl.DataFrame(
             {
@@ -130,16 +116,12 @@ def compute_aipw_qte(
                 QUANTILE_CONTROL_VAL_ID: q0,
             }
         ).with_columns(
-            (pl.col(QUANTILE_TREATED_VAL_ID) - pl.col(QUANTILE_CONTROL_VAL_ID)).alias(
-                EFFECT_ID
-            )
+            (pl.col(QUANTILE_TREATED_VAL_ID) - pl.col(QUANTILE_CONTROL_VAL_ID)).alias(EFFECT_ID)
         ),
         att=pl.DataFrame(
             {
                 MEAN_CONTROL_ID: [5.0],
                 MEAN_TREATED_ID: [10.0],
             }
-        ).with_columns(
-            (pl.col(MEAN_TREATED_ID) - pl.col(MEAN_CONTROL_ID)).alias(EFFECT_ID)
-        ),
+        ).with_columns((pl.col(MEAN_TREATED_ID) - pl.col(MEAN_CONTROL_ID)).alias(EFFECT_ID)),
     )

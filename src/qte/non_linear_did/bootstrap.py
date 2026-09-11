@@ -4,7 +4,7 @@ from typing import NamedTuple
 import polars as pl
 
 from qte.names import EFFECT_ID, QUANTILE_ID, SE_ID
-from qte.nonlinear_difference_in_differences.custom_types import (
+from qte.non_linear_did.custom_types import (
     CicAggregations,
 )
 
@@ -24,8 +24,7 @@ def perform_bootstrap(
         )
 
         boot_ds = (
-            sampled_units
-            .join(ds, on=unit_id, how="inner")
+            sampled_units.join(ds, on=unit_id, how="inner")
             .with_columns(pl.col("new_id").alias(unit_id))
             .drop("new_id")
         )
@@ -47,18 +46,10 @@ def get_statistics_from_bootstrap(
 
     return {
         aggregation: Estimates(
-            qtes=pl
-            .concat(
-                r[aggregation].qtt.with_columns(boot_id=i) for i, r in enumerate(runs)
-            )
-            .group_by(
-                *([grouper, QUANTILE_ID] if grouper is not None else [QUANTILE_ID])
-            )
+            qtes=pl.concat(r[aggregation].qtt.with_columns(boot_id=i) for i, r in enumerate(runs))
+            .group_by(*([grouper, QUANTILE_ID] if grouper is not None else [QUANTILE_ID]))
             .agg(agg),
-            atts=pl
-            .concat(
-                r[aggregation].att.with_columns(boot_id=i) for i, r in enumerate(runs)
-            )
+            atts=pl.concat(r[aggregation].att.with_columns(boot_id=i) for i, r in enumerate(runs))
             .group_by(grouper if grouper is not None else [])
             .agg(agg),
         )

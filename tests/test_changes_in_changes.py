@@ -1,6 +1,6 @@
 import polars as pl
 
-from qte.nonlinear_difference_in_differences.changes_in_changes import (
+from qte.non_linear_did.changes_in_changes import (
     estimate_changes_in_changes_for_panel,
 )
 

@@ -22,9 +22,7 @@ def _make_header(
         yield f"{k}{separator * padding}: {v}{new_line_char}"
 
 
-def _make_estimates_table(
-    qtes: pl.DataFrame, title: str | None, float_precision: int
-) -> Table:
+def _make_estimates_table(qtes: pl.DataFrame, title: str | None, float_precision: int) -> Table:
     table = Table(
         title=title,
         box=box.SIMPLE,

@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Any, ClassVar
 
+import altair as alt
 import polars as pl
 from great_tables import GT
 from rich.console import Group
@@ -16,6 +17,8 @@ from qte.presentation.altair_charts import make_plot
 from qte.presentation.tables.gt_tables import make_great_table
 from qte.presentation.tables.rich_tables import make_rich_table
 from qte.stats import get_ci
+
+type AltairChart = alt.Chart | alt.LayerChart | alt.FacetChart
 
 
 @dataclass()
@@ -48,7 +51,7 @@ class _BasicQteResult:
         header_content["Confidence Lvl"] = alpha
         return header_content
 
-    def plot(self, alpha: float = 0.95):
+    def plot(self, alpha: float = 0.95) -> AltairChart:
         return make_plot(
             self.qtt.with_columns(get_ci(alpha)),
             self.att.with_columns(get_ci(alpha)),

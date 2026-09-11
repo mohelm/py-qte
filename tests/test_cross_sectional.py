@@ -38,9 +38,7 @@ def test_estimate_qte():
 
 def test_estimate_ipw_qte():
     ds = make_data(5000)
-    res = estimate_ipw_qte(
-        ds, "outcome", "treated", ps_x_formular="1", qs=(0.05, 0.5, 0.95)
-    )
+    res = estimate_ipw_qte(ds, "outcome", "treated", ps_x_formular="1", qs=(0.05, 0.5, 0.95))
     assert isinstance(res, QteResult)
 
 
@@ -59,12 +57,8 @@ IPW_LALONDE_TEST_CASE = [
 @pytest.mark.parametrize("estimate_params,expected_results", IPW_LALONDE_TEST_CASE)
 def test_estimate_ipw_qte_with_lalonde(lalonde_psid, estimate_params, expected_results):
     xf = "age + I(age**2) + education + black + hispanic + married + nodegree"
-    res = estimate_ipw_qte(
-        lalonde_psid, "re78", "treat", ps_x_formular=xf, **estimate_params
-    )
-    assert_series_equal(
-        pl.Series("q", expected_results["q"]), res.get_as_dataframe()["q"]
-    )
+    res = estimate_ipw_qte(lalonde_psid, "re78", "treat", ps_x_formular=xf, **estimate_params)
+    assert_series_equal(pl.Series("q", expected_results["q"]), res.get_as_dataframe()["q"])
     assert_series_equal(
         pl.Series("effect", expected_results["effect"]),
         res.get_as_dataframe()["effect"],
@@ -78,7 +72,7 @@ OR_TEST_CASES = [
     ),
     (
         {"target": CausalTarget.QTT, "qs": QUARTILES, "n_bootstrap_iter": 10},
-        {"q": QUARTILES, "effect": [-3196.046, -5933.218, -7265.786]},
+        {"q": QUARTILES, "effect": [-3271.908, -6025.094, -7481.486]},
     ),
 ]
 
@@ -86,12 +80,8 @@ OR_TEST_CASES = [
 @pytest.mark.parametrize("estimate_params,expected_results", OR_TEST_CASES)
 def test_estimate_or_qte_with_lalonde(lalonde_psid, estimate_params, expected_results):
     xf = "age + I(age**2) + education + black + hispanic + married + nodegree"
-    res = estimate_or_qte(
-        lalonde_psid, "re78", "treat", or_x_formular=xf, **estimate_params
-    )
-    assert_series_equal(
-        pl.Series("q", expected_results["q"]), res.get_as_dataframe()["q"]
-    )
+    res = estimate_or_qte(lalonde_psid, "re78", "treat", or_x_formular=xf, **estimate_params)
+    assert_series_equal(pl.Series("q", expected_results["q"]), res.get_as_dataframe()["q"])
     assert_series_equal(
         pl.Series("effect", expected_results["effect"]),
         res.get_as_dataframe()["effect"],
@@ -112,9 +102,7 @@ AIPW_TEST_CASES = [
 
 
 @pytest.mark.parametrize("estimate_params,expected_results", AIPW_TEST_CASES)
-def test_estimate_aipw_qte_with_lalonde(
-    lalonde_psid, estimate_params, expected_results
-):
+def test_estimate_aipw_qte_with_lalonde(lalonde_psid, estimate_params, expected_results):
     xf = "age + I(age**2) + education + black + hispanic + married + nodegree"
     res = estimate_aipw_qte(
         lalonde_psid,
@@ -124,9 +112,7 @@ def test_estimate_aipw_qte_with_lalonde(
         ps_x_formular=xf,
         **estimate_params,
     )
-    assert_series_equal(
-        pl.Series("q", expected_results["q"]), res.get_as_dataframe()["q"]
-    )
+    assert_series_equal(pl.Series("q", expected_results["q"]), res.get_as_dataframe()["q"])
     assert_series_equal(
         pl.Series("effect", expected_results["effect"]),
         res.get_as_dataframe()["effect"],

@@ -41,16 +41,12 @@ def compute_simple_qte(
                 QUANTILE_CONTROL_VAL_ID: get_quantiles(qs, y_c, w_c),
             }
         ).with_columns(
-            (pl.col(QUANTILE_TREATED_VAL_ID) - pl.col(QUANTILE_CONTROL_VAL_ID)).alias(
-                EFFECT_ID
-            )
+            (pl.col(QUANTILE_TREATED_VAL_ID) - pl.col(QUANTILE_CONTROL_VAL_ID)).alias(EFFECT_ID)
         ),
         att=pl.DataFrame(
             {
                 MEAN_TREATED_ID: np.average(y_t, weights=w_t),
                 MEAN_CONTROL_ID: np.average(y_c, weights=w_c),
             }
-        ).with_columns(
-            (pl.col(MEAN_TREATED_ID) - pl.col(MEAN_CONTROL_ID)).alias(EFFECT_ID)
-        ),
+        ).with_columns((pl.col(MEAN_TREATED_ID) - pl.col(MEAN_CONTROL_ID)).alias(EFFECT_ID)),
     )

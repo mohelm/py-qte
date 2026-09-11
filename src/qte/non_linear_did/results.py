@@ -1,9 +1,10 @@
 from dataclasses import dataclass
 from typing import NamedTuple
 
-from qte.nonlinear_difference_in_differences.custom_types import (
+from qte.non_linear_did.custom_types import (
     BasePeriod,
     ControlGroup,
+    SamplingScheme,
 )
 from qte.results import _BasicQteResult
 from qte.stats import Ecdf
@@ -25,6 +26,7 @@ class CicResult(_BasicQteResult):
     group: str | None
     base_period: BasePeriod
     control_group: ControlGroup
+    sampling_scheme: SamplingScheme
 
 
 @dataclass()

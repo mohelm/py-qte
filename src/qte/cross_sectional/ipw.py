@@ -35,11 +35,12 @@ def compute_ipw_qte(
         weights = 1 if weight_c is None else ds[weight_c].to_numpy()
         bw_treated = weights * ds[treatment_c].to_numpy() / ps
         bw_control = weights * (1 - ds[treatment_c]).to_numpy() / (1 - ps)
-        q_t = get_quantiles(qs, y_t, bw_treated)
-        q_c = get_quantiles(qs, y_c, bw_control)
+        y_all = ds[outcome_c].to_numpy()
+        q_t = get_quantiles(qs, y_all, bw_treated)
+        q_c = get_quantiles(qs, y_all, bw_control)
         mean_t, mean_c = (
-            np.average(y_t, weights=bw_treated),
-            np.average(y_c, weights=bw_control),
+            np.average(y_all, weights=bw_treated),
+            np.average(y_all, weights=bw_control),
         )
 
     if target == CausalTarget.QTT:
@@ -53,7 +54,7 @@ def compute_ipw_qte(
         q_c = get_quantiles(qs, y_c, bw_control)
         mean_t, mean_c = (
             np.average(y_t, weights=w_t),
-            np.average(y_t, weights=bw_control),
+            np.average(y_c, weights=bw_control),
         )
 
     return _QteIntermediateResult(
@@ -64,16 +65,12 @@ def compute_ipw_qte(
                 QUANTILE_CONTROL_VAL_ID: q_c,
             }
         ).with_columns(
-            (pl.col(QUANTILE_TREATED_VAL_ID) - pl.col(QUANTILE_CONTROL_VAL_ID)).alias(
-                EFFECT_ID
-            )
+            (pl.col(QUANTILE_TREATED_VAL_ID) - pl.col(QUANTILE_CONTROL_VAL_ID)).alias(EFFECT_ID)
         ),
         att=pl.DataFrame(
             {
                 MEAN_TREATED_ID: mean_t,
                 MEAN_CONTROL_ID: mean_c,
             }
-        ).with_columns(
-            (pl.col(MEAN_TREATED_ID) - pl.col(MEAN_CONTROL_ID)).alias(EFFECT_ID)
-        ),
+        ).with_columns((pl.col(MEAN_TREATED_ID) - pl.col(MEAN_CONTROL_ID)).alias(EFFECT_ID)),
     )

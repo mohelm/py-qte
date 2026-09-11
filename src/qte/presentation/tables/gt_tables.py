@@ -16,14 +16,9 @@ def make_great_table(
 ) -> GT:
 
     combined = pl.concat(
-        (
-            d.with_columns(pl.lit(k).alias("__kind"))
-            for d, k in [(qtes, "qte"), (atts, "att")]
-        ),
+        (d.with_columns(pl.lit(k).alias("__kind")) for d, k in [(qtes, "qte"), (atts, "att")]),
         how="diagonal",
-    ).select(
-        *(group or []), QUANTILE_ID, EFFECT_ID, SE_ID, CI_LB_ID, CI_UB_ID, "__kind"
-    )
+    ).select(*(group or []), QUANTILE_ID, EFFECT_ID, SE_ID, CI_LB_ID, CI_UB_ID, "__kind")
 
     float_cols = [c for c, dtype in combined.schema.items() if dtype.is_float()]
 

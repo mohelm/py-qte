@@ -14,6 +14,11 @@ class BasePeriod(StrEnum):
     VARYING = "varying"
 
 
+class SamplingScheme(StrEnum):
+    PANEL = "panel"
+    REPEATED_CROSS_SECTIONS = "repeated_cross_sections"
+
+
 class CicAggregation(NamedTuple):
     qtt: pl.DataFrame
     att: pl.DataFrame

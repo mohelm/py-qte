@@ -6,9 +6,7 @@ from numpy.typing import NDArray
 from qte.quantile_regression import rq_fortran  # type: ignore
 
 
-def _fast_quantreg(
-    X: NDArray[np.float64], y: NDArray[np.float64], q: float
-) -> NDArray[np.float64]:
+def _fast_quantreg(X: NDArray[np.float64], y: NDArray[np.float64], q: float) -> NDArray[np.float64]:
     n_obs, n_coeffs = X.shape
 
     a = np.asfortranarray(X.T)
@@ -32,9 +30,7 @@ def _fast_quantreg(
 
 
 class QuantileRegressionResult:
-    def __init__(
-        self, coefficients: NDArray, x_fit: NDArray[np.float64], formula: Formula
-    ):
+    def __init__(self, coefficients: NDArray, x_fit: NDArray[np.float64], formula: Formula) -> None:
         self.coefficients = coefficients
         self._x_fit = x_fit
         self.formula = formula

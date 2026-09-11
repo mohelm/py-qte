@@ -57,7 +57,7 @@ def main():
         )
 
         # Crop the white space using Pillow
-        from PIL import Image, ImageChops  # type: ignore
+        from PIL import Image, ImageChops
 
         img = Image.open(png_path)
 

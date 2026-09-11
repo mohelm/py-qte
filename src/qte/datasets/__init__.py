@@ -6,11 +6,9 @@ import polars as pl
 
 def _make_lalonde_filename(
     controls_source: Literal["psid", "experiment"], use_panel_structure: bool
-):
+) -> str:
     ds_name = ["lalonde"]
-    controls_source_in_filename = (
-        "exp" if controls_source == "experiment" else controls_source
-    )
+    controls_source_in_filename = "exp" if controls_source == "experiment" else controls_source
     ds_name.append(controls_source_in_filename)
 
     if use_panel_structure:

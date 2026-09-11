@@ -6,24 +6,26 @@ import polars as pl
 from numpy.typing import ArrayLike, NDArray
 
 from qte.constants import MEDIAN
+from qte.custom_types import ColumnName
 from qte.names import QUANTILE_ID
-from qte.nonlinear_difference_in_differences.aggregate import (
+from qte.non_linear_did.aggregate import (
     aggregate_group_time_effects_again,
     aggregate_group_time_effects_again_by_group,
     get_weights_for_event_study_effects,
     get_weights_for_overall_effect,
     get_weights_for_treatment_group_effects,
 )
-from qte.nonlinear_difference_in_differences.bootstrap import (
+from qte.non_linear_did.bootstrap import (
     get_statistics_from_bootstrap,
     perform_bootstrap,
 )
-from qte.nonlinear_difference_in_differences.custom_types import (
+from qte.non_linear_did.custom_types import (
     BasePeriod,
     CicAggregations,
     ControlGroup,
+    SamplingScheme,
 )
-from qte.nonlinear_difference_in_differences.results import (
+from qte.non_linear_did.results import (
     CicResult,
     CicResults,
     GroupTimeEffect,
@@ -67,8 +69,7 @@ def _get_data_for_two_by_two(
         )
 
     return ds.filter(
-        (is_treated_g | is_control_g)
-        & pl.col(time_c).is_in((time_period, reference_period))
+        (is_treated_g | is_control_g) & pl.col(time_c).is_in((time_period, reference_period))
     ).with_columns(
         _is_treated=pl.col(treatment_group_c) == treated_group,
         _is_post=pl.col(time_c) == time_period,
@@ -79,8 +80,7 @@ def _get_group_data(
     ds: pl.DataFrame, filter_: pl.Expr, outcome_c: str, weight_c: str, unit_c: str
 ) -> NDArray:
     return (
-        ds
-        .filter(filter_)
+        ds.filter(filter_)
         .select(
             outcome_c,
             weight_c,
@@ -117,9 +117,9 @@ def _compute_group_time_effect(
     two_by_two_data: pl.DataFrame,
     g: int,
     tp: int,
-    outcome_c,
-    unit_c,
-    weight_c: str,
+    outcome_c: ColumnName,
+    unit_c: ColumnName,
+    weight_c: ColumnName,
 ) -> GroupTimeEffect:
     _group_time_extractor = partial(
         _get_group_data,
@@ -161,14 +161,13 @@ def _compute_changes_in_changes_for_panel(
     weight_c: str,
     base_period: BasePeriod = BasePeriod.UNIVERSAL,
     control_group: ControlGroup = ControlGroup.NEVER_TREATED,
-    n_anticipation_periods=0,
+    n_anticipation_periods: int = 0,
 ) -> CicAggregations:
 
     outcome_grid_size = 1000
 
     post_trt_ds = ds.filter(
-        pl.col(treatment_group_c).is_finite()
-        & (pl.col(time_c) >= pl.col(treatment_group_c))
+        pl.col(treatment_group_c).is_finite() & (pl.col(time_c) >= pl.col(treatment_group_c))
     )
     outcome = post_trt_ds[outcome_c].unique().to_numpy()
     y_grid = np.linspace(outcome.min(), outcome.max(), outcome_grid_size)
@@ -193,17 +192,14 @@ def _compute_changes_in_changes_for_panel(
         ).pipe(_compute_group_time_effect, g, tp, **names)
         for tp, g in product(time_periods, treated_groups)
         if (
-            (rp := _make_base_period(g, tp, n_anticipation_periods, base_period))
-            in time_periods
+            (rp := _make_base_period(g, tp, n_anticipation_periods, base_period)) in time_periods
             and not (tp == rp and base_period == BasePeriod.UNIVERSAL)
         )
     ]
     group_sizes_per_time = ds.group_by(
         pl.col(treatment_group_c).alias("group"), pl.col(time_c).alias("time_period")
     ).agg(weight=pl.col(weight_c).sum())
-    post_trt_group_time_effects = [
-        gte for gte in group_time_effects if gte.tp >= gte.group
-    ]
+    post_trt_group_time_effects = [gte for gte in group_time_effects if gte.tp >= gte.group]
 
     # AGGREGATE
     # Group
@@ -238,14 +234,14 @@ def _compute_changes_in_changes_for_panel(
 
 def estimate_changes_in_changes_for_panel(
     ds: pl.DataFrame,
-    outcome_c: str,
-    treatment_group_c: str,
-    time_c: str,
-    unit_c: str,
+    outcome_c: ColumnName,
+    treatment_group_c: ColumnName,
+    time_c: ColumnName,
+    unit_c: ColumnName,
     qs: ArrayLike = MEDIAN,
     *,
     weight_c: str | None = None,
-    n_anticipation_periods=0,
+    n_anticipation_periods: int = 0,
     base_period: BasePeriod = BasePeriod.UNIVERSAL,
     control_group: ControlGroup = ControlGroup.NEVER_TREATED,
     n_bootstrap_iter: int = 1000,
@@ -261,9 +257,7 @@ def estimate_changes_in_changes_for_panel(
     treated_groups: pl.Series = all_treated_groups.filter(
         all_treated_groups >= min(time_periods) + 1 + n_anticipation_periods
     )
-    ds = ds.filter(
-        pl.col(treatment_group_c).is_in(set(treated_groups.to_list()).union([ntg_id]))
-    )
+    ds = ds.filter(pl.col(treatment_group_c).is_in(set(treated_groups.to_list()).union([ntg_id])))
     fcn = partial(
         _compute_changes_in_changes_for_panel,
         outcome_c=outcome_c,
@@ -298,6 +292,7 @@ def estimate_changes_in_changes_for_panel(
             outcome=outcome_c,
             base_period=base_period,
             control_group=control_group,
+            sampling_scheme=SamplingScheme.PANEL,
         )
         for agg_name, agg in estimate.items()
     }

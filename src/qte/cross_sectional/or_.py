@@ -32,9 +32,7 @@ def compute_or_qte(
         ds.filter(pl.col(treatment_c) == 1),
         ds.filter(pl.col(treatment_c) == 0),
     )
-    ors_control = estimate_outcome_model(
-        control, outcome_c, or_x_formular, or_quantiles
-    )
+    ors_control = estimate_outcome_model(control, outcome_c, or_x_formular, or_quantiles)
 
     if target == CausalTarget.QTE:
         preds_control = predict_outcome_model(ors_control, ds)
@@ -42,9 +40,7 @@ def compute_or_qte(
         weights = make_weights(weights_c, ds, or_quantiles.shape[0])
         q_c = get_quantiles(qs, preds_control, weights)
 
-        ors_treated = estimate_outcome_model(
-            treated, outcome_c, or_x_formular, or_quantiles
-        )
+        ors_treated = estimate_outcome_model(treated, outcome_c, or_x_formular, or_quantiles)
         preds_treated = predict_outcome_model(ors_treated, ds)
         q_t = get_quantiles(qs, preds_treated, weights)
         mean_t, mean_c = (
@@ -72,16 +68,12 @@ def compute_or_qte(
                 QUANTILE_CONTROL_VAL_ID: q_c,
             }
         ).with_columns(
-            (pl.col(QUANTILE_TREATED_VAL_ID) - pl.col(QUANTILE_CONTROL_VAL_ID)).alias(
-                EFFECT_ID
-            )
+            (pl.col(QUANTILE_TREATED_VAL_ID) - pl.col(QUANTILE_CONTROL_VAL_ID)).alias(EFFECT_ID)
         ),
         att=pl.DataFrame(
             {
                 MEAN_TREATED_ID: mean_t,
                 MEAN_CONTROL_ID: mean_c,
             }
-        ).with_columns(
-            (pl.col(MEAN_TREATED_ID) - pl.col(MEAN_CONTROL_ID)).alias(EFFECT_ID)
-        ),
+        ).with_columns((pl.col(MEAN_TREATED_ID) - pl.col(MEAN_CONTROL_ID)).alias(EFFECT_ID)),
     )
