@@ -26,30 +26,35 @@ def compute_ipw_qte(
 ) -> _QteIntermediateResult:
     ps = estimate_propensity_score(ds, treatment_c, ps_x_formular).predict()
 
+    treated, control = (
+        ds.filter(pl.col(treatment_c) == 1),
+        ds.filter(pl.col(treatment_c) == 0),
+    )
+    y_t, y_c = treated[outcome_c].to_numpy(), control[outcome_c].to_numpy()
     if target == CausalTarget.QTE:
         weights = 1 if weight_c is None else ds[weight_c].to_numpy()
         bw_treated = weights * ds[treatment_c].to_numpy() / ps
         bw_control = weights * (1 - ds[treatment_c]).to_numpy() / (1 - ps)
-        q_t = get_quantiles(qs, ds[outcome_c].to_numpy(), bw_treated)
-        q_c = get_quantiles(qs, ds[outcome_c].to_numpy(), bw_control)
+        q_t = get_quantiles(qs, y_t, bw_treated)
+        q_c = get_quantiles(qs, y_c, bw_control)
+        mean_t, mean_c = (
+            np.average(y_t, weights=bw_treated),
+            np.average(y_c, weights=bw_control),
+        )
 
     if target == CausalTarget.QTT:
-        treated, control = (
-            ds.filter(pl.col(treatment_c) == 1),
-            ds.filter(pl.col(treatment_c) == 0),
-        )
-        q_t = get_quantiles(
-            qs,
-            treated[outcome_c].to_numpy(),
-            treated[weight_c].to_numpy() if weight_c is not None else None,
-        )
+        # TODO: lookhere.
+        w_t = treated[weight_c].to_numpy() if weight_c is not None else None
+        q_t = get_quantiles(qs, y_t, w_t)
         control_obs_selector = ds[treatment_c].to_numpy() == 0
-        weights = (
-            1 if weight_c is None else ds[weight_c].to_numpy()[:, control_obs_selector]
-        )
+        weights = 1 if weight_c is None else control[weight_c].to_numpy()
         ps_c = ps[control_obs_selector]
         bw_control = weights * ps_c / (1 - ps_c)
-        q_c = get_quantiles(qs, control[outcome_c].to_numpy(), bw_control)
+        q_c = get_quantiles(qs, y_c, bw_control)
+        mean_t, mean_c = (
+            np.average(y_t, weights=w_t),
+            np.average(y_t, weights=bw_control),
+        )
 
     return _QteIntermediateResult(
         qtt=pl.DataFrame(
@@ -65,8 +70,8 @@ def compute_ipw_qte(
         ),
         att=pl.DataFrame(
             {
-                MEAN_CONTROL_ID: [5.0],
-                MEAN_TREATED_ID: [10.0],
+                MEAN_TREATED_ID: mean_t,
+                MEAN_CONTROL_ID: mean_c,
             }
         ).with_columns(
             (pl.col(MEAN_TREATED_ID) - pl.col(MEAN_CONTROL_ID)).alias(EFFECT_ID)

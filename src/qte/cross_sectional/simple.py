@@ -30,22 +30,15 @@ def compute_simple_qte(
         ds.filter(pl.col(treatment_c) == 1.0),
         ds.filter(pl.col(treatment_c) == 0.0),
     )
-    q_t = get_quantiles(
-        qs,
-        treated[outcome_c].to_numpy(),
-        weight_c if weight_c is None else treated[weight_c].to_numpy(),
-    )
-    q_c = get_quantiles(
-        qs,
-        control[outcome_c].to_numpy(),
-        weight_c if weight_c is None else control[weight_c].to_numpy(),
-    )
+    w_t = weight_c if weight_c is None else treated[weight_c].to_numpy()
+    w_c = weight_c if weight_c is None else control[weight_c].to_numpy()
+    y_t, y_c = treated[outcome_c].to_numpy(), control[outcome_c].to_numpy()
     return _QteIntermediateResult(
         qtt=pl.DataFrame(
             {
                 QUANTILE_ID: qs,
-                QUANTILE_TREATED_VAL_ID: q_t,
-                QUANTILE_CONTROL_VAL_ID: q_c,
+                QUANTILE_TREATED_VAL_ID: get_quantiles(qs, y_t, w_t),
+                QUANTILE_CONTROL_VAL_ID: get_quantiles(qs, y_c, w_c),
             }
         ).with_columns(
             (pl.col(QUANTILE_TREATED_VAL_ID) - pl.col(QUANTILE_CONTROL_VAL_ID)).alias(
@@ -54,8 +47,8 @@ def compute_simple_qte(
         ),
         att=pl.DataFrame(
             {
-                MEAN_CONTROL_ID: [5.0],
-                MEAN_TREATED_ID: [10.0],
+                MEAN_TREATED_ID: np.average(y_t, weights=w_t),
+                MEAN_CONTROL_ID: np.average(y_c, weights=w_c),
             }
         ).with_columns(
             (pl.col(MEAN_TREATED_ID) - pl.col(MEAN_CONTROL_ID)).alias(EFFECT_ID)

@@ -47,13 +47,21 @@ def compute_or_qte(
         )
         preds_treated = predict_outcome_model(ors_treated, ds)
         q_t = get_quantiles(qs, preds_treated, weights)
+        mean_t, mean_c = (
+            np.average(preds_treated, weights=weights),
+            np.average(preds_control, weights=weights),
+        )
 
     if target == CausalTarget.QTT:
         preds_control = predict_outcome_model(ors_control, treated)
-        weights = make_weights(weights_c, treated, or_quantiles.shape[0])
-        q_c = get_quantiles(qs, preds_control, weights)
-        q_t = get_quantiles(
-            qs, treated[outcome_c].to_numpy(), w=make_weights(weights_c, treated)
+        w_c = make_weights(weights_c, treated, or_quantiles.shape[0])
+        q_c = get_quantiles(qs, preds_control, w_c)
+        w_t = make_weights(weights_c, treated)
+        y_t = treated[outcome_c].to_numpy()
+        q_t = get_quantiles(qs, y_t, w=w_t)
+        mean_t, mean_c = (
+            np.average(y_t, weights=w_t),
+            np.average(preds_control, weights=w_c),
         )
 
     return _QteIntermediateResult(
@@ -70,8 +78,8 @@ def compute_or_qte(
         ),
         att=pl.DataFrame(
             {
-                MEAN_CONTROL_ID: [5.0],
-                MEAN_TREATED_ID: [10.0],
+                MEAN_TREATED_ID: mean_t,
+                MEAN_CONTROL_ID: mean_c,
             }
         ).with_columns(
             (pl.col(MEAN_TREATED_ID) - pl.col(MEAN_CONTROL_ID)).alias(EFFECT_ID)
