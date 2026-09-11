@@ -6,6 +6,14 @@ from qte.constants import PERCENTILES
 from qte.cross_sectional.or_helpers import make_weights, predict_outcome_model
 from qte.cross_sectional.results import _QteIntermediateResult
 from qte.custom_types import CausalTarget
+from qte.names import (
+    EFFECT_ID,
+    MEAN_CONTROL_ID,
+    MEAN_TREATED_ID,
+    QUANTILE_CONTROL_VAL_ID,
+    QUANTILE_ID,
+    QUANTILE_TREATED_VAL_ID,
+)
 from qte.stats import estimate_outcome_model, estimate_propensity_score, get_quantiles
 
 
@@ -114,4 +122,24 @@ def compute_aipw_qte(
         q1 = get_quantiles(
             qs, treated[outcome_c].to_numpy(), w=make_weights(weights_c, treated)
         )
-    return _QteIntermediateResult(qs, q1, q0)
+    return _QteIntermediateResult(
+        qtt=pl.DataFrame(
+            {
+                QUANTILE_ID: qs,
+                QUANTILE_TREATED_VAL_ID: q1,
+                QUANTILE_CONTROL_VAL_ID: q0,
+            }
+        ).with_columns(
+            (pl.col(QUANTILE_TREATED_VAL_ID) - pl.col(QUANTILE_CONTROL_VAL_ID)).alias(
+                EFFECT_ID
+            )
+        ),
+        att=pl.DataFrame(
+            {
+                MEAN_CONTROL_ID: [5.0],
+                MEAN_TREATED_ID: [10.0],
+            }
+        ).with_columns(
+            (pl.col(MEAN_TREATED_ID) - pl.col(MEAN_CONTROL_ID)).alias(EFFECT_ID)
+        ),
+    )

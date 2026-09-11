@@ -1,5 +1,16 @@
 from collections.abc import Iterable
 
+from qte.names import CI_LB_ID, CI_UB_ID, EFFECT_ID, QUANTILE_ID, SE_ID
+
+NICE_NAMES: dict[str, str] = {
+    "group": "Group",
+    QUANTILE_ID: "Quantile",
+    EFFECT_ID: "Effect Estimate",
+    SE_ID: "Std. Error",
+    CI_LB_ID: "Lower CI",
+    CI_UB_ID: "Upper CI",
+}
+
 
 def _make_header(
     content: dict[str, str],

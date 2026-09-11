@@ -4,20 +4,43 @@ import pytest
 
 from qte.cross_sectional.results import QteResult
 from qte.custom_types import CausalTarget, Estimator
+from qte.names import (
+    EFFECT_ID,
+    MEAN_CONTROL_ID,
+    MEAN_TREATED_ID,
+    QUANTILE_CONTROL_VAL_ID,
+    QUANTILE_ID,
+    QUANTILE_TREATED_VAL_ID,
+    SE_ID,
+)
 
 
 @pytest.fixture
 def mock_qte_result():
     ds = pl.DataFrame(
         {
-            "q": [0.25, 0.5, 0.75],
-            "effect": [-5.0, 0.0, 5.0],
-            "q_val_t": [10.0, 15.0, 20.0],
-            "q_val_c": [15.0, 15.0, 15.0],
-            "se": [1.0, 1.0, 1.0],
+            QUANTILE_ID: [0.25, 0.5, 0.75],
+            EFFECT_ID: [-5.0, 0.0, 5.0],
+            QUANTILE_TREATED_VAL_ID: [10.0, 15.0, 20.0],
+            QUANTILE_CONTROL_VAL_ID: [15.0, 15.0, 15.0],
+            SE_ID: [1.0, 1.0, 1.0],
         }
     )
-    return QteResult(Estimator.SIMPLE, CausalTarget.QTE, ds)
+    return QteResult(
+        qtt=ds,
+        att=pl.DataFrame(
+            {
+                MEAN_TREATED_ID: [10.0],
+                MEAN_CONTROL_ID: [15.0],
+                EFFECT_ID: [-5.0],
+                SE_ID: [1.0],
+            }
+        ),
+        outcome="re78",
+        group=None,
+        estimator=Estimator.SIMPLE,
+        causal_target=CausalTarget.QTE,
+    )
 
 
 def test_plot_returns_altair_chart(mock_qte_result):
@@ -29,7 +52,7 @@ def test_plot_returns_altair_chart(mock_qte_result):
     assert isinstance(chart_dict, dict)
 
     layers = chart_dict.get("layer", [])
-    assert len(layers) == 3  # 3 lines (effect, ci_lb, ci_ub)
+    assert len(layers) == 2  # 2 aggregate layers (qte and att)
 
 
 def test_plot_with_different_alpha(mock_qte_result):

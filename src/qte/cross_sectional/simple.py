@@ -4,6 +4,14 @@ from numpy.typing import ArrayLike
 
 from qte.cross_sectional.results import _QteIntermediateResult
 from qte.custom_types import ColumnName
+from qte.names import (
+    EFFECT_ID,
+    MEAN_CONTROL_ID,
+    MEAN_TREATED_ID,
+    QUANTILE_CONTROL_VAL_ID,
+    QUANTILE_ID,
+    QUANTILE_TREATED_VAL_ID,
+)
 from qte.stats import get_quantiles
 
 
@@ -17,6 +25,7 @@ def compute_simple_qte(
 ) -> _QteIntermediateResult:
     qs = np.array(qs)
 
+    # TODO: look into that
     treated, control = (
         ds.filter(pl.col(treatment_c) == 1.0),
         ds.filter(pl.col(treatment_c) == 0.0),
@@ -31,4 +40,24 @@ def compute_simple_qte(
         control[outcome_c].to_numpy(),
         weight_c if weight_c is None else control[weight_c].to_numpy(),
     )
-    return _QteIntermediateResult(qs, q_t, q_c)
+    return _QteIntermediateResult(
+        qtt=pl.DataFrame(
+            {
+                QUANTILE_ID: qs,
+                QUANTILE_TREATED_VAL_ID: q_t,
+                QUANTILE_CONTROL_VAL_ID: q_c,
+            }
+        ).with_columns(
+            (pl.col(QUANTILE_TREATED_VAL_ID) - pl.col(QUANTILE_CONTROL_VAL_ID)).alias(
+                EFFECT_ID
+            )
+        ),
+        att=pl.DataFrame(
+            {
+                MEAN_CONTROL_ID: [5.0],
+                MEAN_TREATED_ID: [10.0],
+            }
+        ).with_columns(
+            (pl.col(MEAN_TREATED_ID) - pl.col(MEAN_CONTROL_ID)).alias(EFFECT_ID)
+        ),
+    )

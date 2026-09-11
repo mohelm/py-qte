@@ -4,23 +4,14 @@ import polars as pl
 from great_tables import GT, md
 
 from qte.names import CI_LB_ID, CI_UB_ID, EFFECT_ID, QUANTILE_ID, SE_ID
-from qte.presentation.tables.common import _make_header
-
-NICE_NAMES: dict[str, str] = {
-    "group": "Group",
-    QUANTILE_ID: "Quantile",
-    EFFECT_ID: "Effect Estimate",
-    SE_ID: "Std. Error",
-    CI_LB_ID: "Lower CI",
-    CI_UB_ID: "Upper CI",
-}
+from qte.presentation.tables.common import NICE_NAMES, _make_header
 
 
-def format_qte_result_combined_gt(
+def make_great_table(
     qtes: pl.DataFrame,
     atts: pl.DataFrame,
     group: str | None,
-    hc: dict[str, Any],
+    header_content: dict[str, Any],
     float_precision: int = 2,
 ) -> GT:
 
@@ -36,8 +27,8 @@ def format_qte_result_combined_gt(
 
     float_cols = [c for c, dtype in combined.schema.items() if dtype.is_float()]
 
-    header_meat = "".join(_make_header(hc, "&nbsp", "<br>"))
-    subtitle = f"<div style='font-family: monospace;'>{header_meat}</div>"
+    st_meat = "".join(_make_header(header_content, "&nbsp", "<br>"))
+    subtitle = f"<div style='font-family: monospace;'>{st_meat}</div>"
 
     return (
         GT(combined, groupname_col="__kind", rowname_col=group)

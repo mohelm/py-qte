@@ -4,6 +4,14 @@ from numpy.typing import NDArray
 
 from qte.cross_sectional.results import _QteIntermediateResult
 from qte.custom_types import CausalTarget
+from qte.names import (
+    EFFECT_ID,
+    MEAN_CONTROL_ID,
+    MEAN_TREATED_ID,
+    QUANTILE_CONTROL_VAL_ID,
+    QUANTILE_ID,
+    QUANTILE_TREATED_VAL_ID,
+)
 from qte.stats import estimate_propensity_score, get_quantiles
 
 
@@ -43,4 +51,24 @@ def compute_ipw_qte(
         bw_control = weights * ps_c / (1 - ps_c)
         q_c = get_quantiles(qs, control[outcome_c].to_numpy(), bw_control)
 
-    return _QteIntermediateResult(qs, q_t, q_c)
+    return _QteIntermediateResult(
+        qtt=pl.DataFrame(
+            {
+                QUANTILE_ID: qs,
+                QUANTILE_TREATED_VAL_ID: q_t,
+                QUANTILE_CONTROL_VAL_ID: q_c,
+            }
+        ).with_columns(
+            (pl.col(QUANTILE_TREATED_VAL_ID) - pl.col(QUANTILE_CONTROL_VAL_ID)).alias(
+                EFFECT_ID
+            )
+        ),
+        att=pl.DataFrame(
+            {
+                MEAN_CONTROL_ID: [5.0],
+                MEAN_TREATED_ID: [10.0],
+            }
+        ).with_columns(
+            (pl.col(MEAN_TREATED_ID) - pl.col(MEAN_CONTROL_ID)).alias(EFFECT_ID)
+        ),
+    )

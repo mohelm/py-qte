@@ -18,13 +18,14 @@ def perform_bootstrap(
     units = ds.select(unit_id).unique()
     n_units = len(units)
     for _ in range(n_iter):
-        # 1. Resample unit IDs with replacement and assign new unique IDs
+        # Resample unit IDs with replacement and assign new unique IDs
         sampled_units = units.sample(n=n_units, with_replacement=True).with_columns(
             pl.int_range(0, n_units).alias("new_id")
         )
 
         boot_ds = (
-            sampled_units.join(ds, on=unit_id, how="inner")
+            sampled_units
+            .join(ds, on=unit_id, how="inner")
             .with_columns(pl.col("new_id").alias(unit_id))
             .drop("new_id")
         )
@@ -46,14 +47,16 @@ def get_statistics_from_bootstrap(
 
     return {
         aggregation: Estimates(
-            qtes=pl.concat(
+            qtes=pl
+            .concat(
                 r[aggregation].qtt.with_columns(boot_id=i) for i, r in enumerate(runs)
             )
             .group_by(
                 *([grouper, QUANTILE_ID] if grouper is not None else [QUANTILE_ID])
             )
             .agg(agg),
-            atts=pl.concat(
+            atts=pl
+            .concat(
                 r[aggregation].att.with_columns(boot_id=i) for i, r in enumerate(runs)
             )
             .group_by(grouper if grouper is not None else [])

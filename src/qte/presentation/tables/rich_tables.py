@@ -7,15 +7,7 @@ from rich.console import Group
 from rich.table import Table
 from rich.text import Text
 
-from qte.names import CI_LB_ID, CI_UB_ID, EFFECT_ID, QUANTILE_ID, SE_ID
-
-NICE_NAMES: dict[str, str] = {
-    EFFECT_ID: "Effect Estimate",
-    QUANTILE_ID: "Quantile",
-    SE_ID: "Std. Error",
-    CI_LB_ID: "Lower CI",
-    CI_UB_ID: "Upper CI",
-}
+from qte.presentation.tables.common import NICE_NAMES
 
 
 def _make_header(
@@ -57,7 +49,7 @@ def _make_estimates_table(
     return table
 
 
-def _format_qte_result_for_console(
+def make_rich_table(
     qtes: pl.DataFrame,
     atts: pl.DataFrame,
     hc: dict[str, Any],

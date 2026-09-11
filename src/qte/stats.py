@@ -4,9 +4,11 @@ import numpy as np
 import polars as pl
 import statsmodels.formula.api as smf
 from numpy.typing import NDArray
+from scipy.stats import norm
 from statsmodels.discrete.discrete_model import BinaryResultsWrapper
 
 from qte.custom_types import ColumnName, FormularRhs, Series
+from qte.names import CI_LB_ID, CI_UB_ID, EFFECT_ID, SE_ID
 from qte.quantile_regression import QuantileRegression, QuantileRegressionResult
 
 
@@ -62,3 +64,11 @@ class Ecdf:
     def evaluate(self, grid: NDArray) -> NDArray:
         idx = np.searchsorted(self.values, grid, side="right")
         return np.concatenate(([0.0], self.probs))[idx]
+
+
+def get_ci(alpha: float) -> list[pl.Expr]:
+    alpha_half = (1 - alpha) / 2
+    return [
+        (pl.col(EFFECT_ID) + norm.ppf(alpha_half) * pl.col(SE_ID)).alias(CI_LB_ID),
+        (pl.col(EFFECT_ID) + norm.ppf(1 - alpha_half) * pl.col(SE_ID)).alias(CI_UB_ID),
+    ]

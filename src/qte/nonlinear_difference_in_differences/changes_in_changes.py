@@ -79,7 +79,8 @@ def _get_group_data(
     ds: pl.DataFrame, filter_: pl.Expr, outcome_c: str, weight_c: str, unit_c: str
 ) -> NDArray:
     return (
-        ds.filter(filter_)
+        ds
+        .filter(filter_)
         .select(
             outcome_c,
             weight_c,

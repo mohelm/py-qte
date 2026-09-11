@@ -6,7 +6,10 @@ from numpy.typing import ArrayLike
 
 from qte.constants import MEDIAN
 from qte.cross_sectional.aipw import compute_aipw_qte
-from qte.cross_sectional.bootstrap import perform_bootstrap
+from qte.cross_sectional.bootstrap import (
+    get_statistics_from_bootstrap,
+    perform_bootstrap,
+)
 from qte.cross_sectional.ipw import compute_ipw_qte as compute_ipw_qte
 from qte.cross_sectional.or_ import compute_or_qte
 from qte.cross_sectional.results import QteResult
@@ -14,7 +17,7 @@ from qte.cross_sectional.results import _QteIntermediateResult as _QteIntermedia
 from qte.cross_sectional.se import get_se
 from qte.cross_sectional.simple import compute_simple_qte
 from qte.custom_types import CausalTarget, ColumnName, Estimator, FormularRhs
-from qte.names import QUANTILE_ID
+from qte.names import QUANTILE_ID, SE_ID
 
 
 def estimate_simple_qte(
@@ -35,13 +38,15 @@ def estimate_simple_qte(
         weight_c=weight_c,
     )
     estimate = fcn(ds)
-    bs_res = perform_bootstrap(ds, fcn=fcn, n_iter=n_bootstrap_iter)
-    res = estimate.to_polars().join(get_se(bs_res), on=QUANTILE_ID)
+    bs_it = perform_bootstrap(ds, fcn=fcn, n_iter=n_bootstrap_iter)
+    bs_stats = get_statistics_from_bootstrap(bs_it)
     return QteResult(
-        _res=res,
+        _qtt=estimate.qtt.join(bs_stats.qtt, on=QUANTILE_ID),
+        _att=estimate.att.with_columns(bs_stats.att[SE_ID]),
         causal_target=CausalTarget.QTE,
         estimator=Estimator.SIMPLE,
-        outcome_variable=outcome_c,
+        outcome=outcome_c,
+        group=None,
     )
 
 
@@ -67,13 +72,15 @@ def estimate_ipw_qte(
         target=target,
     )
     estimate = fcn(ds)
-    bs_res = perform_bootstrap(ds, fcn=fcn, n_iter=n_bootstrap_iter)
-    res = estimate.to_polars().join(get_se(bs_res), on=QUANTILE_ID)
+    bs_it = perform_bootstrap(ds, fcn=fcn, n_iter=n_bootstrap_iter)
+    bs_stats = get_statistics_from_bootstrap(bs_it)
     return QteResult(
-        _res=res,
+        _qtt=estimate.qtt.join(bs_stats.qtt, on=QUANTILE_ID),
+        _att=estimate.att.with_columns(bs_stats.att[SE_ID]),
         causal_target=target,
         estimator=Estimator.IPW,
-        outcome_variable=outcome_c,
+        outcome=outcome_c,
+        group=None,
         ps_x_formular=ps_x_formular,
     )
 
@@ -100,13 +107,15 @@ def estimate_or_qte(
         target=target,
     )
     estimate = fcn(ds)
-    bs_res = perform_bootstrap(ds, fcn=fcn, n_iter=n_bootstrap_iter)
-    res = estimate.to_polars().join(get_se(bs_res), on=QUANTILE_ID)
+    bs_it = perform_bootstrap(ds, fcn=fcn, n_iter=n_bootstrap_iter)
+    bs_stats = get_statistics_from_bootstrap(bs_it)
     return QteResult(
-        _res=res,
+        _qtt=estimate.qtt.join(bs_stats.qtt, on=QUANTILE_ID),
+        _att=estimate.att.with_columns(bs_stats.att[SE_ID]),
         causal_target=target,
         estimator=Estimator.OR,
-        outcome_variable=outcome_c,
+        outcome=outcome_c,
+        group=None,
         or_x_formular=or_x_formular,
     )
 
@@ -135,13 +144,15 @@ def estimate_aipw_qte(
         target=target,
     )
     estimate = fcn(ds)
-    bs_res = perform_bootstrap(ds, fcn=fcn, n_iter=n_bootstrap_iter)
-    res = estimate.to_polars().join(get_se(bs_res), on=QUANTILE_ID)
+    bs_it = perform_bootstrap(ds, fcn=fcn, n_iter=n_bootstrap_iter)
+    bs_stats = get_statistics_from_bootstrap(bs_it)
     return QteResult(
-        _res=res,
+        _qtt=estimate.qtt.join(bs_stats.qtt, on=QUANTILE_ID),
+        _att=estimate.att.with_columns(bs_stats.att[SE_ID]),
         causal_target=target,
         estimator=Estimator.AIPW,
-        outcome_variable=outcome_c,
+        outcome=outcome_c,
+        group=None,
         ps_x_formular=ps_x_formular,
         or_x_formular=or_x_formular,
     )
