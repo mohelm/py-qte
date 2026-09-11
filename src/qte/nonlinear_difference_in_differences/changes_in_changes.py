@@ -1,17 +1,22 @@
-from collections.abc import Callable, Iterable, Iterator
 from functools import partial
 from itertools import product
-from typing import NamedTuple
 
 import numpy as np
 import polars as pl
 from numpy.typing import ArrayLike, NDArray
 
 from qte.constants import MEDIAN
-from qte.names import EFFECT_ID, QUANTILE_ID
+from qte.names import QUANTILE_ID
 from qte.nonlinear_difference_in_differences.aggregate import (
     aggregate_group_time_effects_again,
     aggregate_group_time_effects_again_by_group,
+    get_weights_for_event_study_effects,
+    get_weights_for_overall_effect,
+    get_weights_for_treatment_group_effects,
+)
+from qte.nonlinear_difference_in_differences.bootstrap import (
+    get_statistics_from_bootstrap,
+    perform_bootstrap,
 )
 from qte.nonlinear_difference_in_differences.custom_types import (
     BasePeriod,
@@ -23,17 +28,7 @@ from qte.nonlinear_difference_in_differences.results import (
     CicResults,
     GroupTimeEffect,
 )
-
-
-class Ecdf(NamedTuple):
-    values: NDArray
-    probs: NDArray
-    weights: NDArray | None = None
-
-    def evaluate_inverse(self, qs: NDArray) -> NDArray:
-        idx = np.searchsorted(self.probs, qs, side="left")
-        idx = np.clip(idx, 0, len(self.values) - 1)
-        return self.values[idx]
+from qte.stats import Ecdf
 
 
 def _make_base_period(
@@ -96,12 +91,6 @@ def _get_group_data(
     )
 
 
-def _agg_ecdf(ecdf, grid) -> NDArray:
-    idx = np.searchsorted(ecdf["o"], grid, side="right")
-    padded = np.concatenate(([0.0], ecdf["ecdf"]))
-    return padded[idx]
-
-
 def _compute_kcic(pre_trt: NDArray, pre_ctrl: NDArray, post_ctrl: NDArray) -> NDArray:
     # Compute the ecdf of (pre/ctrl)
     w_pre_ctrl_norm = pre_ctrl["w"] / pre_ctrl["w"].sum()
@@ -158,8 +147,8 @@ def _compute_group_time_effect(
     post_ctrl = _group_time_extractor((~pl.col("_is_treated")) & pl.col("_is_post"))
 
     kcic = _compute_kcic(pre_trt, pre_ctrl, post_ctrl)
-    ecdf_post_treated_observed = _get_ecdf(post_trt["o"], post_trt["w"])
-    ecdf_post_treated_counterfact = _get_ecdf(kcic, pre_trt["w"])
+    ecdf_post_treated_observed = Ecdf.make(post_trt["o"], post_trt["w"])
+    ecdf_post_treated_counterfact = Ecdf.make(kcic, pre_trt["w"])
 
     return GroupTimeEffect(
         group=g,
@@ -171,10 +160,6 @@ def _compute_group_time_effect(
         group_size_observed=post_trt["w"].sum(),
         group_size_counterfactual=pre_trt["w"].sum(),
     )
-
-
-def weights_to_dict(d: pl.DataFrame) -> dict[tuple[int, int], float]:
-    return dict(zip(zip(d["group"], d["time_period"]), d["weight"]))
 
 
 def _compute_changes_in_changes_for_panel(
@@ -219,132 +204,48 @@ def _compute_changes_in_changes_for_panel(
             control_group,
         ).pipe(_compute_group_time_effect, g, tp, **names)
         for tp, g in product(time_periods, treated_groups)
-        if (rp := _make_base_period(g, tp, n_anticipation_periods, base_period))
-        in time_periods
-        and not (tp == rp and base_period == BasePeriod.UNIVERSAL)
-    ]
-
-    group_level_effect_weights = (
-        ds.group_by(
-            pl.col(treatment_group_c).alias("group"),
-            pl.col(time_c).alias("time_period"),
+        if (
+            (rp := _make_base_period(g, tp, n_anticipation_periods, base_period))
+            in time_periods
+            and not (tp == rp and base_period == BasePeriod.UNIVERSAL)
         )
-        .agg(weight=pl.col(weight_c).sum())
-        .filter(pl.col("time_period") >= pl.col("group"))
-        .with_columns(weight=pl.col("weight") / pl.col("weight").sum().over("group"))
-    )
+    ]
+    group_sizes_per_time = ds.group_by(
+        pl.col(treatment_group_c).alias("group"), pl.col(time_c).alias("time_period")
+    ).agg(weight=pl.col(weight_c).sum())
     post_trt_group_time_effects = [
         gte for gte in group_time_effects if gte.tp >= gte.group
     ]
+
+    # AGGREGATE
+    # Group
     group_te = aggregate_group_time_effects_again_by_group(
         qs,
         post_trt_group_time_effects,
-        group_level_effect_weights.pipe(weights_to_dict),
+        get_weights_for_treatment_group_effects(group_sizes_per_time),
         y_grid,
         dim_id=lambda gte: gte.group,
-        dim_name="group",
+        dim_name="treatment_group",
     )
-
-    overall_effect_weights = (
-        ds.group_by(
-            pl.col(treatment_group_c).alias("group"),
-            pl.col(time_c).alias("time_period"),
-        )
-        .agg(weight=pl.col(weight_c).sum())
-        .filter(pl.col("time_period") >= pl.col("group"))
-        .with_columns(
-            weight=(pl.col("weight") / pl.col("weight").sum().over("group"))
-            * (
-                pl.col("weight").first().over("group")
-                / (
-                    (
-                        pl.col("weight").first().over("group") / pl.len().over("group")
-                    ).sum()
-                )
-            ),
-        )
-    )
+    # Overall
     agg_te = aggregate_group_time_effects_again(
         qs,
         post_trt_group_time_effects,
-        overall_effect_weights.pipe(weights_to_dict),
+        get_weights_for_overall_effect(group_sizes_per_time),
         y_grid,
     )
 
-    event_study_period = pl.col("time_period") - pl.col("group")
-    event_study_effect_weights = (
-        ds.group_by(
-            pl.col(treatment_group_c).alias("group"),
-            pl.col(time_c).alias("time_period"),
-        )
-        .agg(weight=pl.col(weight_c).sum())
-        .with_columns(
-            weight=pl.col("weight") / pl.col("weight").sum().over(event_study_period)
-        )
-    ).pipe(weights_to_dict)
+    # Event study
     event_study_te = aggregate_group_time_effects_again_by_group(
         qs,
         group_time_effects,
-        event_study_effect_weights,
+        get_weights_for_event_study_effects(group_sizes_per_time),
         y_grid,
         dim_id=lambda gte: gte.tp - gte.group,
-        dim_name="es_period",
+        dim_name="event_study_period",
     )
 
     return CicAggregations(group=group_te, event_study=event_study_te, overall=agg_te)
-
-
-def perform_bootstrap(
-    ds: pl.DataFrame,
-    fcn: Callable[[pl.DataFrame], CicAggregations],
-    unit_id: str,
-    n_iter: int,
-) -> Iterator[CicAggregations]:
-    units = ds.select(unit_id).unique()
-    n_units = len(units)
-    for _ in range(n_iter):
-        # 1. Resample unit IDs with replacement and assign new unique IDs
-        sampled_units = units.sample(n=n_units, with_replacement=True).with_columns(
-            pl.int_range(0, n_units).alias("new_id")
-        )
-
-        boot_ds = (
-            sampled_units.join(ds, on=unit_id, how="inner")
-            .with_columns(pl.col("new_id").alias(unit_id))
-            .drop("new_id")
-        )
-
-        yield fcn(boot_ds)
-
-
-class Estimates(NamedTuple):
-    atts: pl.DataFrame
-    qtes: pl.DataFrame
-
-
-def stack_dict_bootstraps(
-    boot_iter: Iterable[CicAggregations],
-    aggregations: Iterable[tuple[str, str | None]],
-) -> dict[str, Estimates]:
-    runs = list(boot_iter)
-
-    return {
-        aggregation: Estimates(
-            qtes=pl.concat(
-                r[aggregation].qtt.with_columns(boot_id=i) for i, r in enumerate(runs)
-            )
-            .group_by(
-                *([grouper, QUANTILE_ID] if grouper is not None else [QUANTILE_ID])
-            )
-            .agg(se=pl.col(EFFECT_ID).std()),
-            atts=pl.concat(
-                r[aggregation].att.with_columns(boot_id=i) for i, r in enumerate(runs)
-            )
-            .group_by(grouper if grouper is not None else [])
-            .agg(se=pl.col(EFFECT_ID).std()),
-        )
-        for aggregation, grouper in aggregations
-    }
 
 
 def estimate_changes_in_changes_for_panel(
@@ -393,7 +294,7 @@ def estimate_changes_in_changes_for_panel(
     groupers: list[tuple[str, str | None]] = [
         (agg_name, agg.group) for agg_name, agg in estimate.items()
     ]
-    bs_aggs = stack_dict_bootstraps(bs_iterations, groupers)
+    bs_aggs = get_statistics_from_bootstrap(bs_iterations, groupers)
     combined = {
         agg_name: CicResult(
             agg.qtt.join(
@@ -402,7 +303,8 @@ def estimate_changes_in_changes_for_panel(
             ),
             agg.att.join(
                 bs_aggs[agg_name].atts,
-                on=[agg.group] if agg.group is not None else [],
+                on=[agg.group] if agg.group is not None else None,
+                how="inner" if agg.group is not None else "cross",
             ),
             group=agg.group,
             outcome=outcome_c,

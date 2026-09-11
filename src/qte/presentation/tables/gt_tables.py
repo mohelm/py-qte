@@ -30,7 +30,9 @@ def format_qte_result_combined_gt(
             for d, k in [(qtes, "qte"), (atts, "att")]
         ),
         how="diagonal",
-    ).select(*(group or []), "qs", EFFECT_ID, SE_ID, CI_LB_ID, CI_UB_ID, "__kind")
+    ).select(
+        *(group or []), QUANTILE_ID, EFFECT_ID, SE_ID, CI_LB_ID, CI_UB_ID, "__kind"
+    )
 
     float_cols = [c for c, dtype in combined.schema.items() if dtype.is_float()]
 

@@ -1,5 +1,4 @@
 from collections.abc import Callable
-from typing import NamedTuple
 
 import numpy as np
 import polars as pl
@@ -13,25 +12,49 @@ from qte.names import (
     QUANTILE_ID,
     QUANTILE_TREATED_VAL_ID,
 )
-from qte.nonlinear_difference_in_differences.custom_types import CicAggregation
+from qte.nonlinear_difference_in_differences.custom_types import (
+    CicAggregation,
+    WeightsLookup,
+)
 from qte.nonlinear_difference_in_differences.results import GroupTimeEffect
+from qte.stats import Ecdf
 
 
-def _agg_ecdf(ecdf, grid) -> NDArray:
-    idx = np.searchsorted(ecdf["o"], grid, side="right")
-    padded = np.concatenate(([0.0], ecdf["ecdf"]))
-    return padded[idx]
+def _weights_to_dict(d: pl.DataFrame) -> WeightsLookup:
+    return dict(zip(zip(d["group"], d["time_period"]), d["weight"]))
 
 
-class Ecdf(NamedTuple):
-    values: NDArray
-    probs: NDArray
-    weights: NDArray | None = None
+def get_weights_for_overall_effect(ds: pl.DataFrame) -> WeightsLookup:
+    return (
+        ds.filter(pl.col("time_period") >= pl.col("group"))
+        .with_columns(
+            weight=(pl.col("weight") / pl.col("weight").sum().over("group"))
+            * (
+                pl.col("weight").first().over("group")
+                / (
+                    (
+                        pl.col("weight").first().over("group") / pl.len().over("group")
+                    ).sum()
+                )
+            ),
+        )
+        .pipe(_weights_to_dict)
+    )
 
-    def evaluate_inverse(self, qs: NDArray) -> NDArray:
-        idx = np.searchsorted(self.probs, qs, side="left")
-        idx = np.clip(idx, 0, len(self.values) - 1)
-        return self.values[idx]
+
+def get_weights_for_treatment_group_effects(ds: pl.DataFrame) -> WeightsLookup:
+    return (
+        ds.filter(pl.col("time_period") >= pl.col("group"))
+        .with_columns(weight=pl.col("weight") / pl.col("weight").sum().over("group"))
+        .pipe(_weights_to_dict)
+    )
+
+
+def get_weights_for_event_study_effects(ds: pl.DataFrame) -> WeightsLookup:
+    event_study_period = pl.col("time_period") - pl.col("group")
+    return ds.with_columns(
+        weight=pl.col("weight") / pl.col("weight").sum().over(event_study_period)
+    ).pipe(_weights_to_dict)
 
 
 def _merge_group_time_effects_on_grid(
@@ -42,10 +65,10 @@ def _merge_group_time_effects_on_grid(
     weights_ = np.array([weights[(gte.group, gte.tp)] for gte in gtes])[:, None]
 
     ecdfs_on_grid_o = (
-        np.array([_agg_ecdf(g.ecdf_observed, y_grid) for g in gtes]) * weights_
+        np.array([g.ecdf_observed.evaluate(y_grid) for g in gtes]) * weights_
     )
     ecdfs_on_grid_cf = (
-        np.array([_agg_ecdf(g.ecdf_counterfact, y_grid) for g in gtes]) * weights_
+        np.array([g.ecdf_counterfact.evaluate(y_grid) for g in gtes]) * weights_
     )
     means_o = np.array([gte.mean_observed for gte in gtes]) * weights_.squeeze()
     means_cf = np.array([gte.mean_countfact for gte in gtes]) * weights_.squeeze()

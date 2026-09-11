@@ -3,7 +3,6 @@ from typing import Any, NamedTuple
 
 import polars as pl
 from great_tables import GT
-from numpy.typing import NDArray
 from rich.console import Group
 from scipy.stats import norm
 
@@ -15,13 +14,14 @@ from qte.nonlinear_difference_in_differences.custom_types import (
 from qte.presentation.altair_charts import make_plot
 from qte.presentation.tables.gt_tables import format_qte_result_combined_gt
 from qte.presentation.tables.rich_tables import _format_qte_result_for_console
+from qte.stats import Ecdf
 
 
 class GroupTimeEffect(NamedTuple):
     group: int
     tp: int
-    ecdf_observed: dict[str, NDArray]
-    ecdf_counterfact: dict[str, NDArray]
+    ecdf_observed: Ecdf
+    ecdf_counterfact: Ecdf
     mean_observed: float
     mean_countfact: float
     group_size_observed: int

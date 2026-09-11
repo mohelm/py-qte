@@ -21,3 +21,7 @@ class CicAggregation(NamedTuple):
 
 
 CicAggregations = dict[str, CicAggregation]
+
+TreatmentGroup = int
+TimePeriod = int
+WeightsLookup = dict[tuple[TreatmentGroup, TimePeriod], float]
