@@ -131,6 +131,9 @@ def estimate_aipw_qte(
     weights_c: str | None = None,
     n_bootstrap_iter: int = 100,
 ) -> QteResult:
+    if weights_c is None:
+        weights_c = "_w"
+        ds = ds.with_columns(pl.lit(1).alias(weights_c))
     qs = np.array(qs)
     fcn = partial(
         compute_aipw_qte,

@@ -77,17 +77,17 @@ def _get_data_for_two_by_two(
 
 
 def _get_group_data(
-    ds: pl.DataFrame, filter_: pl.Expr, outcome_c: str, weight_c: str, unit_c: str
+    ds: pl.DataFrame, filter_: pl.Expr, outcome_c: str, weights_c: str, unit_c: str
 ) -> NDArray:
     return (
         ds.filter(filter_)
         .select(
             outcome_c,
-            weight_c,
+            weights_c,
             unit_c,
         )
         .sort(outcome_c)
-        .rename({outcome_c: "o", weight_c: "w", unit_c: "u"})
+        .rename({outcome_c: "o", weights_c: "w", unit_c: "u"})
         .to_numpy(structured=True)
     )
 
@@ -119,13 +119,13 @@ def _compute_group_time_effect(
     tp: int,
     outcome_c: ColumnName,
     unit_c: ColumnName,
-    weight_c: ColumnName,
+    weights_c: ColumnName,
 ) -> GroupTimeEffect:
     _group_time_extractor = partial(
         _get_group_data,
         two_by_two_data,
         outcome_c=outcome_c,
-        weight_c=weight_c,
+        weights_c=weights_c,
         unit_c=unit_c,
     )
 
@@ -158,7 +158,7 @@ def _compute_changes_in_changes_for_panel(
     unit_c: str,
     qs: ArrayLike = MEDIAN,
     *,
-    weight_c: str,
+    weights_c: str,
     base_period: BasePeriod = BasePeriod.UNIVERSAL,
     control_group: ControlGroup = ControlGroup.NEVER_TREATED,
     n_anticipation_periods: int = 0,
@@ -178,7 +178,7 @@ def _compute_changes_in_changes_for_panel(
         time_periods = time_periods.slice(1)
     treated_groups = ds[treatment_group_c].unique().sort()[:-1]  # TODO: FIX
 
-    names = {"outcome_c": outcome_c, "weight_c": weight_c, "unit_c": unit_c}
+    names = {"outcome_c": outcome_c, "weights_c": weights_c, "unit_c": unit_c}
     group_time_effects = [
         _get_data_for_two_by_two(
             ds,
@@ -198,7 +198,7 @@ def _compute_changes_in_changes_for_panel(
     ]
     group_sizes_per_time = ds.group_by(
         pl.col(treatment_group_c).alias("group"), pl.col(time_c).alias("time_period")
-    ).agg(weight=pl.col(weight_c).sum())
+    ).agg(weight=pl.col(weights_c).sum())
     post_trt_group_time_effects = [gte for gte in group_time_effects if gte.tp >= gte.group]
 
     # AGGREGATE
@@ -240,15 +240,15 @@ def estimate_changes_in_changes_for_panel(
     unit_c: ColumnName,
     qs: ArrayLike = MEDIAN,
     *,
-    weight_c: str | None = None,
+    weights_c: str | None = None,
     n_anticipation_periods: int = 0,
     base_period: BasePeriod = BasePeriod.UNIVERSAL,
     control_group: ControlGroup = ControlGroup.NEVER_TREATED,
     n_bootstrap_iter: int = 1000,
 ) -> CicResults:
-    if weight_c is None:
-        weight_c = "_w"
-        ds = ds.with_columns(pl.lit(1).alias(weight_c))
+    if weights_c is None:
+        weights_c = "_w"
+        ds = ds.with_columns(pl.lit(1).alias(weights_c))
     ntg_id = float("inf")
     all_groups = ds[treatment_group_c].unique()
     all_treated_groups = all_groups.filter(all_groups.is_finite())
@@ -265,7 +265,7 @@ def estimate_changes_in_changes_for_panel(
         time_c=time_c,
         unit_c=unit_c,
         qs=qs,
-        weight_c=weight_c,
+        weights_c=weights_c,
         base_period=base_period,
         control_group=control_group,
         n_anticipation_periods=n_anticipation_periods,

@@ -30,8 +30,8 @@ def load_lalonde(
 
 
 def load_mpdta() -> pl.DataFrame:
-    """
-    Load the minimum wage panel dataset (mpdta) used in the did and qte packages.
+    """Load the minimum wage panel dataset (mpdta) used in the did and qte packages.
+
     Contains county-level teen employment data from 2003-2007.
     """
     with importlib.resources.path("qte.datasets", "mpdta.parquet") as path:

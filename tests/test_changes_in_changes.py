@@ -11,5 +11,5 @@ def test_estimate_changes_in_changes_for_panel(mpdata):
         pl.col("year").cast(pl.Float64).alias("year"),
     )
     _ = estimate_changes_in_changes_for_panel(
-        ds, "lemp", "first.treat", "year", "countyreal", qs=[0.25, 0.5, 0.75]
+        ds, "lemp", "first.treat", "year", "countyreal", qs=[0.25, 0.5, 0.75], n_bootstrap_iter=10
     )
