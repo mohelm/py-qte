@@ -23,6 +23,7 @@ from qte.non_linear_did.custom_types import (
     BasePeriod,
     CicAggregations,
     ControlGroup,
+    CounterfactualModel,
     SamplingScheme,
 )
 from qte.non_linear_did.results import (
@@ -30,7 +31,7 @@ from qte.non_linear_did.results import (
     CicResults,
     GroupTimeEffect,
 )
-from qte.stats import Ecdf
+from qte.stats import Ecdf, get_quantiles
 
 
 def _make_reference_period(
@@ -113,6 +114,22 @@ def _compute_kcic(pre_trt: NDArray, pre_ctrl: NDArray, post_ctrl: NDArray) -> ND
     return post_ctrl["o"][idx_k]
 
 
+def _compute_kqdid(pre_trt: NDArray, pre_ctrl: NDArray, post_ctrl: NDArray) -> NDArray:
+    # QDiD shifts every treated pre-treatment observation by the control group's quantile change at
+    # that observation's rank *within the treated pre-treatment distribution* (unlike CiC, which
+    # ranks within the control's pre-treatment distribution).
+    y = pre_trt["o"]
+    _, inv = np.unique(y, return_inverse=True)
+    w_unique = np.bincount(inv, weights=pre_trt["w"])
+    u = np.cumsum(w_unique)[inv] / w_unique.sum()
+    u = np.clip(u, 0.0, 1.0)
+
+    q_pre_ctrl = get_quantiles(u, pre_ctrl["o"], pre_ctrl["w"])
+    q_post_ctrl = get_quantiles(u, post_ctrl["o"], post_ctrl["w"])
+
+    return y + q_post_ctrl - q_pre_ctrl
+
+
 def _compute_group_time_effect(
     two_by_two_data: pl.DataFrame,
     g: int,
@@ -120,6 +137,7 @@ def _compute_group_time_effect(
     outcome_c: ColumnName,
     unit_c: ColumnName,
     weights_c: ColumnName,
+    counterfactual_model: CounterfactualModel,
 ) -> GroupTimeEffect:
     _group_time_extractor = partial(
         _get_group_data,
@@ -134,9 +152,14 @@ def _compute_group_time_effect(
     pre_ctrl = _group_time_extractor((~pl.col("_is_treated")) & (~pl.col("_is_post")))
     post_ctrl = _group_time_extractor((~pl.col("_is_treated")) & pl.col("_is_post"))
 
-    kcic = _compute_kcic(pre_trt, pre_ctrl, post_ctrl)
+    kcf = (
+        _compute_kcic(pre_trt, pre_ctrl, post_ctrl)
+        if counterfactual_model == CounterfactualModel.CIC
+        else _compute_kqdid(pre_trt, pre_ctrl, post_ctrl)
+    )
+
     ecdf_post_treated_observed = Ecdf.make(post_trt["o"], post_trt["w"])
-    ecdf_post_treated_counterfact = Ecdf.make(kcic, pre_trt["w"])
+    ecdf_post_treated_counterfact = Ecdf.make(kcf, pre_trt["w"])
 
     return GroupTimeEffect(
         group=g,
@@ -144,7 +167,7 @@ def _compute_group_time_effect(
         ecdf_observed=ecdf_post_treated_observed,
         ecdf_counterfact=ecdf_post_treated_counterfact,
         mean_observed=np.average(post_trt["o"], weights=post_trt["w"]),
-        mean_countfact=np.average(kcic, weights=pre_trt["w"]),
+        mean_countfact=np.average(kcf, weights=pre_trt["w"]),
         group_size_observed=post_trt["w"].sum(),
         group_size_counterfactual=pre_trt["w"].sum(),
     )
@@ -161,6 +184,7 @@ def _compute_changes_in_changes_for_panel(
     weights_c: str,
     base_period: BasePeriod = BasePeriod.UNIVERSAL,
     control_group: ControlGroup = ControlGroup.NEVER_TREATED,
+    counterfactual_model: CounterfactualModel = CounterfactualModel.CIC,
     n_anticipation_periods: int = 0,
 ) -> CicAggregations:
 
@@ -176,7 +200,6 @@ def _compute_changes_in_changes_for_panel(
     time_periods = ds[time_c].unique().sort()
     treated_groups = ds[treatment_group_c].unique().sort()[:-1]  # TODO: FIX
 
-    names = {"outcome_c": outcome_c, "weights_c": weights_c, "unit_c": unit_c}
     group_time_effects = [
         _get_data_for_two_by_two(
             ds,
@@ -187,7 +210,15 @@ def _compute_changes_in_changes_for_panel(
             treatment_group_c,
             time_c,
             control_group,
-        ).pipe(_compute_group_time_effect, g, tp, **names)
+        ).pipe(
+            _compute_group_time_effect,
+            g,
+            tp,
+            outcome_c=outcome_c,
+            unit_c=unit_c,
+            weights_c=weights_c,
+            counterfactual_model=counterfactual_model,
+        )
         for tp, g in product(time_periods, treated_groups)
         if (
             (rp := _make_reference_period(g, tp, n_anticipation_periods, base_period))
@@ -242,6 +273,7 @@ def estimate_changes_in_changes_for_panel(
     n_anticipation_periods: int = 0,
     base_period: BasePeriod = BasePeriod.UNIVERSAL,
     control_group: ControlGroup = ControlGroup.NEVER_TREATED,
+    counterfactual_model: CounterfactualModel = CounterfactualModel.CIC,
     n_bootstrap_iter: int = 1000,
 ) -> CicResults:
     if weights_c is None:
@@ -266,6 +298,7 @@ def estimate_changes_in_changes_for_panel(
         weights_c=weights_c,
         base_period=base_period,
         control_group=control_group,
+        counterfactual_model=counterfactual_model,
         n_anticipation_periods=n_anticipation_periods,
     )
     estimate: CicAggregations = fcn(ds)
@@ -291,6 +324,7 @@ def estimate_changes_in_changes_for_panel(
             base_period=base_period,
             control_group=control_group,
             sampling_scheme=SamplingScheme.PANEL,
+            counterfactual_model=counterfactual_model,
         )
         for agg_name, agg in estimate.items()
     }

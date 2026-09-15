@@ -4,6 +4,7 @@ from typing import NamedTuple
 from qte.non_linear_did.custom_types import (
     BasePeriod,
     ControlGroup,
+    CounterfactualModel,
     SamplingScheme,
 )
 from qte.results import _BasicQteResult
@@ -27,6 +28,7 @@ class CicResult(_BasicQteResult):
     base_period: BasePeriod
     control_group: ControlGroup
     sampling_scheme: SamplingScheme
+    counterfactual_model: CounterfactualModel
 
 
 @dataclass()

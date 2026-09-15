@@ -19,6 +19,11 @@ class SamplingScheme(StrEnum):
     REPEATED_CROSS_SECTIONS = "repeated_cross_sections"
 
 
+class CounterfactualModel(StrEnum):
+    CIC = "cic"
+    QDID = "qdid"
+
+
 class CicAggregation(NamedTuple):
     qtt: pl.DataFrame
     att: pl.DataFrame
