@@ -40,11 +40,11 @@ class _BasicQteResult:
     def __post_init__(self) -> None:
         self.qtt = self.qtt.sort(
             [
-                *([self.group] if self.group is None else []),
+                *([self.group] if self.group is not None else []),
                 QUANTILE_ID,
             ]
         )
-        self.att = self.att.sort([self.group] if self.group is None else [])
+        self.att = self.att.sort([self.group] if self.group is not None else [])
 
     def _make_table_header_content(self, alpha: float) -> dict[str, Any]:
         header_content = {"Outcome": self.outcome}

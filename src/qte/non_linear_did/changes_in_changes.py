@@ -33,7 +33,7 @@ from qte.non_linear_did.results import (
 from qte.stats import Ecdf
 
 
-def _make_base_period(
+def _make_reference_period(
     treated_group: int,
     time_period: int,
     n_anticipation_periods: int,
@@ -174,8 +174,6 @@ def _compute_changes_in_changes_for_panel(
 
     # Compute group time effects
     time_periods = ds[time_c].unique().sort()
-    if base_period == BasePeriod.VARYING:
-        time_periods = time_periods.slice(1)
     treated_groups = ds[treatment_group_c].unique().sort()[:-1]  # TODO: FIX
 
     names = {"outcome_c": outcome_c, "weights_c": weights_c, "unit_c": unit_c}
@@ -192,7 +190,8 @@ def _compute_changes_in_changes_for_panel(
         ).pipe(_compute_group_time_effect, g, tp, **names)
         for tp, g in product(time_periods, treated_groups)
         if (
-            (rp := _make_base_period(g, tp, n_anticipation_periods, base_period)) in time_periods
+            (rp := _make_reference_period(g, tp, n_anticipation_periods, base_period))
+            in time_periods
             and not (tp == rp and base_period == BasePeriod.UNIVERSAL)
         )
     ]
@@ -223,12 +222,11 @@ def _compute_changes_in_changes_for_panel(
     event_study_te = aggregate_group_time_effects_again_by_group(
         qs,
         group_time_effects,
-        get_weights_for_event_study_effects(group_sizes_per_time),
+        get_weights_for_event_study_effects(group_sizes_per_time, base_period=base_period),
         y_grid,
         dim_id=lambda gte: gte.tp - gte.group,
         dim_name="event_study_period",
     )
-
     return CicAggregations(group=group_te, event_study=event_study_te, overall=agg_te)
 
 
