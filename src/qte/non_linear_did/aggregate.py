@@ -45,15 +45,11 @@ def get_weights_for_treatment_group_effects(ds: pl.DataFrame) -> WeightsLookup:
 
 def get_weights_for_event_study_effects(ds: pl.DataFrame, base_period: BasePeriod) -> WeightsLookup:
     event_study_period = pl.col("time_period") - pl.col("group")
-    return (
-        ds.filter(
-            []
-            if base_period == BasePeriod.UNIVERSAL
-            else pl.col("time_period") > pl.col("time_period").min()
-        )
-        .with_columns(weight=pl.col("weight") / pl.col("weight").sum().over(event_study_period))
-        .pipe(_weights_to_dict)
-    )
+    if base_period == BasePeriod.VARYING:
+        ds = ds.filter(pl.col("time_period") > pl.col("time_period").min())
+    return ds.with_columns(
+        weight=pl.col("weight") / pl.col("weight").sum().over(event_study_period)
+    ).pipe(_weights_to_dict)
 
 
 def _merge_group_time_effects_on_grid(
