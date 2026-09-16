@@ -24,7 +24,7 @@ def compute_ipw_qte(
     weight_c: str | None = None,
     target: CausalTarget = CausalTarget.QTE,
 ) -> _QteIntermediateResult:
-    ps = estimate_propensity_score(ds, treatment_c, ps_x_formular).predict()
+    ps = estimate_propensity_score(ds, treatment_c, ps_x_formular, weight_c).predict()
 
     treated, control = (
         ds.filter(pl.col(treatment_c) == 1),

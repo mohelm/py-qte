@@ -77,8 +77,8 @@ def compute_aipw_qte(
 
     qs = np.array(qs)
     treated, control = (ds.filter(pl.col(treatment_c) == 1), ds.filter(pl.col(treatment_c) == 0))
-    ps = estimate_propensity_score(ds, treatment_c, ps_x_formular).predict()
-    ors_control = estimate_outcome_model(control, outcome_c, or_x_formular, or_quantiles)
+    ps = estimate_propensity_score(ds, treatment_c, ps_x_formular, weights_c).predict()
+    ors_control = estimate_outcome_model(control, outcome_c, or_x_formular, or_quantiles, weights_c)
     preds = predict_outcome_model(ors_control, ds, flatten=False)
 
     outcome_grid = ds[outcome_c].unique().sort().to_numpy()
@@ -102,7 +102,9 @@ def compute_aipw_qte(
         )
         m_c = _compute_aipw_mean(preds, ds[outcome_c].to_numpy(), 1 - d, 1 - ps, w_all)
 
-        ors_treated = estimate_outcome_model(treated, outcome_c, or_x_formular, or_quantiles)
+        ors_treated = estimate_outcome_model(
+            treated, outcome_c, or_x_formular, or_quantiles, weights_c
+        )
         preds_treated = predict_outcome_model(ors_treated, ds, flatten=False)
         q_t = _compute_aipw_quantiles(
             qs,

@@ -36,3 +36,29 @@ def load_mpdta() -> pl.DataFrame:
     """
     with importlib.resources.path("qte.datasets", "mpdta.parquet") as path:
         return pl.read_parquet(path)
+
+
+def load_engel_with_with_weights() -> pl.DataFrame:
+    """Load Engel (1857) food expenditure data with an additional weights column.
+
+    It is mainly used for comparing the quantile regression with and without weights against the
+    results obtained from quantreg::rq in R. The columns were generated as
+
+    ```{r}
+    library(dplyr)
+    data(engel)
+    engel_weighted <- engel %>%
+    mutate(
+    # Probability of selection decreases as income grows
+    prob_selection = 1 / (1 + exp((income - mean(income)) / sd(income))),
+    # Sampling weight is the inverse selection probability
+    w = 1 / prob_selection,
+
+    log_income = log(income),
+    log_foodexp = log(foodexp)
+    )
+    ```
+
+    """
+    with importlib.resources.path("qte.datasets", "engel_with_weights.parquet") as path:
+        return pl.read_parquet(path)

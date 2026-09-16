@@ -34,7 +34,9 @@ def compute_or_qte(
     )
 
     # Estimate the outcome model on the controls
-    ors_control = estimate_outcome_model(control, outcome_c, or_x_formular, outcome_reg_quantiles)
+    ors_control = estimate_outcome_model(
+        control, outcome_c, or_x_formular, outcome_reg_quantiles, weights_c
+    )
 
     if target == CausalTarget.QTE:
         # For global treatment effects, we obtain for each observation the 'distribution' as
@@ -51,7 +53,7 @@ def compute_or_qte(
         # treated. Then obtain the predictions from that model for all observations, and lastly
         # compute the statistics of interest.
         ors_treated = estimate_outcome_model(
-            treated, outcome_c, or_x_formular, outcome_reg_quantiles
+            treated, outcome_c, or_x_formular, outcome_reg_quantiles, weights_c
         )
         preds_treated = predict_outcome_model(ors_treated, ds, flatten=True)
         q_t = get_quantiles(qs, preds_treated, weights)
