@@ -8,9 +8,18 @@ _KIND_COLOR = alt.Scale(domain=_KIND_ORDER, range=["black", "red"])
 
 
 def _make_line_layer(
-    base: alt.Chart, y: str, stroke_dash: tuple[int, int] = (1, 0)
+    base: alt.Chart, y: str, tick_values: list[float], stroke_dash: tuple[int, int] = (1, 0)
 ) -> tuple[alt.Chart, alt.Chart]:
-    x = alt.X(f"{QUANTILE_ID}:Q", axis=alt.Axis(title="Q", titleFontWeight="normal"))
+    x = alt.X(
+        f"{QUANTILE_ID}:Q",
+        axis=alt.Axis(
+            title="Q",
+            titleFontWeight="normal",
+            values=tick_values,
+            # At most 3 decimals (0.333 for 1/3); `~` trims trailing zeros.
+            format=".3~f",
+        ),
+    )
     line_chart = base.mark_line(color="black", strokeDash=list(stroke_dash)).encode(  # ty: ignore[unresolved-attribute]
         x=x, y=alt.Y(y, title="")
     )
@@ -25,15 +34,15 @@ def _make_rule_layer(base: alt.Chart, y: str, stroke_dash: tuple[int, int] = (1,
 
 
 def _make_plot_with_multiple_quantiles(
-    combined: pl.DataFrame, group: str | None
+    combined: pl.DataFrame, group: str | None, tick_values: list[float]
 ) -> alt.LayerChart | alt.FacetChart:
     base = alt.Chart(combined)
 
     qtes_ds = base.transform_filter(alt.datum.__kind == "qte")
     qte_layer = alt.layer(
-        *_make_line_layer(qtes_ds, EFFECT_ID),
-        *_make_line_layer(qtes_ds, CI_UB_ID, stroke_dash=(8, 8)),
-        *_make_line_layer(qtes_ds, CI_LB_ID, stroke_dash=(8, 8)),
+        *_make_line_layer(qtes_ds, EFFECT_ID, tick_values),
+        *_make_line_layer(qtes_ds, CI_UB_ID, tick_values, stroke_dash=(8, 8)),
+        *_make_line_layer(qtes_ds, CI_LB_ID, tick_values, stroke_dash=(8, 8)),
     )
 
     atts_ds = base.transform_filter(alt.datum.__kind == "att")
@@ -95,10 +104,10 @@ def make_plot(
         (d.with_columns(pl.lit(k).alias("__kind")) for d, k in [(qtes, "qte"), (atts, "att")]),
         how="diagonal",
     )
-    quantiles = qtes[QUANTILE_ID].unique()
+    quantiles = qtes[QUANTILE_ID].unique().sort()
     n_quantiles = quantiles.shape[0]
     return (
-        _make_plot_with_multiple_quantiles(combined, group)
+        _make_plot_with_multiple_quantiles(combined, group, quantiles.to_list())
         if n_quantiles > 1
         else _make_plot_for_single_quantile(combined, quantile=quantiles.item(), group=group)
     )
