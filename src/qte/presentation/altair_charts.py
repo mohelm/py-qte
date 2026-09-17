@@ -3,11 +3,14 @@ import polars as pl
 
 from qte.names import CI_LB_ID, CI_UB_ID, EFFECT_ID, QUANTILE_ID
 
+_KIND_ORDER = ["qte", "att"]
+_KIND_COLOR = alt.Scale(domain=_KIND_ORDER, range=["black", "red"])
+
 
 def _make_line_layer(
     base: alt.Chart, y: str, stroke_dash: tuple[int, int] = (1, 0)
 ) -> tuple[alt.Chart, alt.Chart]:
-    x = alt.X(f"{QUANTILE_ID}:O", title="Quantile")
+    x = alt.X(f"{QUANTILE_ID}:O", axis=alt.Axis(title="Q", titleFontWeight="normal"))
     line_chart = base.mark_line(color="black", strokeDash=list(stroke_dash)).encode(  # ty: ignore[unresolved-attribute]
         x=x, y=alt.Y(y, title="")
     )
@@ -21,16 +24,9 @@ def _make_rule_layer(base: alt.Chart, y: str, stroke_dash: tuple[int, int] = (1,
     return base.mark_rule(color="red", strokeDash=stroke_dash).encode(y=alt.Y(f"{y}:Q"))  # ty: ignore[unresolved-attribute]
 
 
-def make_plot(
-    qtes: pl.DataFrame, atts: pl.DataFrame, group: str | None = None
+def _make_plot_with_multiple_quantiles(
+    combined: pl.DataFrame, group: str | None
 ) -> alt.LayerChart | alt.FacetChart:
-
-    # Need to have one dataset for Altair.
-    combined = pl.concat(
-        (d.with_columns(pl.lit(k).alias("__kind")) for d, k in [(qtes, "qte"), (atts, "att")]),
-        how="diagonal",
-    )
-
     base = alt.Chart(combined)
 
     qtes_ds = base.transform_filter(alt.datum.__kind == "qte")
@@ -47,6 +43,62 @@ def make_plot(
         _make_rule_layer(atts_ds, CI_UB_ID, stroke_dash=(8, 8)),
     )
 
-    chart = alt.layer(qte_layer, att_layer)
+    layer = alt.layer(qte_layer, att_layer)
+    return (
+        layer
+        if group is None
+        else layer.facet(column=alt.Column(f"{group}:N")).configure_facet(spacing=1)
+    )
 
-    return chart if group is None else chart.facet(column=alt.Column(f"{group}:N"))
+
+def _make_plot_for_single_quantile(
+    combined: pl.DataFrame, quantile: float, group: str | None
+) -> alt.LayerChart | alt.FacetChart:
+    base = alt.Chart(combined)
+    x = alt.X("__kind", title=None, sort=_KIND_ORDER)
+    color = alt.Color("__kind:N", scale=_KIND_COLOR, legend=None)
+    title = alt.Title(
+        text="Quantile and Average Treatment Effects",
+        subtitle=f"The QTE is measured for {quantile=}.",
+        offset=10,
+    )
+    layer = alt.layer(
+        base.mark_point(filled=True).encode(  # ty: ignore[unresolved-attribute]
+            x=x, y=alt.Y(EFFECT_ID, title=None), color=color
+        ),
+        base.mark_rule().encode(  # ty: ignore[unresolved-attribute]
+            x=x,
+            y=alt.Y(CI_LB_ID, title=None),
+            y2=alt.Y2(CI_UB_ID, title=None),
+            color=color,
+        ),
+        base.mark_point(shape="stroke", size=150, strokeWidth=3).encode(  # ty: ignore[unresolved-attribute]
+            x=x, y=alt.Y(CI_LB_ID, title=None), color=color
+        ),
+        base.mark_point(shape="stroke", size=150, strokeWidth=3).encode(  # ty: ignore[unresolved-attribute]
+            x=x, y=alt.Y(CI_UB_ID, title=None), color=color
+        ),
+    )
+    return (
+        layer
+        if group is None
+        else layer.facet(column=alt.Column(f"{group}:N")).configure_facet(spacing=1)
+    ).properties(title=title)
+
+
+def make_plot(
+    qtes: pl.DataFrame, atts: pl.DataFrame, group: str | None = None
+) -> alt.LayerChart | alt.FacetChart:
+
+    # Need to have one dataset for Altair.
+    combined = pl.concat(
+        (d.with_columns(pl.lit(k).alias("__kind")) for d, k in [(qtes, "qte"), (atts, "att")]),
+        how="diagonal",
+    )
+    quantiles = qtes[QUANTILE_ID].unique()
+    n_quantiles = quantiles.shape[0]
+    return (
+        _make_plot_with_multiple_quantiles(combined, group)
+        if n_quantiles > 1
+        else _make_plot_for_single_quantile(combined, quantile=quantiles.item(), group=group)
+    )
