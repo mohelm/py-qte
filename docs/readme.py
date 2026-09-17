@@ -1,12 +1,20 @@
-"""Regenerate the figures embedded in the project README.
+"""Regenerate the README and the assets it embeds.
 
 Run with ``uv run python -m docs.readme`` after changing the estimator or its
 presentation. The committed figures under ``assets/`` are what the README
-references, so this is a deliberate step rather than part of a docs build.
+references, and ``README_PYPI.md`` is generated from ``README.md`` with
+repo-relative links made absolute, so this is a deliberate step rather than
+part of a docs build.
+
+Pass ``--pypi-readme-only`` to skip the slow, Firefox-dependent figure
+generation and only refresh ``README_PYPI.md``.
 """
 
+import argparse
+import re
 import subprocess
 import tempfile
+import tomllib
 from pathlib import Path
 
 from qte.constants import DECILES
@@ -15,6 +23,38 @@ from qte.datasets import load_lalonde, load_mpdta
 from qte.nonlinear_did import estimate_nonlinear_did_for_panel
 from qte.nonlinear_did.custom_types import CounterfactualModel, TrtGroupConfig
 from qte.results import _BasicQteResult
+
+_ROOT = Path(__file__).resolve().parent.parent
+
+# Assets are referenced from PyPI as raw GitHub URLs on this branch.
+_PYPI_README_BRANCH = "main"
+
+# A link target that is not already absolute, root-relative, an anchor, or a
+# scheme (http:, mailto:, ...) is treated as repository-relative.
+_RELATIVE_PATH = r"""(?!#|/|[a-z][a-z0-9+.-]*:)[^\s)"']+"""
+_HTML_LINK = re.compile(r'(?P<attr>\b(?:src|href))="(?P<path>' + _RELATIVE_PATH + r')"')
+_MD_LINK = re.compile(r"\]\((?P<path>" + _RELATIVE_PATH + r")\)")
+
+
+def _make_links_absolute(readme: str, raw_base: str) -> str:
+    """Rewrite relative HTML/Markdown links in *readme* into *raw_base* URLs."""
+    readme = _HTML_LINK.sub(lambda m: f'{m["attr"]}="{raw_base}/{m["path"]}"', readme)
+    return _MD_LINK.sub(lambda m: f"]({raw_base}/{m['path']})", readme)
+
+
+def generate_pypi_readme() -> None:
+    """Write ``README_PYPI.md``: the README with absolute asset URLs.
+
+    PyPI renders the long description in isolation, so repo-relative paths
+    (``src="assets/..."``) show up broken there.
+    """
+    pyproject = tomllib.loads((_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    repo = pyproject["project"]["urls"]["Repository"]
+    raw_repo = repo.replace("github.com", "raw.githubusercontent.com")
+    raw_base = f"{raw_repo}/{_PYPI_README_BRANCH}"
+
+    readme = (_ROOT / "README.md").read_text(encoding="utf-8")
+    (_ROOT / "README_PYPI.md").write_text(_make_links_absolute(readme, raw_base), encoding="utf-8")
 
 
 def generate_readme_assets(
@@ -86,7 +126,19 @@ def generate_readme_assets(
 
 
 def main() -> None:
-    """Estimate the README examples and regenerate their figures."""
+    """Regenerate ``README_PYPI.md`` and, unless asked otherwise, the figures."""
+    parser = argparse.ArgumentParser(description="Regenerate README artifacts.")
+    parser.add_argument(
+        "--pypi-readme-only",
+        action="store_true",
+        help="only regenerate README_PYPI.md (skip the figures)",
+    )
+    args = parser.parse_args()
+
+    generate_pypi_readme()
+    if args.pypi_readme_only:
+        return
+
     ds = load_lalonde(controls_source="psid", use_panel_structure=False)
     xf = "age + education + black + hispanic + married"
     res = estimate_aipw_qte(

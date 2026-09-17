@@ -68,11 +68,11 @@ res.tabulate()  # Great Tables output (see below)
 <table width="100%" border="0" cellpadding="0" cellspacing="0">
   <tr>
     <td width="48%" valign="top" align="center">
-      <img src="assets/aipw_qte_results.svg" width="100%">
+      <img src="https://raw.githubusercontent.com/mohelm/py-qte/main/assets/aipw_qte_results.svg" width="100%">
     </td>
     <td width="4%"></td>
     <td width="48%" valign="top" align="center">
-      <img src="assets/aipw_qte_table.png" width="100%">
+      <img src="https://raw.githubusercontent.com/mohelm/py-qte/main/assets/aipw_qte_table.png" width="100%">
     </td>
   </tr>
 </table>
@@ -104,11 +104,11 @@ res = estimate_nonlinear_did_for_panel(
 <table width="100%" border="0" cellpadding="0" cellspacing="0">
   <tr>
     <td width="48%" valign="top" align="center">
-      <img src="assets/nonlinear_did_results.svg" width="100%">
+      <img src="https://raw.githubusercontent.com/mohelm/py-qte/main/assets/nonlinear_did_results.svg" width="100%">
     </td>
     <td width="4%"></td>
     <td width="48%" valign="top" align="center">
-      <img src="assets/nonlinear_did_table.png" width="100%">
+      <img src="https://raw.githubusercontent.com/mohelm/py-qte/main/assets/nonlinear_did_table.png" width="100%">
     </td>
   </tr>
 </table>

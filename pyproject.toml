@@ -7,7 +7,7 @@ name = "py-qte"
 version = "0.1.0a1"
 description = "Quantile Treatment Effects"
 authors = [{ name = "Moritz Helm", email = "mohelm84@gmail.com" }]
-readme = "README.md"
+readme = "README_PYPI.md"
 license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.12"
