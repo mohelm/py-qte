@@ -7,7 +7,7 @@ from qte.names import CI_LB_ID, CI_UB_ID, EFFECT_ID, QUANTILE_ID
 def _make_line_layer(
     base: alt.Chart, y: str, stroke_dash: tuple[int, int] = (1, 0)
 ) -> tuple[alt.Chart, alt.Chart]:
-    x = alt.X(f"{QUANTILE_ID}:Q", title="Quantile")
+    x = alt.X(f"{QUANTILE_ID}:O", title="Quantile")
     line_chart = base.mark_line(color="black", strokeDash=list(stroke_dash)).encode(  # ty: ignore[unresolved-attribute]
         x=x, y=alt.Y(y, title="")
     )
