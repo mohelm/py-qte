@@ -4,7 +4,7 @@ This is an attempt at a Python implementation of the qte R package by Brantly Ca
 
 The main **features** are:
 
-- Availability of **cross-sectional quantile treatment effects** and quantile treatment effects on the treated estimators (simple, IPW, outcome regression, doubly robust);
+- Availability of **cross-sectional quantile treatment effects** estimators (simple, inverse probability weighted, outcome regression, doubly robust) and **non-linear difference-in-differences** estimator (changes-in-changes and quantile difference-in-differences);
 - **Fast**:
   - as opposed to the R-package we can use highly optimized Numpy functions for computing weighted quantiles;
   - quantile regression is magnitudes faster than in other Python packages since we use highly optimized Fortran code directly;
