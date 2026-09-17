@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Self
 
 import numpy as np
 import polars as pl
@@ -60,7 +61,7 @@ class Ecdf:
     weights: NDArray | None = None
 
     @classmethod
-    def make(cls: type[Ecdf], y: NDArray, w: NDArray) -> Ecdf:
+    def make(cls: type[Self], y: NDArray, w: NDArray) -> Self:
         sorter = np.argsort(y)
         y_sorted = y[sorter]
         w_sorted = w[sorter]
@@ -70,7 +71,7 @@ class Ecdf:
         w_unique = np.bincount(indices, weights=w_sorted)
 
         w_norm = w_unique / w_unique.sum()
-        return Ecdf(y_unique, np.cumsum(w_norm), w_unique)
+        return cls(y_unique, np.cumsum(w_norm), w_unique)
 
     def evaluate_inverse(self, qs: NDArray) -> NDArray:
         idx = np.searchsorted(self.probs, qs, side="left")

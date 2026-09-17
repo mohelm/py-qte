@@ -7,7 +7,7 @@ The main **features** are:
 - Availability of **cross-sectional quantile treatment effects** estimators (simple, inverse probability weighted, outcome regression, doubly robust) and **non-linear difference-in-differences** estimator (changes-in-changes and quantile difference-in-differences);
 - **Fast**:
   - as opposed to the R-package we can use highly optimized Numpy functions for computing weighted quantiles;
-  - quantile regression is magnitudes faster than in other Python packages since we use highly optimized Fortran code directly;
+  - quantile regression is magnitudes faster than in other Python packages since we use highly optimized Fortran code directly (falling back to statsmodels where the extension is unavailable);
   - parallelism for bootstrapped standard errors;
   - batching and vectorization in performance critical places;
   - built natively on [Polars](https://github.com/pola-rs/polars);

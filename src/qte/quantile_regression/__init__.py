@@ -1,4 +1,10 @@
-"""Quantile regression on a Fortran Frisch-Newton interior-point solver."""
+"""Quantile regression using a Fortran interior-point solver.
+
+The Fortran ``rq_fortran`` extension implements the Frisch-Newton
+interior-point algorithm. When the extension is not available (for example on
+platforms without a Fortran toolchain), estimation falls back to
+:class:`statsmodels.regression.quantile_regression.QuantReg`.
+"""
 
 import numpy as np
 import polars as pl
@@ -6,7 +12,11 @@ from formulaic import Formula
 from numpy.typing import NDArray
 
 from qte.custom_types import ColumnName
-from qte.quantile_regression import rq_fortran  # type: ignore
+
+try:
+    from qte.quantile_regression import rq_fortran  # type: ignore
+except ImportError:  # pragma: no cover - depends on the build environment
+    rq_fortran = None  # type: ignore[assignment]
 
 
 def _fast_quantreg(
@@ -38,6 +48,11 @@ def _fast_quantreg(
         w = w / w.mean()
         X = X * w[:, None]
         y = y * w
+
+    if rq_fortran is None:
+        from statsmodels.regression.quantile_regression import QuantReg
+
+        return np.asarray(QuantReg(y, X).fit(q=q).params, dtype=np.float64)
 
     n_obs, n_coeffs = X.shape
 

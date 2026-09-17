@@ -1,9 +1,17 @@
 # Python-generated files
 __pycache__/
 *.py[oc]
+
+# Compiled extension / Fortran build artifacts
+*.so
+*.o
+*.mod
+
 build/
 dist/
 wheels/
+wheelhouse/
+.mesonpy-*/
 *.egg-info
 uv.lock
 
