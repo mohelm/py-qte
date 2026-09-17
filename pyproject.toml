@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Quantile Treatment Effects"
 authors = [{ name = "Moritz Helm", email = "mohelm84@gmail.com" }]
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.12"
 dependencies = [
   "altair>=6.2.2",
   "formulaic>=1.2.2",
