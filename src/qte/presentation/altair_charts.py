@@ -10,7 +10,7 @@ _KIND_COLOR = alt.Scale(domain=_KIND_ORDER, range=["black", "red"])
 def _make_line_layer(
     base: alt.Chart, y: str, stroke_dash: tuple[int, int] = (1, 0)
 ) -> tuple[alt.Chart, alt.Chart]:
-    x = alt.X(f"{QUANTILE_ID}:O", axis=alt.Axis(title="Q", titleFontWeight="normal"))
+    x = alt.X(f"{QUANTILE_ID}:Q", axis=alt.Axis(title="Q", titleFontWeight="normal"))
     line_chart = base.mark_line(color="black", strokeDash=list(stroke_dash)).encode(  # ty: ignore[unresolved-attribute]
         x=x, y=alt.Y(y, title="")
     )
