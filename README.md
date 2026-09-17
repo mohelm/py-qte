@@ -1,5 +1,7 @@
 # qte — Quantile Treatment Effects in Python
 
+> **Alpha software:** the API may change without notice between releases.
+
 This is an attempt at a Python implementation of the qte R package by Brantly Callaway from [here](https://github.com/bcallaway11/qte).
 
 The main **features** are:
@@ -16,6 +18,24 @@ The main **features** are:
 ---
 
 # Installation
+
+Requires Python 3.12 or newer.
+
+```bash
+uv add py-qte
+# or
+pip install py-qte
+```
+
+Prebuilt wheels ship for Linux (x86_64) and macOS (Intel and Apple Silicon).
+On those platforms quantile regression uses the bundled Fortran Frisch-Newton
+solver. Everywhere else — including Windows — a pure-Python wheel falls back to
+[statsmodels](https://www.statsmodels.org/) for quantile regression: same
+results to roughly `1e-5`, but slower.
+
+Building from source additionally needs a Fortran compiler (`gfortran`) and
+BLAS/LAPACK development libraries. When they are missing, the build
+automatically skips the extension and installs the pure-Python fallback.
 
 ---
 
