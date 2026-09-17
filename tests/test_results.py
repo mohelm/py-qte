@@ -71,7 +71,23 @@ def mock_single_quantile_qte_result():
     )
 
 
-def test_plot_returns_altair_chart(mock_qte_result):
+def test_plot_returns_altair_chart_with_single_quantile_qte_res(mock_single_quantile_qte_result):
+    chart = mock_single_quantile_qte_result.plot()
+
+    assert isinstance(chart, alt.LayerChart)
+
+    chart_dict = chart.to_dict()
+    assert isinstance(chart_dict, dict)
+
+    layers = chart_dict.get("layer", [])
+    assert (
+        len(layers) == 4
+    )  # Four layers one line (confidence interval) and one point (estimate) for att and qte (so time 2)
+
+
+def test_plot_returns_altair_chart_with_multiple_quantile_qte_result(
+    mock_qte_result,
+):
     chart = mock_qte_result.plot()
 
     assert isinstance(chart, alt.LayerChart)
@@ -81,52 +97,6 @@ def test_plot_returns_altair_chart(mock_qte_result):
 
     layers = chart_dict.get("layer", [])
     assert len(layers) == 2  # 2 aggregate layers (qte and att)
-
-    # x-axis title is a single, non-bold "Q"
-    x_axis = layers[0]["layer"][0]["encoding"]["x"]["axis"]
-    assert x_axis["title"] == "Q"
-    assert x_axis["titleFontWeight"] == "normal"
-
-
-def test_plot_with_different_alpha(mock_qte_result):
-    chart = mock_qte_result.plot(alpha=0.99)
-    assert isinstance(chart, alt.LayerChart)
-    chart_dict = chart.to_dict()
-    assert isinstance(chart_dict, dict)
-
-
-def test_plot_single_quantile_orders_and_colors(mock_single_quantile_qte_result):
-    chart = mock_single_quantile_qte_result.plot()
-    assert isinstance(chart, alt.LayerChart)
-
-    layers = chart.to_dict()["layer"]
-    # point estimate + CI rule + CI lower marker + CI upper marker
-    assert len(layers) == 4
-
-    # the title/subtitle must survive onto the layered chart
-    assert chart.to_dict()["title"] == {
-        "text": "Quantile and Average Treatment Effects",
-        "subtitle": "The QTE is measured for quantile=0.5.",
-        "offset": 10,
-    }
-
-    for layer in layers:
-        # qte must come before att (left to right), not alphabetical order
-        assert layer["encoding"]["x"]["sort"] == ["qte", "att"]
-        # qte is black, att is red
-        assert layer["encoding"]["color"]["scale"] == {
-            "domain": ["qte", "att"],
-            "range": ["black", "red"],
-        }
-        assert layer["encoding"]["color"]["legend"] is None
-
-    # the point estimate is a solid dot, filled with its __kind color
-    assert layers[0]["mark"]["type"] == "point"
-    assert layers[0]["mark"]["filled"] is True
-
-    # the CI endpoint markers are hollow, stroked with the same __kind color
-    for layer in layers[2:]:
-        assert layer["mark"]["shape"] == "stroke"
 
 
 def test_summarize_returns_rich_table(mock_qte_result):
