@@ -12,8 +12,8 @@ from pathlib import Path
 from qte.constants import DECILES
 from qte.cross_sectional import estimate_aipw_qte
 from qte.datasets import load_lalonde, load_mpdta
-from qte.non_linear_did import estimate_changes_in_changes_for_panel
-from qte.non_linear_did.custom_types import CounterfactualModel, TrtGroupConfig
+from qte.nonlinear_did import estimate_nonlinear_did_for_panel
+from qte.nonlinear_did.custom_types import CounterfactualModel, TrtGroupConfig
 from qte.results import _BasicQteResult
 
 
@@ -101,7 +101,7 @@ def main() -> None:
     generate_readme_assets(res, "aipw_qte")
 
     ds = load_mpdta()
-    res = estimate_changes_in_changes_for_panel(
+    res = estimate_nonlinear_did_for_panel(
         ds,
         "lemp",
         TrtGroupConfig("first.treat", 0),  # never-treated group is 0
@@ -111,7 +111,7 @@ def main() -> None:
         counterfactual_model=CounterfactualModel.CIC,
         n_bootstrap_iter=50,
     )
-    generate_readme_assets(res.overall, "cic")
+    generate_readme_assets(res.overall, "nonlinear_did")
 
 
 if __name__ == "__main__":

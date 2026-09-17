@@ -82,22 +82,18 @@ res.tabulate()  # Great Tables output (see below)
 We can estimate quantile treatment (and average) treatment effects with the changes-in-changes estimator.
 
 ```python
-import polars as pl
-
-from qte.non_linear_did.changes_in_changes import (
-    estimate_changes_in_changes_for_panel,
+from qte.nonlinear_did import (
     CounterfactualModel,
+    TrtGroupConfig,
+    estimate_nonlinear_did_for_panel,
 )
 from qte.datasets import load_mpdta
 
-ds = load_mpdta().with_columns(
-    pl.col("first.treat").replace(0, float("inf")).alias("first.treat"),
-    pl.col("year").cast(pl.Float64).alias("year"),
-)
-res = estimate_changes_in_changes_for_panel(
+ds = load_mpdta()
+res = estimate_nonlinear_did_for_panel(
     ds,
     "lemp",
-    "first.treat",
+    TrtGroupConfig("first.treat", 0),  # never-treated group is 0
     "year",
     "countyreal",
     qs=[0.25, 0.5, 0.75],
@@ -108,11 +104,11 @@ res = estimate_changes_in_changes_for_panel(
 <table width="100%" border="0" cellpadding="0" cellspacing="0">
   <tr>
     <td width="48%" valign="top" align="center">
-      <img src="assets/cic_results.svg" width="100%">
+      <img src="assets/nonlinear_did_results.svg" width="100%">
     </td>
     <td width="4%"></td>
     <td width="48%" valign="top" align="center">
-      <img src="assets/cic_table.png" width="100%">
+      <img src="assets/nonlinear_did_table.png" width="100%">
     </td>
   </tr>
 </table>

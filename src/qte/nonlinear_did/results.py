@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import NamedTuple
 
-from qte.non_linear_did.custom_types import (
+from qte.nonlinear_did.custom_types import (
     BasePeriod,
     ControlGroup,
     CounterfactualModel,
@@ -23,7 +23,7 @@ class GroupTimeEffect(NamedTuple):
 
 
 @dataclass()
-class CicResult(_BasicQteResult):
+class NonlinearDidResult(_BasicQteResult):
     group: str | None
     base_period: BasePeriod
     control_group: ControlGroup
@@ -32,7 +32,7 @@ class CicResult(_BasicQteResult):
 
 
 @dataclass()
-class CicResults:
-    group: CicResult
-    event_study: CicResult
-    overall: CicResult
+class NonlinearDidResults:
+    group: NonlinearDidResult
+    event_study: NonlinearDidResult
+    overall: NonlinearDidResult

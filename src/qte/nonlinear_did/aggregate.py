@@ -12,8 +12,8 @@ from qte.names import (
     QUANTILE_ID,
     QUANTILE_TREATED_VAL_ID,
 )
-from qte.non_linear_did.custom_types import BasePeriod, CicAggregation, WeightsLookup
-from qte.non_linear_did.results import GroupTimeEffect
+from qte.nonlinear_did.custom_types import BasePeriod, NonlinearDidAggregation, WeightsLookup
+from qte.nonlinear_did.results import GroupTimeEffect
 from qte.stats import Ecdf
 
 
@@ -74,7 +74,7 @@ def aggregate_group_time_effects_again_by_group(
     *,
     dim_id: Callable,
     dim_name: str,
-) -> CicAggregation:
+) -> NonlinearDidAggregation:
 
     qs = np.array(qs)
     ecdf_on_grid_o, ecdf_on_grid_cf, means_o, means_cf = _merge_group_time_effects_on_grid(
@@ -107,7 +107,7 @@ def aggregate_group_time_effects_again_by_group(
             f"{MEAN_CONTROL_ID}": G @ means_cf,
         }
     ).with_columns((pl.col(MEAN_TREATED_ID) - pl.col(MEAN_CONTROL_ID)).alias(EFFECT_ID))
-    return CicAggregation(qtts, atts, dim_name)
+    return NonlinearDidAggregation(qtts, atts, dim_name)
 
 
 def aggregate_group_time_effects_again(
@@ -115,7 +115,7 @@ def aggregate_group_time_effects_again(
     gtes: list[GroupTimeEffect],
     weights: dict[tuple[int, int], float],
     y_grid: NDArray,
-) -> CicAggregation:
+) -> NonlinearDidAggregation:
     ecdf_on_grid_o, ecdf_on_grid_cf, means_o, means_cf = _merge_group_time_effects_on_grid(
         gtes, weights, y_grid
     )
@@ -141,4 +141,4 @@ def aggregate_group_time_effects_again(
             f"{MEAN_CONTROL_ID}": [means_cf.sum()],
         }
     ).with_columns((pl.col(MEAN_TREATED_ID) - pl.col(MEAN_CONTROL_ID)).alias(EFFECT_ID))
-    return CicAggregation(qtes, atts, None)
+    return NonlinearDidAggregation(qtes, atts, None)

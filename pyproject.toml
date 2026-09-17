@@ -55,7 +55,7 @@ dev = [
   "ty>=0.0.66",
   "vl-convert-python>=1.7.0",
 ]
-dev-helpers = ["ipython>=9.16.1"]
+dev-helpers = ["ipython>=9.16.1", "notebook>=7.6.2"]
 
 [tool.ruff]
 line-length = 100
@@ -78,7 +78,7 @@ no-build-isolation = true
 python-version = "3.12"
 
 [tool.ty.src]
-exclude = ["tests", "src/qte/changes_in_changes"]
+exclude = ["tests"]
 
 [tool.cibuildwheel]
 build = ["cp312-*", "cp313-*", "cp314-*"]

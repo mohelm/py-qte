@@ -26,13 +26,13 @@ class CounterfactualModel(StrEnum):
     QDID = "qdid"
 
 
-class CicAggregation(NamedTuple):
+class NonlinearDidAggregation(NamedTuple):
     qtt: pl.DataFrame
     att: pl.DataFrame
     group: str | None
 
 
-CicAggregations = dict[str, CicAggregation]
+NonlinearDidAggregations = dict[str, NonlinearDidAggregation]
 
 TreatmentGroup = int
 TimePeriod = int

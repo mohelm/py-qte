@@ -9,44 +9,44 @@ from numpy.typing import ArrayLike, NDArray
 from qte.constants import MEDIAN
 from qte.custom_types import ColumnName
 from qte.names import QUANTILE_ID
-from qte.non_linear_did.aggregate import (
+from qte.nonlinear_did.aggregate import (
     aggregate_group_time_effects_again,
     aggregate_group_time_effects_again_by_group,
     get_weights_for_event_study_effects,
     get_weights_for_overall_effect,
     get_weights_for_treatment_group_effects,
 )
-from qte.non_linear_did.bootstrap import (
+from qte.nonlinear_did.bootstrap import (
     Estimates,
     get_statistics_from_bootstrap,
     perform_bootstrap,
 )
-from qte.non_linear_did.custom_types import (
+from qte.nonlinear_did.custom_types import (
     BasePeriod,
-    CicAggregation,
-    CicAggregations,
     ControlGroup,
     CounterfactualModel,
+    NonlinearDidAggregation,
+    NonlinearDidAggregations,
     SamplingScheme,
     TrtGroupConfig,
 )
-from qte.non_linear_did.results import (
-    CicResult,
-    CicResults,
+from qte.nonlinear_did.results import (
     GroupTimeEffect,
+    NonlinearDidResult,
+    NonlinearDidResults,
 )
 from qte.stats import Ecdf, get_quantiles
 
 
-def _make_cic_results(
-    agg: CicAggregation,
+def _make_nonlinear_did_results(
+    agg: NonlinearDidAggregation,
     bs_res: Estimates,
     *,
     outcome: str,
     base_period: BasePeriod,
     control_group: ControlGroup,
     counterfactual_model: CounterfactualModel,
-) -> CicResult:
+) -> NonlinearDidResult:
     qtt = agg.qtt.join(
         bs_res.qtes,
         on=[QUANTILE_ID, agg.group] if agg.group is not None else [QUANTILE_ID],
@@ -59,7 +59,7 @@ def _make_cic_results(
     if agg.group is not None:
         qtt = qtt.with_columns(pl.col(agg.group).cast(pl.Int64))
         att = att.with_columns(pl.col(agg.group).cast(pl.Int64))
-    return CicResult(
+    return NonlinearDidResult(
         qtt,
         att,
         group=agg.group,
@@ -210,7 +210,7 @@ def _compute_group_time_effect(
     )
 
 
-def _compute_changes_in_changes_for_panel(
+def _compute_nonlinear_did_for_panel(
     ds: pl.DataFrame,
     outcome_c: str,
     treatment_group_c: str,
@@ -223,7 +223,7 @@ def _compute_changes_in_changes_for_panel(
     control_group: ControlGroup = ControlGroup.NEVER_TREATED,
     counterfactual_model: CounterfactualModel = CounterfactualModel.CIC,
     n_anticipation_periods: int = 0,
-) -> CicAggregations:
+) -> NonlinearDidAggregations:
 
     outcome_grid_size = 1000
 
@@ -295,10 +295,10 @@ def _compute_changes_in_changes_for_panel(
         dim_id=lambda gte: gte.tp - gte.group,
         dim_name="event_study_period",
     )
-    return CicAggregations(group=group_te, event_study=event_study_te, overall=agg_te)
+    return NonlinearDidAggregations(group=group_te, event_study=event_study_te, overall=agg_te)
 
 
-def estimate_changes_in_changes_for_panel(
+def estimate_nonlinear_did_for_panel(
     ds: pl.DataFrame,
     outcome_c: ColumnName,
     treatment_group_c: ColumnName | TrtGroupConfig,
@@ -312,7 +312,7 @@ def estimate_changes_in_changes_for_panel(
     control_group: ControlGroup = ControlGroup.NEVER_TREATED,
     counterfactual_model: CounterfactualModel = CounterfactualModel.CIC,
     n_bootstrap_iter: int = 1000,
-) -> CicResults:
+) -> NonlinearDidResults:
     if isinstance(treatment_group_c, str):
         treatment_group_c = TrtGroupConfig(name=treatment_group_c)
     ds = ds.with_columns(
@@ -344,7 +344,7 @@ def estimate_changes_in_changes_for_panel(
         | pl.col(treatment_group_c.name).is_infinite()
     )
     fcn = partial(
-        _compute_changes_in_changes_for_panel,
+        _compute_nonlinear_did_for_panel,
         outcome_c=outcome_c,
         treatment_group_c=treatment_group_c.name,
         time_c=time_c,
@@ -356,7 +356,7 @@ def estimate_changes_in_changes_for_panel(
         counterfactual_model=counterfactual_model,
         n_anticipation_periods=n_anticipation_periods,
     )
-    estimate: CicAggregations = fcn(ds)
+    estimate: NonlinearDidAggregations = fcn(ds)
     bs_iterations = perform_bootstrap(ds, fcn, unit_c, n_iter=n_bootstrap_iter)
     # We must explicitly type cast iteration items to silence ty
     groupers: list[tuple[str, str | None]] = [
@@ -365,7 +365,7 @@ def estimate_changes_in_changes_for_panel(
     bs_aggs = get_statistics_from_bootstrap(bs_iterations, groupers)
 
     results = {
-        agg_name: _make_cic_results(
+        agg_name: _make_nonlinear_did_results(
             agg,
             bs_aggs[agg_name],
             outcome=outcome_c,
@@ -375,4 +375,4 @@ def estimate_changes_in_changes_for_panel(
         )
         for agg_name, agg in estimate.items()
     }
-    return CicResults(**results)
+    return NonlinearDidResults(**results)

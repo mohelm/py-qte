@@ -4,17 +4,17 @@ from typing import NamedTuple
 import polars as pl
 
 from qte.names import EFFECT_ID, QUANTILE_ID, SE_ID
-from qte.non_linear_did.custom_types import (
-    CicAggregations,
+from qte.nonlinear_did.custom_types import (
+    NonlinearDidAggregations,
 )
 
 
 def perform_bootstrap(
     ds: pl.DataFrame,
-    fcn: Callable[[pl.DataFrame], CicAggregations],
+    fcn: Callable[[pl.DataFrame], NonlinearDidAggregations],
     unit_id: str,
     n_iter: int,
-) -> Iterator[CicAggregations]:
+) -> Iterator[NonlinearDidAggregations]:
     units = ds.select(unit_id).unique()
     n_units = len(units)
     for _ in range(n_iter):
@@ -38,7 +38,7 @@ class Estimates(NamedTuple):
 
 
 def get_statistics_from_bootstrap(
-    boot_iter: Iterable[CicAggregations],
+    boot_iter: Iterable[NonlinearDidAggregations],
     aggregations: Iterable[tuple[str, str | None]],
 ) -> dict[str, Estimates]:
     runs = list(boot_iter)

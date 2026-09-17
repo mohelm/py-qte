@@ -2,14 +2,14 @@ import polars as pl
 from polars.testing import assert_frame_equal, assert_series_equal
 from pytest import fixture, mark
 
-from qte.non_linear_did.changes_in_changes import (
-    estimate_changes_in_changes_for_panel,
-)
-from qte.non_linear_did.custom_types import (
+from qte.nonlinear_did.custom_types import (
     BasePeriod,
     ControlGroup,
     CounterfactualModel,
     TrtGroupConfig,
+)
+from qte.nonlinear_did.nonlinear_did import (
+    estimate_nonlinear_did_for_panel,
 )
 
 
@@ -21,7 +21,7 @@ def mpdata_prepared(mpdata):
     )
 
 
-TEST_CASES_CIC = [
+TEST_CASES_NONLINEAR_DID = [
     (
         {
             "base_period": BasePeriod.VARYING,
@@ -97,12 +97,12 @@ TEST_CASES_CIC = [
 ]
 
 
-@mark.parametrize("estimate_params,expected_results", TEST_CASES_CIC)
-def test_estimate_cic_for_panel_data_with_unconditional_parallel_trends(
+@mark.parametrize("estimate_params,expected_results", TEST_CASES_NONLINEAR_DID)
+def test_estimate_nonlinear_did_for_panel_data_with_unconditional_parallel_trends(
     mpdata_prepared, estimate_params, expected_results
 ):
     qs = [0.25, 0.5, 0.75]
-    res = estimate_changes_in_changes_for_panel(
+    res = estimate_nonlinear_did_for_panel(
         mpdata_prepared,
         "lemp",
         "first.treat",
@@ -221,7 +221,7 @@ def test_estimate_qdid_for_panel_data_with_unconditional_parallel_trends(
     mpdata_prepared, estimate_params, expected_results
 ):
     qs = [0.25, 0.5, 0.75]
-    res = estimate_changes_in_changes_for_panel(
+    res = estimate_nonlinear_did_for_panel(
         mpdata_prepared,
         "lemp",
         "first.treat",
@@ -262,7 +262,7 @@ def test_estimate_qdid_for_panel_data_with_unconditional_parallel_trends(
 def test_trt_group_config_on_raw_data_keeps_integer_identifiers(mpdata, mpdata_prepared):
     qs = [0.25, 0.5, 0.75]
 
-    raw = estimate_changes_in_changes_for_panel(
+    raw = estimate_nonlinear_did_for_panel(
         mpdata,
         "lemp",
         TrtGroupConfig("first.treat", 0),
@@ -272,7 +272,7 @@ def test_trt_group_config_on_raw_data_keeps_integer_identifiers(mpdata, mpdata_p
         counterfactual_model=CounterfactualModel.CIC,
         n_bootstrap_iter=3,
     )
-    prepared = estimate_changes_in_changes_for_panel(
+    prepared = estimate_nonlinear_did_for_panel(
         mpdata_prepared,
         "lemp",
         "first.treat",
