@@ -9,13 +9,11 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-import polars as pl
-
 from qte.constants import DECILES
 from qte.cross_sectional import estimate_aipw_qte
 from qte.datasets import load_lalonde, load_mpdta
 from qte.non_linear_did import estimate_changes_in_changes_for_panel
-from qte.non_linear_did.custom_types import CounterfactualModel
+from qte.non_linear_did.custom_types import CounterfactualModel, TrtGroupConfig
 from qte.results import _BasicQteResult
 
 
@@ -102,14 +100,11 @@ def main() -> None:
     )
     generate_readme_assets(res, "aipw_qte")
 
-    ds = load_mpdta().with_columns(
-        pl.col("first.treat").replace(0, float("inf")).alias("first.treat"),
-        pl.col("year").cast(pl.Float64).alias("year"),
-    )
+    ds = load_mpdta()
     res = estimate_changes_in_changes_for_panel(
         ds,
         "lemp",
-        "first.treat",
+        TrtGroupConfig("first.treat", 0),  # never-treated group is 0
         "year",
         "countyreal",
         qs=[0.25, 0.5, 0.75],

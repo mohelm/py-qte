@@ -5,7 +5,12 @@ from pytest import fixture, mark
 from qte.non_linear_did.changes_in_changes import (
     estimate_changes_in_changes_for_panel,
 )
-from qte.non_linear_did.custom_types import BasePeriod, ControlGroup, CounterfactualModel
+from qte.non_linear_did.custom_types import (
+    BasePeriod,
+    ControlGroup,
+    CounterfactualModel,
+    TrtGroupConfig,
+)
 
 
 @fixture(scope="session")
@@ -252,3 +257,42 @@ def test_estimate_qdid_for_panel_data_with_unconditional_parallel_trends(
     assert_series_equal(res.overall.qtt["q"], pl.Series("q", qs))
     assert_series_equal(res.group.qtt["q"].unique(), pl.Series("q", qs))
     assert_series_equal(res.event_study.qtt["q"].unique(), pl.Series("q", qs))
+
+
+def test_trt_group_config_on_raw_data_keeps_integer_identifiers(mpdata, mpdata_prepared):
+    qs = [0.25, 0.5, 0.75]
+
+    raw = estimate_changes_in_changes_for_panel(
+        mpdata,
+        "lemp",
+        TrtGroupConfig("first.treat", 0),
+        "year",
+        "countyreal",
+        qs=qs,
+        counterfactual_model=CounterfactualModel.CIC,
+        n_bootstrap_iter=3,
+    )
+    prepared = estimate_changes_in_changes_for_panel(
+        mpdata_prepared,
+        "lemp",
+        "first.treat",
+        "year",
+        "countyreal",
+        qs=qs,
+        counterfactual_model=CounterfactualModel.CIC,
+        n_bootstrap_iter=3,
+    )
+
+    # identifiers come back as integers even though the internals are float
+    assert raw.group.att.schema["treatment_group"] == pl.Int64
+    assert raw.event_study.att.schema["event_study_period"] == pl.Int64
+
+    # the internal 0 -> inf mapping must reproduce the pre-mapped result exactly
+    assert_frame_equal(
+        raw.group.att.select("treatment_group", "effect"),
+        prepared.group.att.select("treatment_group", "effect"),
+    )
+    assert_frame_equal(
+        raw.event_study.att.select("event_study_period", "effect"),
+        prepared.event_study.att.select("event_study_period", "effect"),
+    )

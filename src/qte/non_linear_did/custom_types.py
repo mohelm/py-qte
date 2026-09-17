@@ -3,6 +3,8 @@ from typing import NamedTuple
 
 import polars as pl
 
+from qte.custom_types import ColumnName
+
 
 class ControlGroup(StrEnum):
     NOT_YET_TREATED = "not_yet_treated"
@@ -35,3 +37,8 @@ CicAggregations = dict[str, CicAggregation]
 TreatmentGroup = int
 TimePeriod = int
 WeightsLookup = dict[tuple[TreatmentGroup, TimePeriod], float]
+
+
+class TrtGroupConfig(NamedTuple):
+    name: ColumnName
+    never_treated_identifier: float = float("inf")

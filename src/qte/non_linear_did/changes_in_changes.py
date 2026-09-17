@@ -3,6 +3,7 @@ from itertools import product
 
 import numpy as np
 import polars as pl
+import polars.selectors as cs
 from numpy.typing import ArrayLike, NDArray
 
 from qte.constants import MEDIAN
@@ -25,6 +26,7 @@ from qte.non_linear_did.custom_types import (
     ControlGroup,
     CounterfactualModel,
     SamplingScheme,
+    TrtGroupConfig,
 )
 from qte.non_linear_did.results import (
     CicResult,
@@ -264,7 +266,7 @@ def _compute_changes_in_changes_for_panel(
 def estimate_changes_in_changes_for_panel(
     ds: pl.DataFrame,
     outcome_c: ColumnName,
-    treatment_group_c: ColumnName,
+    treatment_group_c: ColumnName | TrtGroupConfig,
     time_c: ColumnName,
     unit_c: ColumnName,
     qs: ArrayLike = MEDIAN,
@@ -276,22 +278,40 @@ def estimate_changes_in_changes_for_panel(
     counterfactual_model: CounterfactualModel = CounterfactualModel.CIC,
     n_bootstrap_iter: int = 1000,
 ) -> CicResults:
+    if isinstance(treatment_group_c, str):
+        treatment_group_c = TrtGroupConfig(name=treatment_group_c)
+    ds = ds.with_columns(
+        cs.by_name(
+            treatment_group_c.name,
+            time_c,
+        ).cast(pl.Float64)
+    )
+    if treatment_group_c.never_treated_identifier != float("inf"):
+        ds = ds.with_columns(
+            pl.when(pl.col(treatment_group_c.name) == treatment_group_c.never_treated_identifier)
+            .then(float("inf"))
+            .otherwise(pl.col(treatment_group_c.name))
+            .alias(treatment_group_c.name)
+        )
+
     if weights_c is None:
         weights_c = "_w"
         ds = ds.with_columns(pl.lit(1).alias(weights_c))
-    ntg_id = float("inf")
-    all_groups = ds[treatment_group_c].unique()
+    all_groups = ds[treatment_group_c.name].unique()
     all_treated_groups = all_groups.filter(all_groups.is_finite())
     time_periods = ds[time_c].unique().sort().to_list()
 
     treated_groups: pl.Series = all_treated_groups.filter(
         all_treated_groups >= min(time_periods) + 1 + n_anticipation_periods
     )
-    ds = ds.filter(pl.col(treatment_group_c).is_in(set(treated_groups.to_list()).union([ntg_id])))
+    ds = ds.filter(
+        pl.col(treatment_group_c.name).is_in(set(treated_groups.to_list()))
+        | pl.col(treatment_group_c.name).is_infinite()
+    )
     fcn = partial(
         _compute_changes_in_changes_for_panel,
         outcome_c=outcome_c,
-        treatment_group_c=treatment_group_c,
+        treatment_group_c=treatment_group_c.name,
         time_c=time_c,
         unit_c=unit_c,
         qs=qs,
@@ -308,17 +328,23 @@ def estimate_changes_in_changes_for_panel(
         (agg_name, agg.group) for agg_name, agg in estimate.items()
     ]
     bs_aggs = get_statistics_from_bootstrap(bs_iterations, groupers)
-    combined = {
-        agg_name: CicResult(
-            agg.qtt.join(
-                bs_aggs[agg_name].qtes,
-                on=[QUANTILE_ID, agg.group] if agg.group is not None else [QUANTILE_ID],
-            ),
-            agg.att.join(
-                bs_aggs[agg_name].atts,
-                on=[agg.group] if agg.group is not None else None,
-                how="inner" if agg.group is not None else "cross",
-            ),
+    combined: dict[str, CicResult] = {}
+    for agg_name, agg in estimate.items():
+        qtt = agg.qtt.join(
+            bs_aggs[agg_name].qtes,
+            on=[QUANTILE_ID, agg.group] if agg.group is not None else [QUANTILE_ID],
+        )
+        att = agg.att.join(
+            bs_aggs[agg_name].atts,
+            on=[agg.group] if agg.group is not None else None,
+            how="inner" if agg.group is not None else "cross",
+        )
+        if agg.group is not None:
+            qtt = qtt.with_columns(pl.col(agg.group).cast(pl.Int64))
+            att = att.with_columns(pl.col(agg.group).cast(pl.Int64))
+        combined[agg_name] = CicResult(
+            qtt,
+            att,
             group=agg.group,
             outcome=outcome_c,
             base_period=base_period,
@@ -326,7 +352,5 @@ def estimate_changes_in_changes_for_panel(
             sampling_scheme=SamplingScheme.PANEL,
             counterfactual_model=counterfactual_model,
         )
-        for agg_name, agg in estimate.items()
-    }
 
     return CicResults(**combined)
