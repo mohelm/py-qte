@@ -1,4 +1,3 @@
-from collections.abc import Iterable
 from typing import Any
 
 import polars as pl
@@ -7,19 +6,12 @@ from rich.console import Group
 from rich.table import Table
 from rich.text import Text
 
-from qte.presentation.tables.common import NICE_NAMES
-
-
-def _make_header(
-    content: dict[str, str],
-    separator: str,
-    new_line_char: str,
-    additional_padding: int = 2,
-) -> Iterable[str]:
-    max_length_keys = max(len(k) for k in content)
-    for k, v in content.items():
-        padding = max_length_keys - len(k) + additional_padding
-        yield f"{k}{separator * padding}: {v}{new_line_char}"
+from qte.presentation.tables.common import (
+    ATE_TABLE_SUB_HEADER,
+    NICE_NAMES,
+    QTE_TABLE_SUB_HEADER,
+    _make_header,
+)
 
 
 def _make_estimates_table(qtes: pl.DataFrame, title: str | None, float_precision: int) -> Table:
@@ -61,10 +53,6 @@ def make_rich_table(
 
     return Group(
         header,
-        _make_estimates_table(
-            atts, title="Average Treatment Effects", float_precision=float_precision
-        ),
-        _make_estimates_table(
-            qtes, title="Quantile Treatment Effects", float_precision=float_precision
-        ),
+        _make_estimates_table(qtes, title=QTE_TABLE_SUB_HEADER, float_precision=float_precision),
+        _make_estimates_table(atts, title=ATE_TABLE_SUB_HEADER, float_precision=float_precision),
     )

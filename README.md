@@ -61,7 +61,6 @@ res = estimate_aipw_qte(
     ps_x_formular="age + education",
 )
 
-print(res)  # Rich table (not shown good for console)
 res.plot()  # Vega-Altair plot (see below)
 res.tabulate()  # Great Tables output (see below)
 ```

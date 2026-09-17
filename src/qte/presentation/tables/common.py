@@ -11,6 +11,9 @@ NICE_NAMES: dict[str, str] = {
     CI_UB_ID: "Upper CI",
 }
 
+QTE_TABLE_SUB_HEADER = "Quantile Treatment Effects"
+ATE_TABLE_SUB_HEADER = "Average Treatment Effects"
+
 
 def _make_header(
     content: dict[str, str],

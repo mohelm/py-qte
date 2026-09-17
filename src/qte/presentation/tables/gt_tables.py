@@ -4,7 +4,12 @@ import polars as pl
 from great_tables import GT, md
 
 from qte.names import CI_LB_ID, CI_UB_ID, EFFECT_ID, QUANTILE_ID, SE_ID
-from qte.presentation.tables.common import NICE_NAMES, _make_header
+from qte.presentation.tables.common import (
+    ATE_TABLE_SUB_HEADER,
+    NICE_NAMES,
+    QTE_TABLE_SUB_HEADER,
+    _make_header,
+)
 
 
 def make_great_table(
@@ -16,7 +21,10 @@ def make_great_table(
 ) -> GT:
 
     combined = pl.concat(
-        (d.with_columns(pl.lit(k).alias("__kind")) for d, k in [(qtes, "qte"), (atts, "att")]),
+        (
+            data.with_columns(pl.lit(est).alias("__kind"))
+            for data, est in [(qtes, QTE_TABLE_SUB_HEADER), (atts, ATE_TABLE_SUB_HEADER)]
+        ),
         how="diagonal",
     ).select(*(group or []), QUANTILE_ID, EFFECT_ID, SE_ID, CI_LB_ID, CI_UB_ID, "__kind")
 
