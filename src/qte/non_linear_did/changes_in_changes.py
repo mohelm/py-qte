@@ -17,11 +17,13 @@ from qte.non_linear_did.aggregate import (
     get_weights_for_treatment_group_effects,
 )
 from qte.non_linear_did.bootstrap import (
+    Estimates,
     get_statistics_from_bootstrap,
     perform_bootstrap,
 )
 from qte.non_linear_did.custom_types import (
     BasePeriod,
+    CicAggregation,
     CicAggregations,
     ControlGroup,
     CounterfactualModel,
@@ -34,6 +36,39 @@ from qte.non_linear_did.results import (
     GroupTimeEffect,
 )
 from qte.stats import Ecdf, get_quantiles
+
+
+def _make_cic_results(
+    agg: CicAggregation,
+    bs_res: Estimates,
+    *,
+    outcome: str,
+    base_period: BasePeriod,
+    control_group: ControlGroup,
+    counterfactual_model: CounterfactualModel,
+) -> CicResult:
+    qtt = agg.qtt.join(
+        bs_res.qtes,
+        on=[QUANTILE_ID, agg.group] if agg.group is not None else [QUANTILE_ID],
+    )
+    att = agg.att.join(
+        bs_res.atts,
+        on=[agg.group] if agg.group is not None else None,
+        how="inner" if agg.group is not None else "cross",
+    )
+    if agg.group is not None:
+        qtt = qtt.with_columns(pl.col(agg.group).cast(pl.Int64))
+        att = att.with_columns(pl.col(agg.group).cast(pl.Int64))
+    return CicResult(
+        qtt,
+        att,
+        group=agg.group,
+        outcome=outcome,
+        base_period=base_period,
+        control_group=control_group,
+        sampling_scheme=SamplingScheme.PANEL,
+        counterfactual_model=counterfactual_model,
+    )
 
 
 def _make_reference_period(
@@ -328,29 +363,16 @@ def estimate_changes_in_changes_for_panel(
         (agg_name, agg.group) for agg_name, agg in estimate.items()
     ]
     bs_aggs = get_statistics_from_bootstrap(bs_iterations, groupers)
-    combined: dict[str, CicResult] = {}
-    for agg_name, agg in estimate.items():
-        qtt = agg.qtt.join(
-            bs_aggs[agg_name].qtes,
-            on=[QUANTILE_ID, agg.group] if agg.group is not None else [QUANTILE_ID],
-        )
-        att = agg.att.join(
-            bs_aggs[agg_name].atts,
-            on=[agg.group] if agg.group is not None else None,
-            how="inner" if agg.group is not None else "cross",
-        )
-        if agg.group is not None:
-            qtt = qtt.with_columns(pl.col(agg.group).cast(pl.Int64))
-            att = att.with_columns(pl.col(agg.group).cast(pl.Int64))
-        combined[agg_name] = CicResult(
-            qtt,
-            att,
-            group=agg.group,
+
+    results = {
+        agg_name: _make_cic_results(
+            agg,
+            bs_aggs[agg_name],
             outcome=outcome_c,
             base_period=base_period,
             control_group=control_group,
-            sampling_scheme=SamplingScheme.PANEL,
             counterfactual_model=counterfactual_model,
         )
-
-    return CicResults(**combined)
+        for agg_name, agg in estimate.items()
+    }
+    return CicResults(**results)
