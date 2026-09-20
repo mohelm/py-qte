@@ -1,14 +1,16 @@
+from collections.abc import Iterable
 from functools import partial
 from itertools import product
+from typing import NamedTuple
 
 import numpy as np
 import polars as pl
 import polars.selectors as cs
 from numpy.typing import ArrayLike, NDArray
 
+from qte.bootstrap import BootstrapConfig, make_bootstrap_config, perform_block_bootstrap
 from qte.constants import MEDIAN
-from qte.custom_types import ColumnName
-from qte.names import QUANTILE_ID
+from qte.names import EFFECT_ID, QUANTILE_ID, SE_ID
 from qte.nonlinear_did.aggregate import (
     aggregate_group_time_effects_again,
     aggregate_group_time_effects_again_by_group,
@@ -16,13 +18,9 @@ from qte.nonlinear_did.aggregate import (
     get_weights_for_overall_effect,
     get_weights_for_treatment_group_effects,
 )
-from qte.nonlinear_did.bootstrap import (
-    Estimates,
-    get_statistics_from_bootstrap,
-    perform_bootstrap,
-)
 from qte.nonlinear_did.custom_types import (
     BasePeriod,
+    ColumnName,
     ControlGroup,
     CounterfactualModel,
     NonlinearDidAggregation,
@@ -36,6 +34,31 @@ from qte.nonlinear_did.results import (
     NonlinearDidResults,
 )
 from qte.stats import Ecdf, get_quantiles
+
+
+class Estimates(NamedTuple):
+    atts: pl.DataFrame
+    qtes: pl.DataFrame
+
+
+def get_statistics_from_bootstrap(
+    boot_iter: Iterable[dict[str, NonlinearDidAggregation]],
+    aggregations: Iterable[tuple[str, str | None]],
+) -> dict[str, Estimates]:
+    runs = list(boot_iter)
+    agg = pl.col(EFFECT_ID).std().alias(SE_ID)
+
+    return {
+        aggregation: Estimates(
+            qtes=pl.concat(r[aggregation].qtt.with_columns(boot_id=i) for i, r in enumerate(runs))
+            .group_by(*([grouper, QUANTILE_ID] if grouper is not None else [QUANTILE_ID]))
+            .agg(agg),
+            atts=pl.concat(r[aggregation].att.with_columns(boot_id=i) for i, r in enumerate(runs))
+            .group_by(grouper if grouper is not None else [])
+            .agg(agg),
+        )
+        for aggregation, grouper in aggregations
+    }
 
 
 def _make_nonlinear_did_results(
@@ -311,8 +334,9 @@ def estimate_nonlinear_did_for_panel(
     base_period: BasePeriod = BasePeriod.UNIVERSAL,
     control_group: ControlGroup = ControlGroup.NEVER_TREATED,
     counterfactual_model: CounterfactualModel = CounterfactualModel.CIC,
-    n_bootstrap_iter: int = 1000,
+    bootstrap_config: BootstrapConfig | int = 1000,
 ) -> NonlinearDidResults:
+    bootstrap_config = make_bootstrap_config(bootstrap_config)
     if isinstance(treatment_group_c, str):
         treatment_group_c = TrtGroupConfig(name=treatment_group_c)
     ds = ds.with_columns(
@@ -357,7 +381,9 @@ def estimate_nonlinear_did_for_panel(
         n_anticipation_periods=n_anticipation_periods,
     )
     estimate: NonlinearDidAggregations = fcn(ds)
-    bs_iterations = perform_bootstrap(ds, fcn, unit_c, n_iter=n_bootstrap_iter)
+    bs_iterations = perform_block_bootstrap(
+        ds, fcn, unit_c, n_iter=bootstrap_config.n_iter, seed=bootstrap_config.seed
+    )
     # We must explicitly type cast iteration items to silence ty
     groupers: list[tuple[str, str | None]] = [
         (agg_name, agg.group) for agg_name, agg in estimate.items()

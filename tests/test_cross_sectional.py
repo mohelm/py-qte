@@ -74,11 +74,11 @@ def test_estimate_ipw_qte_with_lalonde(lalonde_psid, estimate_params, expected_r
 
 OR_TEST_CASES = [
     (
-        {"target": CausalTarget.QTE, "qs": QUARTILES, "n_bootstrap_iter": 10},
+        {"target": CausalTarget.QTE, "qs": QUARTILES, "bootstrap_config": 10},
         {"q": QUARTILES, "effect_q": [-7389.094, -12340.600, -15976.407], "effect_m": [-11673.0]},
     ),
     (
-        {"target": CausalTarget.QTT, "qs": QUARTILES, "n_bootstrap_iter": 10},
+        {"target": CausalTarget.QTT, "qs": QUARTILES, "bootstrap_config": 10},
         {"q": QUARTILES, "effect_q": [-3271.908, -6025.094, -7481.486], "effect_m": [-5179.468]},
     ),
 ]
@@ -103,11 +103,11 @@ def test_estimate_or_qte_with_lalonde(lalonde_psid, estimate_params, expected_re
 
 AIPW_TEST_CASES = [
     (
-        {"target": CausalTarget.QTE, "qs": QUARTILES, "n_bootstrap_iter": 10},
+        {"target": CausalTarget.QTE, "qs": QUARTILES, "bootstrap_config": 10},
         {"q": QUARTILES, "effect_q": [-7646.724, -12684.516, -16522.675], "effect_m": [-12535.523]},
     ),
     (
-        {"target": CausalTarget.QTT, "qs": [0.25, 0.5, 0.75, 0.9], "n_bootstrap_iter": 10},
+        {"target": CausalTarget.QTT, "qs": [0.25, 0.5, 0.75, 0.9], "bootstrap_config": 10},
         {
             "q": [0.25, 0.5, 0.75, 0.9],
             "effect_q": [

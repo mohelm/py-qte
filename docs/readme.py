@@ -148,7 +148,7 @@ def main() -> None:
         qs=DECILES,
         or_x_formular=xf,
         ps_x_formular=xf,
-        n_bootstrap_iter=50,
+        bootstrap_config=50,
     )
     generate_readme_assets(res, "aipw_qte")
 
@@ -161,7 +161,7 @@ def main() -> None:
         "countyreal",
         qs=[0.25, 0.5, 0.75],
         counterfactual_model=CounterfactualModel.CIC,
-        n_bootstrap_iter=50,
+        bootstrap_config=50,
     )
     generate_readme_assets(res.overall, "nonlinear_did")
 

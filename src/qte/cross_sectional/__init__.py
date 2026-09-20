@@ -1,22 +1,35 @@
+from collections.abc import Iterable
 from functools import partial
 
 import numpy as np
 import polars as pl
 from numpy.typing import ArrayLike
 
+from qte.bootstrap import BootstrapConfig, make_bootstrap_config, perform_bootstrap
 from qte.constants import MEDIAN
 from qte.cross_sectional.aipw import compute_aipw_qte
-from qte.cross_sectional.bootstrap import (
-    get_statistics_from_bootstrap,
-    perform_bootstrap,
-)
 from qte.cross_sectional.ipw import compute_ipw_qte as compute_ipw_qte
 from qte.cross_sectional.or_ import compute_or_qte
 from qte.cross_sectional.results import QteResult
 from qte.cross_sectional.results import _QteIntermediateResult as _QteIntermediateResult
 from qte.cross_sectional.simple import compute_simple_qte
-from qte.custom_types import CausalTarget, ColumnName, Estimator, FormularRhs
-from qte.names import QUANTILE_ID, SE_ID
+from qte.custom_types import (
+    CausalTarget,
+    ColumnName,
+    Estimator,
+    FormularRhs,
+)
+from qte.names import EFFECT_ID, QUANTILE_ID, SE_ID
+
+
+def get_statistics_from_bootstrap(
+    boot_iter: Iterable[_QteIntermediateResult],
+) -> _QteIntermediateResult:
+    runs = list(boot_iter)
+    agg = pl.col(EFFECT_ID).std().alias(SE_ID)
+    qte = pl.concat([r.qtt for r in runs]).group_by(QUANTILE_ID).agg(agg)
+    att = pl.concat([r.att for r in runs]).group_by([]).agg(agg)
+    return _QteIntermediateResult(qte, att)
 
 
 def estimate_simple_qte(
@@ -26,8 +39,9 @@ def estimate_simple_qte(
     qs: ArrayLike = MEDIAN,
     *,
     weight_c: str | None = None,
-    n_bootstrap_iter: int = 100,
+    bootstrap_config: BootstrapConfig | int = 100,
 ) -> QteResult:
+    bootstrap_config = make_bootstrap_config(bootstrap_config)
     qs = np.array(qs)
     fcn = partial(
         compute_simple_qte,
@@ -37,7 +51,9 @@ def estimate_simple_qte(
         weight_c=weight_c,
     )
     estimate = fcn(ds)
-    bs_it = perform_bootstrap(ds, fcn=fcn, n_iter=n_bootstrap_iter)
+    bs_it = perform_bootstrap(
+        ds, fcn=fcn, n_iter=bootstrap_config.n_iter, seed=bootstrap_config.seed
+    )
     bs_stats = get_statistics_from_bootstrap(bs_it)
     return QteResult(
         qtt=estimate.qtt.join(bs_stats.qtt, on=QUANTILE_ID),
@@ -58,9 +74,10 @@ def estimate_ipw_qte(
     ps_x_formular: FormularRhs,
     target: CausalTarget = CausalTarget.QTE,
     weight_c: str | None = None,
-    n_bootstrap_iter: int = 100,
+    bootstrap_config: BootstrapConfig | int = 100,
 ) -> QteResult:
     qs = np.array(qs)
+    bootstrap_config = make_bootstrap_config(bootstrap_config)
     fcn = partial(
         compute_ipw_qte,
         outcome_c=outcome_c,
@@ -71,7 +88,9 @@ def estimate_ipw_qte(
         target=target,
     )
     estimate = fcn(ds)
-    bs_it = perform_bootstrap(ds, fcn=fcn, n_iter=n_bootstrap_iter)
+    bs_it = perform_bootstrap(
+        ds, fcn=fcn, n_iter=bootstrap_config.n_iter, seed=bootstrap_config.seed
+    )
     bs_stats = get_statistics_from_bootstrap(bs_it)
     return QteResult(
         qtt=estimate.qtt.join(bs_stats.qtt, on=QUANTILE_ID),
@@ -93,7 +112,7 @@ def estimate_or_qte(
     or_x_formular: str,
     target: CausalTarget = CausalTarget.QTE,
     weights_c: str | None = None,
-    n_bootstrap_iter: int = 100,
+    bootstrap_config: BootstrapConfig | int = 100,
 ) -> QteResult:
     qs = np.array(qs)
     fcn = partial(
@@ -106,7 +125,10 @@ def estimate_or_qte(
         target=target,
     )
     estimate = fcn(ds)
-    bs_it = perform_bootstrap(ds, fcn=fcn, n_iter=n_bootstrap_iter)
+    bootstrap_config = make_bootstrap_config(bootstrap_config)
+    bs_it = perform_bootstrap(
+        ds, fcn=fcn, n_iter=bootstrap_config.n_iter, seed=bootstrap_config.seed
+    )
     bs_stats = get_statistics_from_bootstrap(bs_it)
     return QteResult(
         qtt=estimate.qtt.join(bs_stats.qtt, on=QUANTILE_ID),
@@ -129,7 +151,7 @@ def estimate_aipw_qte(
     or_x_formular: FormularRhs,
     target: CausalTarget = CausalTarget.QTE,
     weights_c: str | None = None,
-    n_bootstrap_iter: int = 100,
+    bootstrap_config: BootstrapConfig | int = 100,
 ) -> QteResult:
     if weights_c is None:
         weights_c = "_w"
@@ -146,7 +168,10 @@ def estimate_aipw_qte(
         target=target,
     )
     estimate = fcn(ds)
-    bs_it = perform_bootstrap(ds, fcn=fcn, n_iter=n_bootstrap_iter)
+    bootstrap_config = make_bootstrap_config(bootstrap_config)
+    bs_it = perform_bootstrap(
+        ds, fcn=fcn, n_iter=bootstrap_config.n_iter, seed=bootstrap_config.seed
+    )
     bs_stats = get_statistics_from_bootstrap(bs_it)
     return QteResult(
         qtt=estimate.qtt.join(bs_stats.qtt, on=QUANTILE_ID),

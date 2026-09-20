@@ -110,7 +110,7 @@ def test_estimate_nonlinear_did_for_panel_data_with_unconditional_parallel_trend
         "countyreal",
         qs=[0.25, 0.5, 0.75],
         **estimate_params,
-        n_bootstrap_iter=3,
+        bootstrap_config=3,
     )
 
     # ATT
@@ -229,7 +229,7 @@ def test_estimate_qdid_for_panel_data_with_unconditional_parallel_trends(
         "countyreal",
         qs=[0.25, 0.5, 0.75],
         **estimate_params,
-        n_bootstrap_iter=3,
+        bootstrap_config=3,
     )
 
     # ATT
@@ -270,7 +270,7 @@ def test_trt_group_config_on_raw_data_keeps_integer_identifiers(mpdata, mpdata_p
         "countyreal",
         qs=qs,
         counterfactual_model=CounterfactualModel.CIC,
-        n_bootstrap_iter=3,
+        bootstrap_config=3,
     )
     prepared = estimate_nonlinear_did_for_panel(
         mpdata_prepared,
@@ -280,7 +280,7 @@ def test_trt_group_config_on_raw_data_keeps_integer_identifiers(mpdata, mpdata_p
         "countyreal",
         qs=qs,
         counterfactual_model=CounterfactualModel.CIC,
-        n_bootstrap_iter=3,
+        bootstrap_config=3,
     )
 
     # identifiers come back as integers even though the internals are float
