@@ -82,7 +82,7 @@ def test_plot_returns_altair_chart_with_single_quantile_qte_res(mock_single_quan
     layers = chart_dict.get("layer", [])
     assert (
         len(layers) == 4
-    )  # Four layers one line (confidence interval) and one point (estimate) for att and qte (so time 2)
+    )  # Four layers: one line (confidence interval) and one point (estimate) for att and qte (so time 2)
 
 
 def test_plot_returns_altair_chart_with_multiple_quantile_qte_result(
