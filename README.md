@@ -10,7 +10,6 @@ The main **features** are:
 - **Fast**:
   - as opposed to the R-package we can use highly optimized Numpy functions for computing weighted quantiles;
   - quantile regression is magnitudes faster than in other Python packages since we use highly optimized Fortran code directly (falling back to statsmodels where the extension is unavailable);
-  - parallelism for bootstrapped standard errors;
   - batching and vectorization in performance critical places;
   - built natively on [Polars](https://github.com/pola-rs/polars);
 - **Beautiful**: Graphs and tables for the console, the web, and latex powered by [Altair](https://github.com/vega/altair), [Great Tables](https://github.com/posit-dev/great-tables) and [Rich](https://github.com/textualize/rich).
