@@ -22,20 +22,12 @@ The main **features** are:
 Requires Python 3.12 or newer.
 
 ```bash
-uv add py-qte
-# or
-pip install py-qte
+uv add py-qte # or pip install py-qte
 ```
 
-Prebuilt wheels ship for Linux (x86_64) and macOS (Intel and Apple Silicon).
-On those platforms quantile regression uses the bundled Fortran Frisch-Newton
-solver. Everywhere else — including Windows — a pure-Python wheel falls back to
-[statsmodels](https://www.statsmodels.org/) for quantile regression: same
-results to roughly `1e-5`, but slower.
-
-Building from source additionally needs a Fortran compiler (`gfortran`) and
-BLAS/LAPACK development libraries. When they are missing, the build
-automatically skips the extension and installs the pure-Python fallback.
+On Linux and macOS the Fortran solver for quantile regression should work and
+be used. On Windows a fallback (based on the `statsmodels` library will be
+used).
 
 ---
 
@@ -116,6 +108,17 @@ res = estimate_nonlinear_did_for_panel(
 ---
 
 # Development
+
+
+Development is somewhat complicated due to the inclusion of the Fortan code for solving quantile regression. A working way to set up the project for development is:
+
+ ```sh
+ git clone git@github.com:mohelm/py-qte.git
+ cd py-qte
+ uv sync --all-groups --no-install-project && uv sync --all-groups
+ ```
+
+## Regenerating the README assets
 
 Regenerate the figures above after changing the estimators or their presentation:
 
