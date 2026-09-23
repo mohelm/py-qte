@@ -26,7 +26,7 @@ class _BasicQteResult:
     qtt: pl.DataFrame = field(repr=False)
     att: pl.DataFrame = field(repr=False)
     outcome: str
-    group: str | None
+    group: str | tuple[str, ...] | None
 
     _exclude_from_qtt_tables: ClassVar[tuple[str, ...]] = (
         QUANTILE_TREATED_VAL_ID,
@@ -38,13 +38,23 @@ class _BasicQteResult:
     )
 
     def __post_init__(self) -> None:
-        self.qtt = self.qtt.sort(
-            [
-                *([self.group] if self.group is not None else []),
-                QUANTILE_ID,
-            ]
+        self.qtt = self.qtt.sort([
+            *(
+                [self.group]
+                if isinstance(self.group, str)
+                else self.group
+                if self.group is not None
+                else []
+            ),
+            QUANTILE_ID,
+        ])
+        self.att = self.att.sort(
+            [self.group]
+            if isinstance(self.group, str)
+            else self.group
+            if self.group is not None
+            else []
         )
-        self.att = self.att.sort([self.group] if self.group is not None else [])
 
     def _make_table_header_content(self, alpha: float) -> dict[str, Any]:
         header_content = {"Outcome": self.outcome}
@@ -75,4 +85,5 @@ class _BasicQteResult:
             self.att.drop(self._exlude_from_att_tables).with_columns(get_ci(alpha)),
             self._make_table_header_content(alpha),
             float_precision=2,
+            group=self.group,
         )

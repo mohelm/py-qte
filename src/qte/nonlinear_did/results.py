@@ -24,7 +24,7 @@ class GroupTimeEffect(NamedTuple):
 
 @dataclass()
 class NonlinearDidResult(_BasicQteResult):
-    group: str | None
+    group: tuple[str, ...] | None
     base_period: BasePeriod
     control_group: ControlGroup
     sampling_scheme: SamplingScheme
@@ -36,3 +36,4 @@ class NonlinearDidResults:
     group: NonlinearDidResult
     event_study: NonlinearDidResult
     overall: NonlinearDidResult
+    group_time: NonlinearDidResult

@@ -1,7 +1,7 @@
 from typing import Any
 
 import polars as pl
-from great_tables import GT, md
+from great_tables import GT, loc, md, style
 
 from qte.names import CI_LB_ID, CI_UB_ID, EFFECT_ID, QUANTILE_ID, SE_ID
 from qte.presentation.tables.common import (
@@ -15,10 +15,12 @@ from qte.presentation.tables.common import (
 def make_great_table(
     qtes: pl.DataFrame,
     atts: pl.DataFrame,
-    group: str | None,
+    group: str | None | tuple[str, ...],
     header_content: dict[str, Any],
     float_precision: int = 2,
 ) -> GT:
+    if isinstance(group, str):
+        group = (group,)
 
     combined = pl.concat(
         (
@@ -33,8 +35,8 @@ def make_great_table(
     st_meat = "".join(_make_header(header_content, "&nbsp", "<br>"))
     subtitle = f"<div style='font-family: monospace;'>{st_meat}</div>"
 
-    return (
-        GT(combined, groupname_col="__kind", rowname_col=group)
+    base = (
+        GT(combined, groupname_col="__kind")
         .tab_header(
             title="Quantile & Average Treatment Effects",
             subtitle=md(subtitle),
@@ -49,3 +51,9 @@ def make_great_table(
             row_group_background_color="#f8f9fa",
         )
     )
+    if group is not None:
+        base = base.tab_style(
+            style=style.borders(sides="right", style="solid", weight="2px", color="black"),
+            locations=loc.body(columns=group[-1]),
+        )
+    return base

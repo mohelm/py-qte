@@ -12,8 +12,9 @@ from qte.bootstrap import BootstrapConfig, make_bootstrap_config, perform_block_
 from qte.constants import MEDIAN
 from qte.names import EFFECT_ID, QUANTILE_ID, SE_ID
 from qte.nonlinear_did.aggregate import (
-    aggregate_group_time_effects_again,
+    aggregate_group_time_effects,
     aggregate_group_time_effects_again_by_group,
+    get_group_time_treatment_effects,
     get_weights_for_event_study_effects,
     get_weights_for_overall_effect,
     get_weights_for_treatment_group_effects,
@@ -23,10 +24,10 @@ from qte.nonlinear_did.custom_types import (
     ColumnName,
     ControlGroup,
     CounterfactualModel,
-    NonlinearDidAggregation,
-    NonlinearDidAggregations,
     SamplingScheme,
     TrtGroupConfig,
+    _NonlinearDidAggregation,
+    _NonlinearDidAggregations,
 )
 from qte.nonlinear_did.results import (
     GroupTimeEffect,
@@ -41,20 +42,29 @@ class Estimates(NamedTuple):
     qtes: pl.DataFrame
 
 
+def _make_columns_to_group_by(groups: str | tuple[str, ...] | None, other: str | None) -> list[str]:
+    columns = list(groups) if groups is not None else []
+    if other is not None:
+        columns.append(other)
+    return columns
+
+
 def get_statistics_from_bootstrap(
-    boot_iter: Iterable[dict[str, NonlinearDidAggregation]],
-    aggregations: Iterable[tuple[str, str | None]],
+    boot_iter: Iterable[dict[str, _NonlinearDidAggregation]],
+    aggregations: Iterable[tuple[str, str | tuple[str, ...] | None]],
 ) -> dict[str, Estimates]:
     runs = list(boot_iter)
     agg = pl.col(EFFECT_ID).std().alias(SE_ID)
 
     return {
         aggregation: Estimates(
-            qtes=pl.concat(r[aggregation].qtt.with_columns(boot_id=i) for i, r in enumerate(runs))
-            .group_by(*([grouper, QUANTILE_ID] if grouper is not None else [QUANTILE_ID]))
+            qtes=pl
+            .concat(r[aggregation].qtt.with_columns(boot_id=i) for i, r in enumerate(runs))
+            .group_by(*_make_columns_to_group_by(grouper, QUANTILE_ID))
             .agg(agg),
-            atts=pl.concat(r[aggregation].att.with_columns(boot_id=i) for i, r in enumerate(runs))
-            .group_by(grouper if grouper is not None else [])
+            atts=pl
+            .concat(r[aggregation].att.with_columns(boot_id=i) for i, r in enumerate(runs))
+            .group_by(*_make_columns_to_group_by(grouper, None))
             .agg(agg),
         )
         for aggregation, grouper in aggregations
@@ -62,7 +72,7 @@ def get_statistics_from_bootstrap(
 
 
 def _make_nonlinear_did_results(
-    agg: NonlinearDidAggregation,
+    agg: _NonlinearDidAggregation,
     bs_res: Estimates,
     *,
     outcome: str,
@@ -72,16 +82,16 @@ def _make_nonlinear_did_results(
 ) -> NonlinearDidResult:
     qtt = agg.qtt.join(
         bs_res.qtes,
-        on=[QUANTILE_ID, agg.group] if agg.group is not None else [QUANTILE_ID],
+        on=[QUANTILE_ID, *agg.group] if agg.group is not None else [QUANTILE_ID],
     )
     att = agg.att.join(
         bs_res.atts,
-        on=[agg.group] if agg.group is not None else None,
+        on=agg.group if agg.group is not None else None,
         how="inner" if agg.group is not None else "cross",
     )
     if agg.group is not None:
-        qtt = qtt.with_columns(pl.col(agg.group).cast(pl.Int64))
-        att = att.with_columns(pl.col(agg.group).cast(pl.Int64))
+        qtt = qtt.with_columns(pl.col(g).cast(pl.Int64) for g in agg.group)
+        att = att.with_columns(pl.col(g).cast(pl.Int64) for g in agg.group)
     return NonlinearDidResult(
         qtt,
         att,
@@ -141,7 +151,8 @@ def _get_group_data(
     ds: pl.DataFrame, filter_: pl.Expr, outcome_c: str, weights_c: str, unit_c: str
 ) -> NDArray:
     return (
-        ds.filter(filter_)
+        ds
+        .filter(filter_)
         .select(
             outcome_c,
             weights_c,
@@ -246,7 +257,7 @@ def _compute_nonlinear_did_for_panel(
     control_group: ControlGroup = ControlGroup.NEVER_TREATED,
     counterfactual_model: CounterfactualModel = CounterfactualModel.CIC,
     n_anticipation_periods: int = 0,
-) -> NonlinearDidAggregations:
+) -> _NonlinearDidAggregations:
 
     outcome_grid_size = 1000
 
@@ -292,6 +303,9 @@ def _compute_nonlinear_did_for_panel(
     post_trt_group_time_effects = [gte for gte in group_time_effects if gte.tp >= gte.group]
 
     # AGGREGATE
+    # Group Time Effects
+    group_time_te = get_group_time_treatment_effects(qs, group_time_effects)
+
     # Group
     group_te = aggregate_group_time_effects_again_by_group(
         qs,
@@ -302,7 +316,7 @@ def _compute_nonlinear_did_for_panel(
         dim_name="treatment_group",
     )
     # Overall
-    agg_te = aggregate_group_time_effects_again(
+    agg_te = aggregate_group_time_effects(
         qs,
         post_trt_group_time_effects,
         get_weights_for_overall_effect(group_sizes_per_time),
@@ -318,7 +332,9 @@ def _compute_nonlinear_did_for_panel(
         dim_id=lambda gte: gte.tp - gte.group,
         dim_name="event_study_period",
     )
-    return NonlinearDidAggregations(group=group_te, event_study=event_study_te, overall=agg_te)
+    return _NonlinearDidAggregations(
+        group=group_te, event_study=event_study_te, overall=agg_te, group_time=group_time_te
+    )
 
 
 def estimate_nonlinear_did_for_panel(
@@ -347,7 +363,8 @@ def estimate_nonlinear_did_for_panel(
     )
     if treatment_group_c.never_treated_identifier != float("inf"):
         ds = ds.with_columns(
-            pl.when(pl.col(treatment_group_c.name) == treatment_group_c.never_treated_identifier)
+            pl
+            .when(pl.col(treatment_group_c.name) == treatment_group_c.never_treated_identifier)
             .then(float("inf"))
             .otherwise(pl.col(treatment_group_c.name))
             .alias(treatment_group_c.name)
@@ -380,12 +397,12 @@ def estimate_nonlinear_did_for_panel(
         counterfactual_model=counterfactual_model,
         n_anticipation_periods=n_anticipation_periods,
     )
-    estimate: NonlinearDidAggregations = fcn(ds)
+    estimate: _NonlinearDidAggregations = fcn(ds)
     bs_iterations = perform_block_bootstrap(
         ds, fcn, unit_c, n_iter=bootstrap_config.n_iter, seed=bootstrap_config.seed
     )
     # We must explicitly type cast iteration items to silence ty
-    groupers: list[tuple[str, str | None]] = [
+    groupers: list[tuple[str, tuple[str, ...] | None]] = [
         (agg_name, agg.group) for agg_name, agg in estimate.items()
     ]
     bs_aggs = get_statistics_from_bootstrap(bs_iterations, groupers)

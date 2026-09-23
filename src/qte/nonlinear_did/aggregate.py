@@ -12,7 +12,7 @@ from qte.names import (
     QUANTILE_ID,
     QUANTILE_TREATED_VAL_ID,
 )
-from qte.nonlinear_did.custom_types import BasePeriod, NonlinearDidAggregation, WeightsLookup
+from qte.nonlinear_did.custom_types import BasePeriod, WeightsLookup, _NonlinearDidAggregation
 from qte.nonlinear_did.results import GroupTimeEffect
 from qte.stats import Ecdf
 
@@ -23,7 +23,8 @@ def _weights_to_dict(d: pl.DataFrame) -> WeightsLookup:
 
 def get_weights_for_overall_effect(ds: pl.DataFrame) -> WeightsLookup:
     return (
-        ds.filter(pl.col("time_period") >= pl.col("group"))
+        ds
+        .filter(pl.col("time_period") >= pl.col("group"))
         .with_columns(
             weight=(pl.col("weight") / pl.col("weight").sum().over("group"))
             * (
@@ -37,7 +38,8 @@ def get_weights_for_overall_effect(ds: pl.DataFrame) -> WeightsLookup:
 
 def get_weights_for_treatment_group_effects(ds: pl.DataFrame) -> WeightsLookup:
     return (
-        ds.filter(pl.col("time_period") >= pl.col("group"))
+        ds
+        .filter(pl.col("time_period") >= pl.col("group"))
         .with_columns(weight=pl.col("weight") / pl.col("weight").sum().over("group"))
         .pipe(_weights_to_dict)
     )
@@ -74,7 +76,7 @@ def aggregate_group_time_effects_again_by_group(
     *,
     dim_id: Callable,
     dim_name: str,
-) -> NonlinearDidAggregation:
+) -> _NonlinearDidAggregation:
 
     qs = np.array(qs)
     ecdf_on_grid_o, ecdf_on_grid_cf, means_o, means_cf = _merge_group_time_effects_on_grid(
@@ -88,57 +90,73 @@ def aggregate_group_time_effects_again_by_group(
     ecdf_o = G @ ecdf_on_grid_o
     ecdf_cf = G @ ecdf_on_grid_cf
     qtts = pl.concat(
-        pl.DataFrame(
-            {
-                dim_name: d,
-                f"{QUANTILE_ID}": qs,
-                f"{QUANTILE_TREATED_VAL_ID}": Ecdf(y_grid, ecdf_o[i_d]).evaluate_inverse(qs),
-                f"{QUANTILE_CONTROL_VAL_ID}": Ecdf(y_grid, ecdf_cf[i_d]).evaluate_inverse(qs),
-            }
-        )
+        pl.DataFrame({
+            dim_name: d,
+            f"{QUANTILE_ID}": qs,
+            f"{QUANTILE_TREATED_VAL_ID}": Ecdf(y_grid, ecdf_o[i_d]).evaluate_inverse(qs),
+            f"{QUANTILE_CONTROL_VAL_ID}": Ecdf(y_grid, ecdf_cf[i_d]).evaluate_inverse(qs),
+        })
         for i_d, d in enumerate(unique_dims)
     ).with_columns(
         (pl.col(QUANTILE_TREATED_VAL_ID) - pl.col(QUANTILE_CONTROL_VAL_ID)).alias(EFFECT_ID)
     )
-    atts = pl.DataFrame(
-        {
-            dim_name: unique_dims,
-            f"{MEAN_TREATED_ID}": G @ means_o,
-            f"{MEAN_CONTROL_ID}": G @ means_cf,
-        }
-    ).with_columns((pl.col(MEAN_TREATED_ID) - pl.col(MEAN_CONTROL_ID)).alias(EFFECT_ID))
-    return NonlinearDidAggregation(qtts, atts, dim_name)
+    atts = pl.DataFrame({
+        dim_name: unique_dims,
+        f"{MEAN_TREATED_ID}": G @ means_o,
+        f"{MEAN_CONTROL_ID}": G @ means_cf,
+    }).with_columns((pl.col(MEAN_TREATED_ID) - pl.col(MEAN_CONTROL_ID)).alias(EFFECT_ID))
+    return _NonlinearDidAggregation(qtts, atts, (dim_name,))
 
 
-def aggregate_group_time_effects_again(
+def aggregate_group_time_effects(
     qs: ArrayLike,
     gtes: list[GroupTimeEffect],
     weights: dict[tuple[int, int], float],
     y_grid: NDArray,
-) -> NonlinearDidAggregation:
+) -> _NonlinearDidAggregation:
     ecdf_on_grid_o, ecdf_on_grid_cf, means_o, means_cf = _merge_group_time_effects_on_grid(
         gtes, weights, y_grid
     )
     qs = np.array(qs)
 
-    qtes = pl.DataFrame(
-        {
-            f"{QUANTILE_ID}": qs,
-            f"{QUANTILE_TREATED_VAL_ID}": Ecdf(y_grid, ecdf_on_grid_o.sum(axis=0)).evaluate_inverse(
-                qs
-            ),
-            f"{QUANTILE_CONTROL_VAL_ID}": Ecdf(
-                y_grid, ecdf_on_grid_cf.sum(axis=0)
-            ).evaluate_inverse(qs),
-        }
-    ).with_columns(
+    qtes = pl.DataFrame({
+        QUANTILE_ID: qs,
+        QUANTILE_TREATED_VAL_ID: Ecdf(y_grid, ecdf_on_grid_o.sum(axis=0)).evaluate_inverse(qs),
+        QUANTILE_CONTROL_VAL_ID: Ecdf(y_grid, ecdf_on_grid_cf.sum(axis=0)).evaluate_inverse(qs),
+    }).with_columns(
         (pl.col(QUANTILE_TREATED_VAL_ID) - pl.col(QUANTILE_CONTROL_VAL_ID)).alias(EFFECT_ID)
     )
 
-    atts = pl.DataFrame(
-        {
-            f"{MEAN_TREATED_ID}": [means_o.sum()],
-            f"{MEAN_CONTROL_ID}": [means_cf.sum()],
-        }
+    atts = pl.DataFrame({
+        MEAN_TREATED_ID: [means_o.sum()],
+        MEAN_CONTROL_ID: [means_cf.sum()],
+    }).with_columns((pl.col(MEAN_TREATED_ID) - pl.col(MEAN_CONTROL_ID)).alias(EFFECT_ID))
+    return _NonlinearDidAggregation(qtes, atts, None)
+
+
+def get_group_time_treatment_effects(
+    qs: ArrayLike, gtes: list[GroupTimeEffect]
+) -> _NonlinearDidAggregation:
+    qs = np.array(qs)
+    qtes = pl.concat(
+        pl.DataFrame({
+            "group": gte.group,
+            "time": gte.tp,
+            QUANTILE_ID: qs,
+            QUANTILE_TREATED_VAL_ID: gte.ecdf_observed.evaluate_inverse(qs),
+            QUANTILE_CONTROL_VAL_ID: gte.ecdf_counterfact.evaluate_inverse(qs),
+        })
+        for gte in gtes
+    ).with_columns(
+        (pl.col(QUANTILE_TREATED_VAL_ID) - pl.col(QUANTILE_CONTROL_VAL_ID)).alias(EFFECT_ID)
+    )
+    att = pl.concat(
+        pl.DataFrame({
+            "group": [gte.group],
+            "time": [gte.tp],
+            MEAN_TREATED_ID: [gte.mean_observed],
+            MEAN_CONTROL_ID: [gte.mean_countfact],
+        })
+        for gte in gtes
     ).with_columns((pl.col(MEAN_TREATED_ID) - pl.col(MEAN_CONTROL_ID)).alias(EFFECT_ID))
-    return NonlinearDidAggregation(qtes, atts, None)
+    return _NonlinearDidAggregation(qtes, att, ("group", "time"))

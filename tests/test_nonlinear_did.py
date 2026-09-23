@@ -31,30 +31,73 @@ TEST_CASES_NONLINEAR_DID = [
         {
             "overall": {"group": None, "res": pl.Series("effect", [-0.01924603])},
             "treatment_group": {
-                "group": "treatment_group",
-                "res": pl.DataFrame(
-                    {
-                        "treatment_group": [2004, 2006, 2007],
-                        "effect": [-0.0678029241, 0.0008487484, -0.0179685726],
-                    }
-                ),
+                "group": ("treatment_group",),
+                "res": pl.DataFrame({
+                    "treatment_group": [2004, 2006, 2007],
+                    "effect": [-0.0678029241, 0.0008487484, -0.0179685726],
+                }),
             },
             "event_study": {
-                "group": "event_study_period",
-                "res": pl.DataFrame(
-                    {
-                        "event_study_period": [-3, -2, -1, 0, 1, 2, 3],
-                        "effect": [
-                            0.059032449,
-                            0.023266515,
-                            -0.011340997,
-                            -0.007069727,
-                            -0.033344279,
-                            -0.125003869,
-                            -0.092958251,
-                        ],
-                    }
-                ),
+                "group": ("event_study_period",),
+                "res": pl.DataFrame({
+                    "event_study_period": [-3, -2, -1, 0, 1, 2, 3],
+                    "effect": [
+                        0.059032449,
+                        0.023266515,
+                        -0.011340997,
+                        -0.007069727,
+                        -0.033344279,
+                        -0.125003869,
+                        -0.092958251,
+                    ],
+                }),
+            },
+            "group_time_effects": {
+                "group": ("group", "time"),
+                "res": pl.DataFrame({
+                    "group": [
+                        2004,
+                        2004,
+                        2004,
+                        2004,
+                        2006,
+                        2006,
+                        2006,
+                        2006,
+                        2007,
+                        2007,
+                        2007,
+                        2007,
+                    ],
+                    "time": [
+                        2004,
+                        2007,
+                        2006,
+                        2005,
+                        2005,
+                        2004,
+                        2007,
+                        2006,
+                        2006,
+                        2005,
+                        2004,
+                        2007,
+                    ],
+                    "effect": [
+                        0.003064769,
+                        -0.092958251,
+                        -0.125003869,
+                        -0.056314345,
+                        0.015993557,
+                        0.015244073,
+                        -0.021859246,
+                        0.023556742,
+                        -0.019687426,
+                        0.025716116,
+                        0.059032449,
+                        -0.017968573,
+                    ],
+                }).sort(["group", "time"]),
             },
         },
     ),
@@ -67,30 +110,73 @@ TEST_CASES_NONLINEAR_DID = [
         {
             "overall": {"group": None, "res": pl.Series("effect", [-0.01966596])},
             "treatment_group": {
-                "group": "treatment_group",
-                "res": pl.DataFrame(
-                    {
-                        "treatment_group": [2004, 2006, 2007],
-                        "effect": [-0.0718628885, 0.0008735407, -0.0179685726],
-                    }
-                ),
+                "group": ("treatment_group",),
+                "res": pl.DataFrame({
+                    "treatment_group": [2004, 2006, 2007],
+                    "effect": [-0.0718628885, 0.0008735407, -0.0179685726],
+                }),
             },
             "event_study": {
-                "group": "event_study_period",
-                "res": pl.DataFrame(
-                    {
-                        "event_study_period": [-3, -2, -1, 0, 1, 2, 3],
-                        "effect": [
-                            0.050846598,
-                            0.015848106,
-                            -0.012817207,
-                            -0.008055713,
-                            -0.036396125,
-                            -0.122572855,
-                            -0.092958251,
-                        ],
-                    }
-                ),
+                "group": ("event_study_period",),
+                "res": pl.DataFrame({
+                    "event_study_period": [-3, -2, -1, 0, 1, 2, 3],
+                    "effect": [
+                        0.050846598,
+                        0.015848106,
+                        -0.012817207,
+                        -0.008055713,
+                        -0.036396125,
+                        -0.122572855,
+                        -0.092958251,
+                    ],
+                }),
+            },
+            "group_time_effects": {
+                "group": ("group", "time"),
+                "res": pl.DataFrame({
+                    "group": [
+                        2004,
+                        2004,
+                        2004,
+                        2004,
+                        2006,
+                        2006,
+                        2006,
+                        2006,
+                        2007,
+                        2007,
+                        2007,
+                        2007,
+                    ],
+                    "time": [
+                        2004,
+                        2007,
+                        2006,
+                        2005,
+                        2005,
+                        2004,
+                        2007,
+                        2006,
+                        2006,
+                        2005,
+                        2004,
+                        2007,
+                    ],
+                    "effect": [
+                        -0.006450563,
+                        -0.092958251,
+                        -0.122572855,
+                        -0.065469885,
+                        0.009682760,
+                        0.006067035,
+                        -0.021859246,
+                        0.023606327,
+                        -0.019687426,
+                        0.018834693,
+                        0.050846598,
+                        -0.017968573,
+                    ],
+                }).sort(["group", "time"]),
             },
         },
     ),
@@ -134,6 +220,14 @@ def test_estimate_nonlinear_did_for_panel_data_with_unconditional_parallel_trend
         check_dtypes=False,
     )
 
+    agg_by_group_time_expected_results = expected_results["group_time_effects"]
+    assert res.group_time.group == agg_by_group_time_expected_results["group"]
+    assert_frame_equal(
+        res.group_time.att.select("group", "time", "effect"),
+        agg_by_group_time_expected_results["res"],
+        check_dtypes=False,
+    )
+
     # QTE
     assert_series_equal(res.overall.qtt["q"], pl.Series("q", qs))
     assert_series_equal(res.group.qtt["q"].unique(), pl.Series("q", qs))
@@ -150,30 +244,73 @@ TEST_CASES_QDID = [
         {
             "overall": {"group": None, "res": pl.Series("effect", [-0.02707699])},
             "treatment_group": {
-                "group": "treatment_group",
-                "res": pl.DataFrame(
-                    {
-                        "treatment_group": [2004, 2006, 2007],
-                        "effect": [-0.08154130, -0.02274363, -0.02008499],
-                    }
-                ),
+                "group": ("treatment_group",),
+                "res": pl.DataFrame({
+                    "treatment_group": [2004, 2006, 2007],
+                    "effect": [-0.08154130, -0.02274363, -0.02008499],
+                }),
             },
             "event_study": {
-                "group": "event_study_period",
-                "res": pl.DataFrame(
-                    {
-                        "event_study_period": [-3, -2, -1, 0, 1, 2, 3],
-                        "effect": [
-                            0.023111462,
-                            -0.000333753,
-                            -0.024289244,
-                            -0.015327331,
-                            -0.052323450,
-                            -0.134207653,
-                            -0.111142403,
-                        ],
-                    }
-                ),
+                "group": ("event_study_period",),
+                "res": pl.DataFrame({
+                    "event_study_period": [-3, -2, -1, 0, 1, 2, 3],
+                    "effect": [
+                        0.023111462,
+                        -0.000333753,
+                        -0.024289244,
+                        -0.015327331,
+                        -0.052323450,
+                        -0.134207653,
+                        -0.111142403,
+                    ],
+                }),
+            },
+            "group_time_effects": {
+                "group": ("group", "time"),
+                "res": pl.DataFrame({
+                    "group": [
+                        2004,
+                        2004,
+                        2004,
+                        2004,
+                        2006,
+                        2006,
+                        2006,
+                        2006,
+                        2007,
+                        2007,
+                        2007,
+                        2007,
+                    ],
+                    "time": [
+                        2004,
+                        2007,
+                        2006,
+                        2005,
+                        2005,
+                        2004,
+                        2007,
+                        2006,
+                        2006,
+                        2005,
+                        2004,
+                        2007,
+                    ],
+                    "effect": [
+                        -0.0129295649,
+                        -0.1111424035,
+                        -0.1342076532,
+                        -0.0678855722,
+                        0.0056240926,
+                        -0.0047225781,
+                        -0.0445423888,
+                        -0.0009448729,
+                        -0.0334230867,
+                        0.0010063462,
+                        0.0231114618,
+                        -0.0200849923,
+                    ],
+                }).sort(["group", "time"]),
             },
         },
     ),
@@ -186,30 +323,73 @@ TEST_CASES_QDID = [
         {
             "overall": {"group": None, "res": pl.Series("effect", [-0.02821676])},
             "treatment_group": {
-                "group": "treatment_group",
-                "res": pl.DataFrame(
-                    {
-                        "treatment_group": [2004, 2006, 2007],
-                        "effect": [-0.09136508, -0.02327415, -0.02008499],
-                    }
-                ),
+                "group": ("treatment_group",),
+                "res": pl.DataFrame({
+                    "treatment_group": [2004, 2006, 2007],
+                    "effect": [-0.09136508, -0.02327415, -0.02008499],
+                }),
             },
             "event_study": {
-                "group": "event_study_period",
-                "res": pl.DataFrame(
-                    {
-                        "event_study_period": [-3, -2, -1, 0, 1, 2, 3],
-                        "effect": [
-                            0.026582485,
-                            -0.004005279,
-                            -0.024655569,
-                            -0.016425656,
-                            -0.058366873,
-                            -0.147005585,
-                            -0.111142403,
-                        ],
-                    }
-                ),
+                "group": ("event_study_period",),
+                "res": pl.DataFrame({
+                    "event_study_period": [-3, -2, -1, 0, 1, 2, 3],
+                    "effect": [
+                        0.026582485,
+                        -0.004005279,
+                        -0.024655569,
+                        -0.016425656,
+                        -0.058366873,
+                        -0.147005585,
+                        -0.111142403,
+                    ],
+                }),
+            },
+            "group_time_effects": {
+                "group": ("group", "time"),
+                "res": pl.DataFrame({
+                    "group": [
+                        2004,
+                        2004,
+                        2004,
+                        2004,
+                        2006,
+                        2006,
+                        2006,
+                        2006,
+                        2007,
+                        2007,
+                        2007,
+                        2007,
+                    ],
+                    "time": [
+                        2004,
+                        2007,
+                        2006,
+                        2005,
+                        2005,
+                        2004,
+                        2007,
+                        2006,
+                        2006,
+                        2005,
+                        2004,
+                        2007,
+                    ],
+                    "effect": [
+                        -0.021296492,
+                        -0.111142403,
+                        -0.147005585,
+                        -0.086015842,
+                        0.004058053,
+                        -0.008741508,
+                        -0.044542389,
+                        -0.002005911,
+                        -0.033423087,
+                        -0.002559103,
+                        0.026582485,
+                        -0.020084992,
+                    ],
+                }).sort(["group", "time"]),
             },
         },
     ),
@@ -250,6 +430,14 @@ def test_estimate_qdid_for_panel_data_with_unconditional_parallel_trends(
     assert_frame_equal(
         res.event_study.att.select("event_study_period", "effect"),
         agg_by_event_study_period_expected_results["res"],
+        check_dtypes=False,
+    )
+
+    agg_by_group_time_expected_results = expected_results["group_time_effects"]
+    assert res.group_time.group == agg_by_group_time_expected_results["group"]
+    assert_frame_equal(
+        res.group_time.att.select("group", "time", "effect"),
+        agg_by_group_time_expected_results["res"],
         check_dtypes=False,
     )
 
