@@ -1,0 +1,278 @@
+---
+title: "QTE benchmark: py-qte vs R qte"
+subtitle: "Lalonde (PSID controls), cross-sectional"
+engine: knitr
+params:
+  n_iter: 10
+  n_iter_simple: 1000
+  n_workers: 4
+  seed: 42
+format:
+  html:
+    embed-resources: true
+    code-fold: true
+    code-summary: "Show code"
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+```{r setup}
+# Render with:
+#   uv run quarto render docs/aipw_benchmark.qmd
+# Override params from the CLI, e.g.:
+#   uv run quarto render docs/aipw_benchmark.qmd -P n_iter:100 -P n_iter_simple:1000 -P n_workers:8
+# Activate the pinned R library (docs/renv.lock). Quarto's knitr process runs
+# with the repo root as its working directory, so docs/.Rprofile is never
+# sourced -- load renv explicitly before any other package.
+docs_dir <- dirname(knitr::current_input(dir = TRUE))
+if (file.exists(file.path(docs_dir, "renv.lock"))) {
+  renv::load(project = docs_dir, quiet = TRUE)
+}
+
+library(reticulate)
+venv <- normalizePath(file.path(docs_dir, "..", ".venv"))
+use_virtualenv(venv, required = TRUE)
+
+library(qte)
+library(RhpcBLASctl)
+
+# qte's parallel bootstrap uses parallel::mclapply (fork). Forking a process
+# with a multithreaded OpenBLAS deadlocks, so force BLAS/OpenMP to a single
+# thread at runtime. RhpcBLASctl is a declared dependency (see docs/renv.lock).
+blas_set_num_threads(1L)
+omp_set_num_threads(1L)
+pbapply::pboptions(type = "none")
+
+N_ITER <- as.integer(params$n_iter)
+N_ITER_SIMPLE <- as.integer(params$n_iter_simple)
+N_WORKERS <- as.integer(params$n_workers)
+SEED <- as.integer(params$seed)
+QS <- c(0.25, 0.5, 0.75)
+QS_SIMPLE <- c(0.25, 0.5, 0.75, 0.9)
+X_R <- ~ age + I(age^2) + education + black + hispanic + married + nodegree
+X_PY <- "age + I(age**2) + education + black + hispanic + married + nodegree"
+```
+
+```{r r-sequential}
+set.seed(SEED)
+t0 <- Sys.time()
+res_r_seq <- unc_qte(
+  yname = "re78", dname = "treat", data = lalonde.psid, xformla = X_R,
+  probs = QS, est_method = "aipw", target = "qte", cl = 1, biters = N_ITER
+)
+r_seq_seconds <- as.numeric(Sys.time() - t0, units = "secs")
+
+r_seq_vals <- list(
+  qte = as.numeric(res_r_seq$qte), se = as.numeric(res_r_seq$qte.se),
+  ate = as.numeric(res_r_seq$ate), ate_se = as.numeric(res_r_seq$ate.se)
+)
+```
+
+```{r r-parallel}
+set.seed(SEED)
+t0 <- Sys.time()
+res_r_par <- unc_qte(
+  yname = "re78", dname = "treat", data = lalonde.psid, xformla = X_R,
+  probs = QS, est_method = "aipw", target = "qte", cl = N_WORKERS, biters = N_ITER
+)
+r_par_seconds <- as.numeric(Sys.time() - t0, units = "secs")
+
+r_par_vals <- list(
+  qte = as.numeric(res_r_par$qte), se = as.numeric(res_r_par$qte.se),
+  ate = as.numeric(res_r_par$ate), ate_se = as.numeric(res_r_par$ate.se)
+)
+```
+
+```{r r-simple}
+# Unconditional QTE with no covariates == R's IPW branch with x = NULL.
+set.seed(SEED)
+t0 <- Sys.time()
+res_r_simple <- unc_qte(
+  yname = "re78", dname = "treat", data = lalonde.psid, xformla = NULL,
+  probs = QS_SIMPLE, est_method = "ipw", target = "qtt",
+  cl = N_WORKERS, biters = N_ITER_SIMPLE
+)
+r_simple_seconds <- as.numeric(Sys.time() - t0, units = "secs")
+
+r_simple_vals <- list(
+  qte = as.numeric(res_r_simple$qte), se = as.numeric(res_r_simple$qte.se),
+  ate = as.numeric(res_r_simple$ate), ate_se = as.numeric(res_r_simple$ate.se)
+)
+```
+
+```{python}
+#| label: py-sequential
+import time
+
+from qte.bootstrap import BootstrapConfig
+from qte.cross_sectional import estimate_aipw_qte
+from qte.datasets import load_lalonde
+
+DATA = load_lalonde(controls_source="psid")
+qs = [float(q) for q in r.QS]
+
+cfg = BootstrapConfig(n_iter=int(r.N_ITER), seed=int(r.SEED), n_workers=1)
+t0 = time.perf_counter()
+res_py_seq = estimate_aipw_qte(
+    DATA, "re78", "treat", qs=qs,
+    ps_x_formular=r.X_PY, or_x_formular=r.X_PY, bootstrap_config=cfg,
+)
+py_seq_seconds = time.perf_counter() - t0
+```
+
+```{python}
+#| label: py-parallel
+cfg = BootstrapConfig(n_iter=int(r.N_ITER), seed=int(r.SEED), n_workers=int(r.N_WORKERS))
+t0 = time.perf_counter()
+res_py_par = estimate_aipw_qte(
+    DATA, "re78", "treat", qs=qs,
+    ps_x_formular=r.X_PY, or_x_formular=r.X_PY, bootstrap_config=cfg,
+)
+py_par_seconds = time.perf_counter() - t0
+```
+
+```{python}
+#| label: py-simple
+from qte.cross_sectional import estimate_simple_qte
+
+qs_simple = [float(q) for q in r.QS_SIMPLE]
+cfg = BootstrapConfig(n_iter=int(r.N_ITER_SIMPLE), seed=int(r.SEED), n_workers=int(r.N_WORKERS))
+t0 = time.perf_counter()
+res_py_simple = estimate_simple_qte(DATA, "re78", "treat", qs=qs_simple, bootstrap_config=cfg)
+py_simple_seconds = time.perf_counter() - t0
+```
+
+```{python}
+#| label: tables
+import polars as pl
+from great_tables import GT
+
+order = [f"QTE({q:.2f})" for q in qs] + ["ATE"]
+
+
+def py_cols(res):
+    rows = {f"QTE({row['q']:.2f})": (row["effect"], row["se"]) for row in res.qtt.iter_rows(named=True)}
+    rows["ATE"] = (res.att["effect"][0], res.att["se"][0])
+    return [rows[k][0] for k in order], [rows[k][1] for k in order]
+
+
+def r_cols(vals):
+    eff = [float(x) for x in vals["qte"]] + [float(vals["ate"])]
+    err = [float(x) for x in vals["se"]] + [float(vals["ate_se"])]
+    return eff, err
+
+
+py_seq_e, py_seq_s = py_cols(res_py_seq)
+py_par_e, py_par_s = py_cols(res_py_par)
+r_seq_e, r_seq_s = r_cols(r.r_seq_vals)
+r_par_e, r_par_s = r_cols(r.r_par_vals)
+
+numeric = ["py_seq_est", "py_seq_se", "py_par_est", "py_par_se",
+           "r_seq_est", "r_seq_se", "r_par_est", "r_par_se"]
+
+table = pl.DataFrame({
+    "quantity": order,
+    "py_seq_est": py_seq_e, "py_seq_se": py_seq_s,
+    "py_par_est": py_par_e, "py_par_se": py_par_s,
+    "r_seq_est": r_seq_e, "r_seq_se": r_seq_s,
+    "r_par_est": r_par_e, "r_par_se": r_par_s,
+})
+
+table_html = (
+    GT(table)
+    .tab_spanner("Python — sequential", columns=["py_seq_est", "py_seq_se"])
+    .tab_spanner("Python — parallel", columns=["py_par_est", "py_par_se"])
+    .tab_spanner("R — sequential", columns=["r_seq_est", "r_seq_se"])
+    .tab_spanner("R — parallel", columns=["r_par_est", "r_par_se"])
+    .cols_label(
+        quantity="", py_seq_est="est", py_seq_se="se",
+        py_par_est="est", py_par_se="se", r_seq_est="est", r_seq_se="se",
+        r_par_est="est", r_par_se="se",
+    )
+    .fmt_number(columns=numeric, decimals=1, use_seps=True)
+    .tab_source_note("Bootstrap standard errors. py-qte: AIPW mean; R unc_qte: IPW-based ATE.")
+    .as_raw_html()
+)
+
+timing = pl.DataFrame({
+    "model": ["Python — sequential", "Python — parallel", "R — sequential", "R — parallel"],
+    "workers": [1, int(r.N_WORKERS), 1, int(r.N_WORKERS)],
+    "iterations": [int(r.N_ITER)] * 4,
+    "seconds": [py_seq_seconds, py_par_seconds, float(r.r_seq_seconds), float(r.r_par_seconds)],
+})
+
+timing_html = (
+    GT(timing)
+    .cols_label(model="", workers="workers", iterations="bootstrap iters", seconds="seconds")
+    .fmt_number(columns=["seconds"], decimals=1)
+    .as_raw_html()
+)
+
+# --- simple / unconditional QTE (no covariates) -----------------------------
+simple_order = [f"QTE({q:.2f})" for q in qs_simple] + ["ATE"]
+
+
+def py_simple_cols(res):
+    rows = {f"QTE({row['q']:.2f})": (row["effect"], row["se"]) for row in res.qtt.iter_rows(named=True)}
+    rows["ATE"] = (res.att["effect"][0], res.att["se"][0])
+    return [rows[k][0] for k in simple_order], [rows[k][1] for k in simple_order]
+
+
+def r_simple_cols(vals):
+    eff = [float(x) for x in vals["qte"]] + [float(vals["ate"])]
+    err = [float(x) for x in vals["se"]] + [float(vals["ate_se"])]
+    return eff, err
+
+
+pys_e, pys_s = py_simple_cols(res_py_simple)
+rs_e, rs_s = r_simple_cols(r.r_simple_vals)
+
+simple_table = pl.DataFrame({
+    "quantity": simple_order,
+    "py_est": pys_e, "py_se": pys_s,
+    "r_est": rs_e, "r_se": rs_s,
+})
+
+simple_table_html = (
+    GT(simple_table)
+    .tab_spanner("Python simple_qte", columns=["py_est", "py_se"])
+    .tab_spanner("R unc_qte (ipw, x = NULL)", columns=["r_est", "r_se"])
+    .cols_label(quantity="", py_est="est", py_se="se", r_est="est", r_se="se")
+    .fmt_number(columns=["py_est", "py_se", "r_est", "r_se"], decimals=1, use_seps=True)
+    .tab_source_note(
+        "Unconditional QTE (no covariates). Estimates match except p90, where the packages "
+        "use different quantile definitions (NumPy linear/type 7 vs BMisc weighted_quantile)."
+    )
+    .as_raw_html()
+)
+
+simple_timing_html = (
+    GT(pl.DataFrame({
+        "model": ["Python simple_qte", "R unc_qte (ipw, x = NULL)"],
+        "workers": [int(r.N_WORKERS), int(r.N_WORKERS)],
+        "iterations": [int(r.N_ITER_SIMPLE)] * 2,
+        "seconds": [py_simple_seconds, float(r.r_simple_seconds)],
+    }))
+    .cols_label(model="", workers="workers", iterations="bootstrap iters", seconds="seconds")
+    .fmt_number(columns=["seconds"], decimals=1)
+    .as_raw_html()
+)
+```
+
+## Cross-sectional AIPW (covariates: age, age^2, education, black, hispanic, married, nodegree)
+
+```{r results='asis', echo=FALSE}
+cat(py$table_html)
+cat("<p></p>")
+cat(py$timing_html)
+```
+
+## Unconditional / simple QTE (no covariates)
+
+```{r results='asis', echo=FALSE}
+cat(py$simple_table_html)
+cat("<p></p>")
+cat(py$simple_timing_html)
+```

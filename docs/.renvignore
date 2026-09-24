@@ -1,0 +1,2 @@
+# Dependency discovery is driven by _deps.R; the qmd trips a false positive.
+aipw_benchmark.qmd
