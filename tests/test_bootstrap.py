@@ -33,7 +33,7 @@ def pairs(ds):
 
 
 def test_make_bootstrap_config_passes_config_through():
-    cfg = BootstrapConfig(n_iter=3, seed=7)
+    cfg = BootstrapConfig(n_iter=3, seed=7, n_workers=2)
     assert make_bootstrap_config(5) == BootstrapConfig(n_iter=5)
     assert make_bootstrap_config(cfg) is cfg
 
@@ -45,9 +45,9 @@ def test_perform_bootstrap_yields_one_resample_per_iteration(panel):
 
 
 def test_perform_bootstrap_is_seed_reproducible(panel):
-    first = list(perform_bootstrap(panel, total, 5, seed=1))
-    assert first == list(perform_bootstrap(panel, total, 5, seed=1))
-    assert first != list(perform_bootstrap(panel, total, 5, seed=2))
+    first = list(perform_bootstrap(panel, total, n_iter=5, seed=1))
+    assert first == list(perform_bootstrap(panel, total, n_iter=5, seed=1))
+    assert first != list(perform_bootstrap(panel, total, n_iter=5, seed=2))
 
 
 def test_perform_block_bootstrap_resamples_whole_blocks(panel):
@@ -56,6 +56,18 @@ def test_perform_block_bootstrap_resamples_whole_blocks(panel):
 
 
 def test_perform_block_bootstrap_is_seed_reproducible(panel):
-    first = list(perform_block_bootstrap(panel, pairs, "unit", 5, seed=1))
-    assert first == list(perform_block_bootstrap(panel, pairs, "unit", 5, seed=1))
-    assert first != list(perform_block_bootstrap(panel, pairs, "unit", 5, seed=2))
+    first = list(perform_block_bootstrap(panel, pairs, "unit", n_iter=5, seed=1))
+    assert first == list(perform_block_bootstrap(panel, pairs, "unit", n_iter=5, seed=1))
+    assert first != list(perform_block_bootstrap(panel, pairs, "unit", n_iter=5, seed=2))
+
+
+def test_perform_bootstrap_parallel_matches_sequential(panel):
+    serial = list(perform_bootstrap(panel, total, n_iter=5, seed=1))
+    parallel = list(perform_bootstrap(panel, total, n_iter=5, seed=1, n_workers=2))
+    assert parallel == serial
+
+
+def test_perform_block_bootstrap_parallel_matches_sequential(panel):
+    serial = list(perform_block_bootstrap(panel, pairs, "unit", n_iter=5, seed=1))
+    parallel = list(perform_block_bootstrap(panel, pairs, "unit", n_iter=5, seed=1, n_workers=2))
+    assert parallel == serial

@@ -399,7 +399,12 @@ def estimate_nonlinear_did_for_panel(
     )
     estimate: _NonlinearDidAggregations = fcn(ds)
     bs_iterations = perform_block_bootstrap(
-        ds, fcn, unit_c, n_iter=bootstrap_config.n_iter, seed=bootstrap_config.seed
+        ds,
+        fcn,
+        unit_c,
+        n_iter=bootstrap_config.n_iter,
+        seed=bootstrap_config.seed,
+        n_workers=bootstrap_config.n_workers,
     )
     # We must explicitly type cast iteration items to silence ty
     groupers: list[tuple[str, tuple[str, ...] | None]] = [

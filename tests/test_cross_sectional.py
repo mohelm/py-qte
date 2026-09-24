@@ -1,8 +1,9 @@
 import numpy as np
 import polars as pl
 import pytest
-from polars.testing import assert_series_equal
+from polars.testing import assert_frame_equal, assert_series_equal
 
+from qte.bootstrap import BootstrapConfig
 from qte.constants import QUARTILES
 from qte.cross_sectional import (
     estimate_aipw_qte,
@@ -35,6 +36,23 @@ def test_estimate_qte():
 
     res = estimate_simple_qte(ds, "outcome", "treated", qs=(0.05, 0.5, 0.95))
     assert isinstance(res, QteResult)
+
+
+def test_estimate_qte_parallel_matches_sequential():
+    ds = make_data(500)
+    cfg = BootstrapConfig(n_iter=8, seed=42)
+    serial = estimate_simple_qte(
+        ds, "outcome", "treated", qs=(0.25, 0.5, 0.75), bootstrap_config=cfg
+    )
+    parallel = estimate_simple_qte(
+        ds,
+        "outcome",
+        "treated",
+        qs=(0.25, 0.5, 0.75),
+        bootstrap_config=cfg._replace(n_workers=2),
+    )
+    assert_frame_equal(serial.qtt, parallel.qtt)
+    assert_frame_equal(serial.att, parallel.att)
 
 
 def test_estimate_ipw_qte():

@@ -52,7 +52,11 @@ def estimate_simple_qte(
     )
     estimate = fcn(ds)
     bs_it = perform_bootstrap(
-        ds, fcn=fcn, n_iter=bootstrap_config.n_iter, seed=bootstrap_config.seed
+        ds,
+        fcn=fcn,
+        n_iter=bootstrap_config.n_iter,
+        seed=bootstrap_config.seed,
+        n_workers=bootstrap_config.n_workers,
     )
     bs_stats = get_statistics_from_bootstrap(bs_it)
     return QteResult(
@@ -89,7 +93,11 @@ def estimate_ipw_qte(
     )
     estimate = fcn(ds)
     bs_it = perform_bootstrap(
-        ds, fcn=fcn, n_iter=bootstrap_config.n_iter, seed=bootstrap_config.seed
+        ds,
+        fcn=fcn,
+        n_iter=bootstrap_config.n_iter,
+        seed=bootstrap_config.seed,
+        n_workers=bootstrap_config.n_workers,
     )
     bs_stats = get_statistics_from_bootstrap(bs_it)
     return QteResult(
@@ -127,7 +135,11 @@ def estimate_or_qte(
     estimate = fcn(ds)
     bootstrap_config = make_bootstrap_config(bootstrap_config)
     bs_it = perform_bootstrap(
-        ds, fcn=fcn, n_iter=bootstrap_config.n_iter, seed=bootstrap_config.seed
+        ds,
+        fcn=fcn,
+        n_iter=bootstrap_config.n_iter,
+        seed=bootstrap_config.seed,
+        n_workers=bootstrap_config.n_workers,
     )
     bs_stats = get_statistics_from_bootstrap(bs_it)
     return QteResult(
@@ -170,7 +182,11 @@ def estimate_aipw_qte(
     estimate = fcn(ds)
     bootstrap_config = make_bootstrap_config(bootstrap_config)
     bs_it = perform_bootstrap(
-        ds, fcn=fcn, n_iter=bootstrap_config.n_iter, seed=bootstrap_config.seed
+        ds,
+        fcn=fcn,
+        n_iter=bootstrap_config.n_iter,
+        seed=bootstrap_config.seed,
+        n_workers=bootstrap_config.n_workers,
     )
     bs_stats = get_statistics_from_bootstrap(bs_it)
     return QteResult(

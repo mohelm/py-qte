@@ -1,5 +1,6 @@
 C Output from Public domain Ratfor, version 1.05
       subroutine rqfnb(n,p,a,y,rhs,d,u,beta,eps,wn,wp,nit,info)
+!f2py threadsafe
       integer n,p,info,nit(3)
       double precision a(p,n),y(n),rhs(p),d(n),u(n),wn(n,9),wp(p,p+3)
       double precision one,beta,eps
