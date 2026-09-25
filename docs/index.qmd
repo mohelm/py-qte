@@ -1,0 +1,8 @@
+---
+title: "py-qte"
+---
+
+Quantile treatment effects in Python — a fast, [Polars](https://pola-rs.github.io/polars/)-based
+implementation of the estimators in the R [`qte`](https://github.com/bcallaway11/qte) package.
+
+- [Benchmark: py-qte vs R `qte`](benchmark.qmd)

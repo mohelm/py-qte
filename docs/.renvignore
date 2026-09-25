@@ -1,2 +1,3 @@
-# Dependency discovery is driven by _deps.R; the qmd trips a false positive.
-aipw_benchmark.qmd
+# renv flags a spurious "shiny" dependency in the qmd; the real R packages
+# are pinned in renv.lock.
+benchmark.qmd

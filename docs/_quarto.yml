@@ -1,0 +1,18 @@
+project:
+  type: website
+  output-dir: _site
+  render:
+    - "*.qmd"
+
+website:
+  title: "py-qte"
+  navbar:
+    left:
+      - text: "Benchmark"
+        href: benchmark.qmd
+
+format:
+  html:
+    embed-resources: true
+    code-fold: true
+    code-summary: "Show code"
