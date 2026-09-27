@@ -1,6 +1,5 @@
 ---
 title: "QTE benchmark: py-qte vs R qte"
-subtitle: "Lalonde (PSID controls), cross-sectional"
 engine: knitr
 params:
   n_iter: 10
@@ -28,6 +27,7 @@ execute:
 docs_dir <- dirname(knitr::current_input(dir = TRUE))
 
 # Force all libraries to be loaded from the renv environment.
+options(renv.config.synchronized.check = FALSE)
 renv::load(project = docs_dir, quiet = TRUE)
 
 # Get the Python environment it is currently located once step above the docs directory
@@ -38,11 +38,13 @@ use_virtualenv(normalizePath(venv), required = TRUE)
 
 ```{r}
 #| label: load-qte
+#| code-summary: "Show code (R loading the qte package)"
 library(qte)
 ```
 
 ```{r}
 #| label: set-blas-open-mp-env-vars
+#| code-summary: "Show code (R configuring single-threaded BLAS/OpenMP)"
 # For parallel bootstrap in qte (r-package) we need BLAS/OpenMP to be single threaed.
 library(RhpcBLASctl)
 blas_set_num_threads(1L)
@@ -52,6 +54,7 @@ pbapply::pboptions(type = "none")
 
 ```{r}
 #| label: parameters
+#| code-summary: "Show code (R reading the benchmark parameters)"
 N_ITER <- as.integer(params$n_iter)
 N_ITER_SIMPLE <- as.integer(params$n_iter_simple)
 N_WORKERS <- as.integer(params$n_workers)
@@ -59,6 +62,7 @@ SEED <- as.integer(params$seed)
 ```
 
 ```{r}
+#| code-summary: "Show code (R quantiles and formulas)"
 QS <- c(0.25, 0.5, 0.75)
 QS_SIMPLE <- c(0.25, 0.5, 0.75, 0.9)
 X_R <- ~ age + I(age^2) + education + black + hispanic + married + nodegree
@@ -67,10 +71,11 @@ X_PY <- "age + I(age**2) + education + black + hispanic + married + nodegree"
 
 ```{python}
 #| label: py-setup
+#| code-summary: "Show code (Python importing libraries and loading the data)"
 import time
 
 import polars as pl
-from great_tables import GT
+from great_tables import GT, loc, md, px, style
 
 from qte.bootstrap import BootstrapConfig
 from qte.cross_sectional import estimate_aipw_qte, estimate_simple_qte
@@ -81,6 +86,120 @@ qs = [float(q) for q in r.QS]
 qs_simple = [float(q) for q in r.QS_SIMPLE]
 ```
 
+```{python}
+#| label: py-helpers
+#| code-summary: "Show code (Python defining the comparison-table helpers)"
+def make_timing_table(ds: pl.DataFrame, estimation: str) -> GT:
+    return (
+        GT(ds)
+        .cols_label(
+            language="Language", package="Package", computation="Computation",
+            workers="Workers", iterations="Bootstrap Iterations", seconds="Seconds",
+        )
+        .fmt_number(columns=["seconds"], decimals=1, use_seps=True)
+        .fmt_number(columns=["iterations"], decimals=0, use_seps=True)
+        .tab_header(title=md("**Speed Comparison**"), subtitle=estimation)
+    )
+
+
+def make_comparison_data(qs, series) -> pl.DataFrame:
+    """Tidy estimate/SE data for a package-vs-package comparison.
+
+    ``series`` maps a ``(package, computation)`` label to an ``(effects, ses)``
+    pair, each ordered as ``[QTE(q) for q in qs] + [ATT]``.
+    """
+    n_qte = len(qs)
+    records = []
+    for (package, computation), (effects, ses) in series.items():
+        for i, q in enumerate(qs): # quantiles
+            records.append({
+                "effect": "QTE", "quantile": f"{q:.2f}",
+                "package": package, "computation": computation,
+                "estimate": float(effects[i]), "se": float(ses[i]),
+            })
+        records.append({
+            "effect": "ATT", "quantile": "",
+            "package": package, "computation": computation,
+            "estimate": float(effects[n_qte]), "se": float(ses[n_qte]),
+        })
+    return pl.DataFrame(records)
+
+
+def make_estimate_comparison_table(data: pl.DataFrame, estimation: str) -> GT:
+    """Render tidy comparison data (see ``make_comparison_data``).
+
+    Rows are grouped under ``QTE``/``ATT``; package names become the top-level
+    column spanners with the computation nested underneath. Estimate and
+    standard-error columns get distinct backgrounds, and packages are separated
+    by a vertical rule.
+    """
+    packages = data["package"].unique(maintain_order=True).to_list()
+    computations = data["computation"].unique(maintain_order=True).to_list()
+
+    def series(package, computation):
+        # filter preserves the QTE...ATT order produced by make_comparison_data
+        return data.filter(
+            (pl.col("package") == package) & (pl.col("computation") == computation)
+        )
+
+    base = series(packages[0], computations[0])
+    frame = {"effect": base["effect"].to_list(), "quantile": base["quantile"].to_list()}
+    leaf_labels = {}
+    for package in packages:
+        for computation in computations:
+            prefix = f"{package}.{computation}"
+            sub = series(package, computation)
+            frame[f"{prefix}.est"] = sub["estimate"].to_list()
+            frame[f"{prefix}.se"] = sub["se"].to_list()
+            leaf_labels[f"{prefix}.est"] = "Estimate"
+            leaf_labels[f"{prefix}.se"] = md("Standard<br>Error")
+
+    table = pl.DataFrame(frame)
+    est_cols = [c for c in table.columns if c.endswith(".est")]
+    se_cols = [c for c in table.columns if c.endswith(".se")]
+
+    gt = (
+        GT(table, groupname_col="effect")
+        .row_group_order(["QTE", "ATT"])
+        .cols_label(quantile="Quantile", **leaf_labels)
+        .fmt_number(columns=est_cols + se_cols, decimals=1, use_seps=True)
+        .tab_header(title=md("**Results Comparison**"), subtitle=estimation)
+        .tab_style(style=style.fill(color="#E8F1FA"), locations=loc.body(columns=est_cols))
+        .tab_style(style=style.fill(color="#FBF0E1"), locations=loc.body(columns=se_cols))
+        .tab_style(style=style.fill(color="#D3E4F5"), locations=loc.column_labels(columns=est_cols))
+        .tab_style(style=style.fill(color="#F6E0C4"), locations=loc.column_labels(columns=se_cols))
+    )
+    for package in packages:
+        # narrower spanners first so the package spanner sits on top
+        for computation in computations:
+            gt = gt.tab_spanner(
+                computation,
+                columns=[f"{package}.{computation}.est", f"{package}.{computation}.se"],
+                id=f"{package}|{computation}",
+            )
+        gt = gt.tab_spanner(
+            package,
+            columns=[
+                f"{package}.{computation}.{stat}"
+                for computation in computations for stat in ("est", "se")
+            ],
+            id=f"{package}|pkg",
+        )
+    if len(packages) > 1:
+        divider = "#8A8A8A"
+        first_of_second = f"{packages[1]}.{computations[0]}.est"
+        gt = gt.tab_style(
+            style=style.borders(sides="left", color=divider, style="solid", weight=px(2)),
+            locations=[
+                loc.body(columns=first_of_second),
+                loc.column_labels(columns=first_of_second),
+                loc.spanner_labels(ids=[f"{packages[1]}|pkg"]),
+                loc.spanner_labels(ids=[f"{packages[1]}|{computations[0]}"]),
+            ],
+        )
+    return gt
+```
+
 ## Cross-Sectional Data
 
 We compare cross-sectional estimators on the lalonde dataset.
@@ -88,32 +207,50 @@ We compare cross-sectional estimators on the lalonde dataset.
 ### Estimation under Unconfoundedness
 
 ```{r r-simple}
+#| code-summary: "Show code (R estimate of the unconditional QTE)"
 # Unconditional QTE with no covariates == R's IPW branch with x = NULL.
-set.seed(SEED)
-t0 <- Sys.time()
-res_r_simple <- unc_qte(
-  yname = "re78", dname = "treat", data = lalonde.psid, xformla = NULL,
-  probs = QS_SIMPLE, est_method = "ipw", target = "qtt",
-  cl = N_WORKERS, biters = N_ITER_SIMPLE
-)
-r_simple_seconds <- as.numeric(Sys.time() - t0, units = "secs")
+run_r_simple <- function(cl) {
+  set.seed(SEED)
+  t0 <- Sys.time()
+  res <- unc_qte(
+    yname = "re78", dname = "treat", data = lalonde.psid, xformla = NULL,
+    probs = QS_SIMPLE, est_method = "ipw", target = "qtt",
+    cl = cl, biters = N_ITER_SIMPLE
+  )
+  list(
+    seconds = as.numeric(Sys.time() - t0, units = "secs"),
+    vals = list(
+      qte = as.numeric(res$qte), se = as.numeric(res$qte.se),
+      ate = as.numeric(res$ate), ate_se = as.numeric(res$ate.se)
+    )
+  )
+}
 
-r_simple_vals <- list(
-  qte = as.numeric(res_r_simple$qte), se = as.numeric(res_r_simple$qte.se),
-  ate = as.numeric(res_r_simple$ate), ate_se = as.numeric(res_r_simple$ate.se)
-)
+r_simple_seq <- run_r_simple(1)
+r_simple_par <- run_r_simple(N_WORKERS)
+r_simple_seq_seconds <- r_simple_seq$seconds
+r_simple_par_seconds <- r_simple_par$seconds
+r_simple_seq_vals <- r_simple_seq$vals
+r_simple_par_vals <- r_simple_par$vals
 ```
 
 ```{python}
 #| label: py-simple
-cfg = BootstrapConfig(n_iter=int(r.N_ITER_SIMPLE), seed=int(r.SEED), n_workers=int(r.N_WORKERS))
-t0 = time.perf_counter()
-res_py_simple = estimate_simple_qte(DATA, "re78", "treat", qs=qs_simple, bootstrap_config=cfg)
-py_simple_seconds = time.perf_counter() - t0
+#| code-summary: "Show code (Python estimate of the unconditional QTE)"
+def run_py_simple(n_workers):
+    cfg = BootstrapConfig(n_iter=int(r.N_ITER_SIMPLE), seed=int(r.SEED), n_workers=n_workers)
+    t0 = time.perf_counter()
+    res = estimate_simple_qte(DATA, "re78", "treat", qs=qs_simple, bootstrap_config=cfg)
+    return time.perf_counter() - t0, res
+
+
+py_simple_seq_seconds, res_py_simple_seq = run_py_simple(1)
+py_simple_par_seconds, res_py_simple_par = run_py_simple(int(r.N_WORKERS))
 ```
 
 ```{python}
 #| label: simple-tables
+#| code-summary: "Show code (Python building the simple comparison tables)"
 simple_order = [f"QTE({q:.2f})" for q in qs_simple] + ["ATE"]
 
 
@@ -129,39 +266,29 @@ def r_simple_cols(vals):
     return eff, err
 
 
-pys_e, pys_s = py_simple_cols(res_py_simple)
-rs_e, rs_s = r_simple_cols(r.r_simple_vals)
+simple_table_html = make_estimate_comparison_table(
+    make_comparison_data(qs_simple, {
+        ("py-qte", "Sequential"): py_simple_cols(res_py_simple_seq),
+        ("py-qte", "Parallel"): py_simple_cols(res_py_simple_par),
+        ("qte", "Sequential"): r_simple_cols(r.r_simple_seq_vals),
+        ("qte", "Parallel"): r_simple_cols(r.r_simple_par_vals),
+    }),
+    "Estimation under Unconfoundedness",
+).as_raw_html()
 
-simple_table = pl.DataFrame({
-    "quantity": simple_order,
-    "py_est": pys_e, "py_se": pys_s,
-    "r_est": rs_e, "r_se": rs_s,
+data = pl.DataFrame({
+    "language": ["Python", "Python", "R", "R"],
+    "package": ["py-qte", "py-qte", "qte", "qte"],
+    "computation": ["Sequential", "Parallel", "Sequential", "Parallel"],
+    "workers": [1, int(r.N_WORKERS), 1, int(r.N_WORKERS)],
+    "iterations": [int(r.N_ITER_SIMPLE)] * 4,
+    "seconds": [
+        py_simple_seq_seconds, py_simple_par_seconds,
+        float(r.r_simple_seq_seconds), float(r.r_simple_par_seconds),
+    ],
 })
 
-simple_table_html = (
-    GT(simple_table)
-    .tab_spanner("Python simple_qte", columns=["py_est", "py_se"])
-    .tab_spanner("R unc_qte (ipw, x = NULL)", columns=["r_est", "r_se"])
-    .cols_label(quantity="", py_est="est", py_se="se", r_est="est", r_se="se")
-    .fmt_number(columns=["py_est", "py_se", "r_est", "r_se"], decimals=1, use_seps=True)
-    .tab_source_note(
-        "Unconditional QTE (no covariates). Estimates match except p90, where the packages "
-        "use different quantile definitions (NumPy linear/type 7 vs BMisc weighted_quantile)."
-    )
-    .as_raw_html()
-)
-
-simple_timing_html = (
-    GT(pl.DataFrame({
-        "model": ["Python simple_qte", "R unc_qte (ipw, x = NULL)"],
-        "workers": [int(r.N_WORKERS), int(r.N_WORKERS)],
-        "iterations": [int(r.N_ITER_SIMPLE)] * 2,
-        "seconds": [py_simple_seconds, float(r.r_simple_seconds)],
-    }))
-    .cols_label(model="", workers="workers", iterations="bootstrap iters", seconds="seconds")
-    .fmt_number(columns=["seconds"], decimals=1)
-    .as_raw_html()
-)
+simple_timing_html = make_timing_table(data, "Estimation under Unconfoundedness").as_raw_html()
 ```
 
 ```{r results='asis', echo=FALSE}
@@ -170,9 +297,15 @@ cat("<p></p>")
 cat(py$simple_timing_html)
 ```
 
+We can see that `py-qte` is about three times faster. This is probably mostly
+because `np.quantile` provides an efficient implementation of computing
+weighted quantiles whereas the `qte` package runs a solver for each
+quantile. 
+
 ### AIPW Estimator
 
 ```{r r-sequential}
+#| code-summary: "Show code (R AIPW estimate (sequential))"
 set.seed(SEED)
 t0 <- Sys.time()
 res_r_seq <- unc_qte(
@@ -188,6 +321,7 @@ r_seq_vals <- list(
 ```
 
 ```{r r-parallel}
+#| code-summary: "Show code (R AIPW estimate (parallel))"
 set.seed(SEED)
 t0 <- Sys.time()
 res_r_par <- unc_qte(
@@ -204,6 +338,7 @@ r_par_vals <- list(
 
 ```{python}
 #| label: py-sequential
+#| code-summary: "Show code (Python AIPW estimate (sequential))"
 cfg = BootstrapConfig(n_iter=int(r.N_ITER), seed=int(r.SEED), n_workers=1)
 t0 = time.perf_counter()
 res_py_seq = estimate_aipw_qte(
@@ -215,6 +350,7 @@ py_seq_seconds = time.perf_counter() - t0
 
 ```{python}
 #| label: py-parallel
+#| code-summary: "Show code (Python AIPW estimate (parallel))"
 cfg = BootstrapConfig(n_iter=int(r.N_ITER), seed=int(r.SEED), n_workers=int(r.N_WORKERS))
 t0 = time.perf_counter()
 res_py_par = estimate_aipw_qte(
@@ -226,6 +362,7 @@ py_par_seconds = time.perf_counter() - t0
 
 ```{python}
 #| label: aipw-tables
+#| code-summary: "Show code (Python building the AIPW comparison tables)"
 order = [f"QTE({q:.2f})" for q in qs] + ["ATE"]
 
 
@@ -246,46 +383,25 @@ py_par_e, py_par_s = py_cols(res_py_par)
 r_seq_e, r_seq_s = r_cols(r.r_seq_vals)
 r_par_e, r_par_s = r_cols(r.r_par_vals)
 
-numeric = ["py_seq_est", "py_seq_se", "py_par_est", "py_par_se",
-           "r_seq_est", "r_seq_se", "r_par_est", "r_par_se"]
-
-table = pl.DataFrame({
-    "quantity": order,
-    "py_seq_est": py_seq_e, "py_seq_se": py_seq_s,
-    "py_par_est": py_par_e, "py_par_se": py_par_s,
-    "r_seq_est": r_seq_e, "r_seq_se": r_seq_s,
-    "r_par_est": r_par_e, "r_par_se": r_par_s,
+aipw_data = make_comparison_data(qs, {
+    ("py-qte", "Sequential"): (py_seq_e, py_seq_s),
+    ("py-qte", "Parallel"): (py_par_e, py_par_s),
+    ("qte", "Sequential"): (r_seq_e, r_seq_s),
+    ("qte", "Parallel"): (r_par_e, r_par_s),
 })
 
-table_html = (
-    GT(table)
-    .tab_spanner("Python — sequential", columns=["py_seq_est", "py_seq_se"])
-    .tab_spanner("Python — parallel", columns=["py_par_est", "py_par_se"])
-    .tab_spanner("R — sequential", columns=["r_seq_est", "r_seq_se"])
-    .tab_spanner("R — parallel", columns=["r_par_est", "r_par_se"])
-    .cols_label(
-        quantity="", py_seq_est="est", py_seq_se="se",
-        py_par_est="est", py_par_se="se", r_seq_est="est", r_seq_se="se",
-        r_par_est="est", r_par_se="se",
-    )
-    .fmt_number(columns=numeric, decimals=1, use_seps=True)
-    .tab_source_note("Bootstrap standard errors. py-qte: AIPW mean; R unc_qte: IPW-based ATE.")
-    .as_raw_html()
-)
+table_html = make_estimate_comparison_table(aipw_data, "Estimation via AIPW").as_raw_html()
 
 timing = pl.DataFrame({
-    "model": ["Python — sequential", "Python — parallel", "R — sequential", "R — parallel"],
+    "language": ["Python", "Python", "R", "R"],
+    "package": ["py-qte", "py-qte", "qte", "qte"],
+    "computation": ["Sequential", "Parallel", "Sequential", "Parallel"],
     "workers": [1, int(r.N_WORKERS), 1, int(r.N_WORKERS)],
     "iterations": [int(r.N_ITER)] * 4,
     "seconds": [py_seq_seconds, py_par_seconds, float(r.r_seq_seconds), float(r.r_par_seconds)],
 })
 
-timing_html = (
-    GT(timing)
-    .cols_label(model="", workers="workers", iterations="bootstrap iters", seconds="seconds")
-    .fmt_number(columns=["seconds"], decimals=1)
-    .as_raw_html()
-)
+timing_html = make_timing_table(timing, "Estimation via AIPW").as_raw_html()
 ```
 
 ```{r results='asis', echo=FALSE}
@@ -294,10 +410,13 @@ cat("<p></p>")
 cat(py$timing_html)
 ```
 
+We see that the parallellized `py-qte` version is between 3-4 times faster than than the `qte` version. This is probably largely due to the fact that `py-qte` computes $F_{AIPW}(y)$ on the y-grid in a single (vectorized) pass whereas the `qte` version computes each point on the y-grid separatley in a loop.
+
 ## Environment
 
 ```{r}
 #| label: environment
+#| code-summary: "Show code (R environment details)"
 os_release <- function(key) {
   if (!file.exists("/etc/os-release")) return(NA_character_)
   x <- grep(paste0("^", key, "="), readLines("/etc/os-release"), value = TRUE)[1]
