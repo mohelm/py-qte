@@ -13,7 +13,15 @@ hooks = [
 [[repos]]
 repo = "https://github.com/astral-sh/ruff-pre-commit"
 rev = "v0.16.7"
-hooks = [{ id = "ruff-check" }, { id = "ruff-format" }]
+hooks = [
+  { id = "ruff-check" },
+  { id = "ruff-format", types_or = [
+    "python",
+    "pyi",
+    "jupyter",
+    "markdown",
+  ] },
+]
 
 [[repos]]
 repo = "https://github.com/astral-sh/ty-pre-commit"

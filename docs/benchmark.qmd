@@ -93,8 +93,12 @@ def make_timing_table(ds: pl.DataFrame, estimation: str) -> GT:
     return (
         GT(ds)
         .cols_label(
-            language="Language", package="Package", computation="Computation",
-            workers="Workers", iterations="Bootstrap Iterations", seconds="Seconds",
+            language="Language",
+            package="Package",
+            computation="Computation",
+            workers="Workers",
+            iterations="Bootstrap Iterations",
+            seconds="Seconds",
         )
         .fmt_number(columns=["seconds"], decimals=1, use_seps=True)
         .fmt_number(columns=["iterations"], decimals=0, use_seps=True)
@@ -111,17 +115,27 @@ def make_comparison_data(qs, series) -> pl.DataFrame:
     n_qte = len(qs)
     records = []
     for (package, computation), (effects, ses) in series.items():
-        for i, q in enumerate(qs): # quantiles
-            records.append({
-                "effect": "QTE", "quantile": f"{q:.2f}",
-                "package": package, "computation": computation,
-                "estimate": float(effects[i]), "se": float(ses[i]),
-            })
-        records.append({
-            "effect": "ATT", "quantile": "",
-            "package": package, "computation": computation,
-            "estimate": float(effects[n_qte]), "se": float(ses[n_qte]),
-        })
+        for i, q in enumerate(qs):  # quantiles
+            records.append(
+                {
+                    "effect": "QTE",
+                    "quantile": f"{q:.2f}",
+                    "package": package,
+                    "computation": computation,
+                    "estimate": float(effects[i]),
+                    "se": float(ses[i]),
+                }
+            )
+        records.append(
+            {
+                "effect": "ATT",
+                "quantile": "",
+                "package": package,
+                "computation": computation,
+                "estimate": float(effects[n_qte]),
+                "se": float(ses[n_qte]),
+            }
+        )
     return pl.DataFrame(records)
 
 
@@ -138,9 +152,7 @@ def make_estimate_comparison_table(data: pl.DataFrame, estimation: str) -> GT:
 
     def series(package, computation):
         # filter preserves the QTE...ATT order produced by make_comparison_data
-        return data.filter(
-            (pl.col("package") == package) & (pl.col("computation") == computation)
-        )
+        return data.filter((pl.col("package") == package) & (pl.col("computation") == computation))
 
     base = series(packages[0], computations[0])
     frame = {"effect": base["effect"].to_list(), "quantile": base["quantile"].to_list()}
@@ -181,7 +193,8 @@ def make_estimate_comparison_table(data: pl.DataFrame, estimation: str) -> GT:
             package,
             columns=[
                 f"{package}.{computation}.{stat}"
-                for computation in computations for stat in ("est", "se")
+                for computation in computations
+                for stat in ("est", "se")
             ],
             id=f"{package}|pkg",
         )
@@ -202,7 +215,13 @@ def make_estimate_comparison_table(data: pl.DataFrame, estimation: str) -> GT:
 
 ## Cross-Sectional Data
 
-We compare cross-sectional estimators on the lalonde dataset.
+```{r}
+#| include: false
+num_rows_lalonde <- nrow(py$DATA)
+```
+
+We compare cross-sectional estimators on the Lalonde dataset. The Lalonde dataset is a relatively
+small dataset with only `{r} num_rows_lalonde` observation.
 
 ### Estimation under Unconfoundedness
 
@@ -255,7 +274,9 @@ simple_order = [f"QTE({q:.2f})" for q in qs_simple] + ["ATE"]
 
 
 def py_simple_cols(res):
-    rows = {f"QTE({row['q']:.2f})": (row["effect"], row["se"]) for row in res.qtt.iter_rows(named=True)}
+    rows = {
+        f"QTE({row['q']:.2f})": (row["effect"], row["se"]) for row in res.qtt.iter_rows(named=True)
+    }
     rows["ATE"] = (res.att["effect"][0], res.att["se"][0])
     return [rows[k][0] for k in simple_order], [rows[k][1] for k in simple_order]
 
@@ -267,26 +288,33 @@ def r_simple_cols(vals):
 
 
 simple_table_html = make_estimate_comparison_table(
-    make_comparison_data(qs_simple, {
-        ("py-qte", "Sequential"): py_simple_cols(res_py_simple_seq),
-        ("py-qte", "Parallel"): py_simple_cols(res_py_simple_par),
-        ("qte", "Sequential"): r_simple_cols(r.r_simple_seq_vals),
-        ("qte", "Parallel"): r_simple_cols(r.r_simple_par_vals),
-    }),
+    make_comparison_data(
+        qs_simple,
+        {
+            ("py-qte", "Sequential"): py_simple_cols(res_py_simple_seq),
+            ("py-qte", "Parallel"): py_simple_cols(res_py_simple_par),
+            ("qte", "Sequential"): r_simple_cols(r.r_simple_seq_vals),
+            ("qte", "Parallel"): r_simple_cols(r.r_simple_par_vals),
+        },
+    ),
     "Estimation under Unconfoundedness",
 ).as_raw_html()
 
-data = pl.DataFrame({
-    "language": ["Python", "Python", "R", "R"],
-    "package": ["py-qte", "py-qte", "qte", "qte"],
-    "computation": ["Sequential", "Parallel", "Sequential", "Parallel"],
-    "workers": [1, int(r.N_WORKERS), 1, int(r.N_WORKERS)],
-    "iterations": [int(r.N_ITER_SIMPLE)] * 4,
-    "seconds": [
-        py_simple_seq_seconds, py_simple_par_seconds,
-        float(r.r_simple_seq_seconds), float(r.r_simple_par_seconds),
-    ],
-})
+data = pl.DataFrame(
+    {
+        "language": ["Python", "Python", "R", "R"],
+        "package": ["py-qte", "py-qte", "qte", "qte"],
+        "computation": ["Sequential", "Parallel", "Sequential", "Parallel"],
+        "workers": [1, int(r.N_WORKERS), 1, int(r.N_WORKERS)],
+        "iterations": [int(r.N_ITER_SIMPLE)] * 4,
+        "seconds": [
+            py_simple_seq_seconds,
+            py_simple_par_seconds,
+            float(r.r_simple_seq_seconds),
+            float(r.r_simple_par_seconds),
+        ],
+    }
+)
 
 simple_timing_html = make_timing_table(data, "Estimation under Unconfoundedness").as_raw_html()
 ```
@@ -297,10 +325,14 @@ cat("<p></p>")
 cat(py$simple_timing_html)
 ```
 
-We can see that `py-qte` is about three times faster. This is probably mostly
-because `np.quantile` provides an efficient implementation of computing
-weighted quantiles whereas the `qte` package runs a solver for each
-quantile. 
+Notice first that first `py-qte` replicates the point estimates of the `qte` package and produces
+similar standard errors. Notice that the `py-qte` produces consistent standard error estimates
+across the sequential and the parallized run as it should.
+
+We see that `py-qte` is in a _sequential scenario_ much faster than `qte`. This is probably mostly
+because `np.quantile` provides an efficient implementation of computing weighted quantiles whereas
+the `qte` package runs a solver for each quantile. The speed-up from parallization is very large for
+`qte` and sizeable but relatively low `py-qte`.
 
 ### AIPW Estimator
 
@@ -342,8 +374,13 @@ r_par_vals <- list(
 cfg = BootstrapConfig(n_iter=int(r.N_ITER), seed=int(r.SEED), n_workers=1)
 t0 = time.perf_counter()
 res_py_seq = estimate_aipw_qte(
-    DATA, "re78", "treat", qs=qs,
-    ps_x_formular=r.X_PY, or_x_formular=r.X_PY, bootstrap_config=cfg,
+    DATA,
+    "re78",
+    "treat",
+    qs=qs,
+    ps_x_formular=r.X_PY,
+    or_x_formular=r.X_PY,
+    bootstrap_config=cfg,
 )
 py_seq_seconds = time.perf_counter() - t0
 ```
@@ -354,8 +391,13 @@ py_seq_seconds = time.perf_counter() - t0
 cfg = BootstrapConfig(n_iter=int(r.N_ITER), seed=int(r.SEED), n_workers=int(r.N_WORKERS))
 t0 = time.perf_counter()
 res_py_par = estimate_aipw_qte(
-    DATA, "re78", "treat", qs=qs,
-    ps_x_formular=r.X_PY, or_x_formular=r.X_PY, bootstrap_config=cfg,
+    DATA,
+    "re78",
+    "treat",
+    qs=qs,
+    ps_x_formular=r.X_PY,
+    or_x_formular=r.X_PY,
+    bootstrap_config=cfg,
 )
 py_par_seconds = time.perf_counter() - t0
 ```
@@ -367,7 +409,9 @@ order = [f"QTE({q:.2f})" for q in qs] + ["ATE"]
 
 
 def py_cols(res):
-    rows = {f"QTE({row['q']:.2f})": (row["effect"], row["se"]) for row in res.qtt.iter_rows(named=True)}
+    rows = {
+        f"QTE({row['q']:.2f})": (row["effect"], row["se"]) for row in res.qtt.iter_rows(named=True)
+    }
     rows["ATE"] = (res.att["effect"][0], res.att["se"][0])
     return [rows[k][0] for k in order], [rows[k][1] for k in order]
 
@@ -383,23 +427,28 @@ py_par_e, py_par_s = py_cols(res_py_par)
 r_seq_e, r_seq_s = r_cols(r.r_seq_vals)
 r_par_e, r_par_s = r_cols(r.r_par_vals)
 
-aipw_data = make_comparison_data(qs, {
-    ("py-qte", "Sequential"): (py_seq_e, py_seq_s),
-    ("py-qte", "Parallel"): (py_par_e, py_par_s),
-    ("qte", "Sequential"): (r_seq_e, r_seq_s),
-    ("qte", "Parallel"): (r_par_e, r_par_s),
-})
+aipw_data = make_comparison_data(
+    qs,
+    {
+        ("py-qte", "Sequential"): (py_seq_e, py_seq_s),
+        ("py-qte", "Parallel"): (py_par_e, py_par_s),
+        ("qte", "Sequential"): (r_seq_e, r_seq_s),
+        ("qte", "Parallel"): (r_par_e, r_par_s),
+    },
+)
 
 table_html = make_estimate_comparison_table(aipw_data, "Estimation via AIPW").as_raw_html()
 
-timing = pl.DataFrame({
-    "language": ["Python", "Python", "R", "R"],
-    "package": ["py-qte", "py-qte", "qte", "qte"],
-    "computation": ["Sequential", "Parallel", "Sequential", "Parallel"],
-    "workers": [1, int(r.N_WORKERS), 1, int(r.N_WORKERS)],
-    "iterations": [int(r.N_ITER)] * 4,
-    "seconds": [py_seq_seconds, py_par_seconds, float(r.r_seq_seconds), float(r.r_par_seconds)],
-})
+timing = pl.DataFrame(
+    {
+        "language": ["Python", "Python", "R", "R"],
+        "package": ["py-qte", "py-qte", "qte", "qte"],
+        "computation": ["Sequential", "Parallel", "Sequential", "Parallel"],
+        "workers": [1, int(r.N_WORKERS), 1, int(r.N_WORKERS)],
+        "iterations": [int(r.N_ITER)] * 4,
+        "seconds": [py_seq_seconds, py_par_seconds, float(r.r_seq_seconds), float(r.r_par_seconds)],
+    }
+)
 
 timing_html = make_timing_table(timing, "Estimation via AIPW").as_raw_html()
 ```
@@ -410,43 +459,68 @@ cat("<p></p>")
 cat(py$timing_html)
 ```
 
-We see that the parallellized `py-qte` version is between 3-4 times faster than than the `qte` version. This is probably largely due to the fact that `py-qte` computes $F_{AIPW}(y)$ on the y-grid in a single (vectorized) pass whereas the `qte` version computes each point on the y-grid separatley in a loop.
+In terms of results, we see that the point estimates are close between `py-qte` and `qte`. The
+standard errors are once more consistent across the sequential and parallized runs.
+
+We see once more that the sequential version of `py-qte` is much faster than the `qte` version. This
+is probably largely due to the fact that `py-qte` computes $F_{AIPW}(y)$ on the y-grid in a single
+(vectorized) pass whereas the `qte` version computes each point on the y-grid separatley in a loop.
+The parallized version of `py-qte` retains a sizeable advantages over the `qte` version although the
+gaps is sizeably narrower than in the sequential case.
 
 ## Environment
 
 ```{r}
 #| label: environment
 #| code-summary: "Show code (R environment details)"
-os_release <- function(key) {
-  if (!file.exists("/etc/os-release")) return(NA_character_)
+system_ <- Sys.info()[["sysname"]]
+
+
+get_linux_os <- function(key) {
+  if (!file.exists("/etc/os-release")) {
+    return(NA_character_)
+  }
   x <- grep(paste0("^", key, "="), readLines("/etc/os-release"), value = TRUE)[1]
-  if (is.na(x)) return(NA_character_)
-  value <- gsub('^"|"$', "", sub(paste0("^", key, "="), "", x))
+  if (is.na(x)) {
+    return(NA_character_)
+  }
+  value <- gsub('^"|"$', "", sub(paste0("^", "PRETTY_NAME", "="), "", x))
   if (grepl("Void Linux", value)) value <- paste0(value, " btw.")
   value
 }
 proc_value <- function(path, key) {
-  if (!file.exists(path)) return(NA_character_)
+  if (!file.exists(path)) {
+    return(NA_character_)
+  }
   x <- grep(key, readLines(path), value = TRUE)[1]
-  if (is.na(x)) return(NA_character_)
+  if (is.na(x)) {
+    return(NA_character_)
+  }
   trimws(sub("^[^:]*:", "", x))
 }
-mem_gib <- as.numeric(sub("\\D*(\\d+).*", "\\1", proc_value("/proc/meminfo", "MemTotal"))) / 1024^2
 
+if (system_ == "Darwin") {
+  cpu_name <- system("sysctl -n machdep.cpu.brand_string", intern = TRUE)
+} else {
+  cpu_name <- proc_value("/proc/cpuinfo", "model name")
+}
+
+library(ps)
 env_stats <- data.frame(
-  item = c("OS", "Kernel", "CPU", "Cores (physical)", "Cores (logical)",
-           "Memory", "R", "BLAS", "Python", "Workers"),
+  item = c(
+    "OS", "Kernel", "CPU", "Cores (physical)", "Cores (logical)",
+    "Memory", "R", "BLAS", "Python"
+  ),
   value = c(
-    os_release("PRETTY_NAME"),
+    if (system_ == "Linux") get_linux_os() else system_,
     paste(Sys.info()[["sysname"]], Sys.info()[["release"]], Sys.info()[["machine"]]),
-    proc_value("/proc/cpuinfo", "model name"),
+    cpu_name,
     parallel::detectCores(logical = FALSE),
     parallel::detectCores(logical = TRUE),
-    sprintf("%.1f GiB", mem_gib),
+    sprintf("%.1f GiB", ps_system_memory()$total / 1e9),
     R.version.string,
     unname(extSoftVersion()["BLAS"]),
-    sub(" .*", "", reticulate::py_config()$version_string),
-    N_WORKERS
+    sub(" .*", "", reticulate::py_config()$version_string)
   )
 )
 knitr::kable(env_stats, col.names = c("", ""), row.names = FALSE)

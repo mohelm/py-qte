@@ -61,6 +61,8 @@ dev-helpers = ["ipython>=9.16.1", "notebook>=7.6.2"]
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+extension = {qmd = "markdown" }
+
 
 [tool.ruff.lint]
 extend-select = ["ANN", "D"]
