@@ -213,6 +213,23 @@ def make_estimate_comparison_table(data: pl.DataFrame, estimation: str) -> GT:
     return gt
 ```
 
+## Summary
+
+In summary, we find sizeable differences between the `qte` and the `py-qte` package in sequential
+computations. These can be tigthly connected to different implementation approaches. Parallized
+approaches benefit `qte` relatively more.
+
+For estimation without confounders `py-qte` advantages is in the double-digit percentages on a
+powerful machine and about 300% on a slower machine. This suggest that the `qte` implementation
+benefits more from the chosen parallization strategies.
+
+For estimation with confounders the same holds true although in principle but the gap remains larger
+(firmly in the triple digit percentages).
+
+An important point is that these results were derived on a fairly (very) small dataset with only a
+few thousand observations. In general, it might be optimal to tailor the optimization stratgey more
+close to the estimator and the dataset size.For larger datasets, other approaches
+
 ## Cross-Sectional Data
 
 ```{r}
