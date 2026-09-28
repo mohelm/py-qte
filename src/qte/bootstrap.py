@@ -96,8 +96,7 @@ def _block_bootstrap_once[T](
     ).with_columns(pl.int_range(0, n_units).alias("new_id"))
 
     boot_ds = (
-        sampled_units
-        .join(ds, on=block_id, how="inner")
+        sampled_units.join(ds, on=block_id, how="inner")
         .with_columns(pl.col("new_id").alias(block_id))
         .drop("new_id")
     )

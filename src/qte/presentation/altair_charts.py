@@ -77,18 +77,26 @@ def _make_plot_with_multiple_quantiles(
         None if group is None else f"parent['{group[-1]}'] == {combined[group[-1]].min()} ? 1 : 0"
     )
     qtes_ds = base.transform_filter(alt.datum.__kind == "qte")
-    qte_layer = alt.layer(*[
-        _plot_against_quantiles(
-            qtes_ds, y, tick_values=tick_values, stroke_dash=sd, x_label_pos=x_label_position_query
-        )
-        for (y, sd) in _LINE_CONFIG_IN_PLOT_WITH_MULTIPLE_QUANTILES
-    ])
+    qte_layer = alt.layer(
+        *[
+            _plot_against_quantiles(
+                qtes_ds,
+                y,
+                tick_values=tick_values,
+                stroke_dash=sd,
+                x_label_pos=x_label_position_query,
+            )
+            for (y, sd) in _LINE_CONFIG_IN_PLOT_WITH_MULTIPLE_QUANTILES
+        ]
+    )
 
     atts_ds = base.transform_filter(alt.datum.__kind == "att")
-    att_layer = alt.layer(*[
-        _make_rule_layer(atts_ds, y, stroke_dash=sd)
-        for y, sd in _LINE_CONFIG_IN_PLOT_WITH_MULTIPLE_QUANTILES
-    ])
+    att_layer = alt.layer(
+        *[
+            _make_rule_layer(atts_ds, y, stroke_dash=sd)
+            for y, sd in _LINE_CONFIG_IN_PLOT_WITH_MULTIPLE_QUANTILES
+        ]
+    )
 
     layer = alt.layer(qte_layer, att_layer)
     return layer if group is None else layer.facet(**_make_facets(group)).configure_facet(spacing=1)

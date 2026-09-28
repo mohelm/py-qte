@@ -38,16 +38,18 @@ class _BasicQteResult:
     )
 
     def __post_init__(self) -> None:
-        self.qtt = self.qtt.sort([
-            *(
-                [self.group]
-                if isinstance(self.group, str)
-                else self.group
-                if self.group is not None
-                else []
-            ),
-            QUANTILE_ID,
-        ])
+        self.qtt = self.qtt.sort(
+            [
+                *(
+                    [self.group]
+                    if isinstance(self.group, str)
+                    else self.group
+                    if self.group is not None
+                    else []
+                ),
+                QUANTILE_ID,
+            ]
+        )
         self.att = self.att.sort(
             [self.group]
             if isinstance(self.group, str)

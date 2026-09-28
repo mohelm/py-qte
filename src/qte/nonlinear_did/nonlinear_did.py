@@ -58,12 +58,10 @@ def get_statistics_from_bootstrap(
 
     return {
         aggregation: Estimates(
-            qtes=pl
-            .concat(r[aggregation].qtt.with_columns(boot_id=i) for i, r in enumerate(runs))
+            qtes=pl.concat(r[aggregation].qtt.with_columns(boot_id=i) for i, r in enumerate(runs))
             .group_by(*_make_columns_to_group_by(grouper, QUANTILE_ID))
             .agg(agg),
-            atts=pl
-            .concat(r[aggregation].att.with_columns(boot_id=i) for i, r in enumerate(runs))
+            atts=pl.concat(r[aggregation].att.with_columns(boot_id=i) for i, r in enumerate(runs))
             .group_by(*_make_columns_to_group_by(grouper, None))
             .agg(agg),
         )
@@ -151,8 +149,7 @@ def _get_group_data(
     ds: pl.DataFrame, filter_: pl.Expr, outcome_c: str, weights_c: str, unit_c: str
 ) -> NDArray:
     return (
-        ds
-        .filter(filter_)
+        ds.filter(filter_)
         .select(
             outcome_c,
             weights_c,
@@ -363,8 +360,7 @@ def estimate_nonlinear_did_for_panel(
     )
     if treatment_group_c.never_treated_identifier != float("inf"):
         ds = ds.with_columns(
-            pl
-            .when(pl.col(treatment_group_c.name) == treatment_group_c.never_treated_identifier)
+            pl.when(pl.col(treatment_group_c.name) == treatment_group_c.never_treated_identifier)
             .then(float("inf"))
             .otherwise(pl.col(treatment_group_c.name))
             .alias(treatment_group_c.name)
