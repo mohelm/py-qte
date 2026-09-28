@@ -17,24 +17,7 @@ execute:
   message: false
 ---
 
-```{r setup}
-# Render with `quarto render docs`. This document requires two prepared
-# environments and fails loudly if either is missing:
-#   - Python: `uv sync` (creates ../.venv)
-#   - R:      `renv::restore()` inside docs/ (installs the pinned packages)
-# Override params from the CLI, e.g.:
-#   quarto render docs -P n_iter:100 -P n_iter_simple:1000 -P n_workers:8
-docs_dir <- dirname(knitr::current_input(dir = TRUE))
-
-# Force all libraries to be loaded from the renv environment.
-options(renv.config.synchronized.check = FALSE)
-renv::load(project = docs_dir, quiet = TRUE)
-
-# Get the Python environment it is currently located once step above the docs directory
-library(reticulate)
-venv <- file.path(docs_dir, "..", ".venv")
-use_virtualenv(normalizePath(venv), required = TRUE)
-```
+{{< include _setup.qmd >}}
 
 ```{r}
 #| label: load-qte
@@ -529,7 +512,7 @@ env_stats <- data.frame(
     "Memory", "R", "BLAS", "Python"
   ),
   value = c(
-    if (system_ == "Linux") get_linux_os() else system_,
+    if (system_ == "Linux") get_linux_os("PRETTY_NAME") else system_,
     paste(Sys.info()[["sysname"]], Sys.info()[["release"]], Sys.info()[["machine"]]),
     cpu_name,
     parallel::detectCores(logical = FALSE),

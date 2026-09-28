@@ -1,0 +1,6 @@
+# ControlGroup { #qte.nonlinear_did.ControlGroup }
+
+```python
+nonlinear_did.ControlGroup()
+```
+

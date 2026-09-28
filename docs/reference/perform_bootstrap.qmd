@@ -1,0 +1,13 @@
+# perform_bootstrap { #qte.bootstrap.perform_bootstrap }
+
+```python
+bootstrap.perform_bootstrap(
+    ds: pl.DataFrame,
+    fcn: Callable[[pl.DataFrame], T],
+    *,
+    n_iter: int = 100,
+    seed: int | None = None,
+    n_workers: int = 1,
+)
+```
+

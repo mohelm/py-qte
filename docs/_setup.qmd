@@ -1,0 +1,18 @@
+```{r setup}
+# This document requires two prepared environments and fails loudly if either is
+# missing:
+#   - Python: `uv sync` (creates ../.venv)
+#   - R:      `renv::restore()` inside docs/ (installs the pinned packages)
+# Override params from the CLI, e.g.:
+#   quarto render docs -P n_iter:100 -P n_iter_simple:1000 -P n_workers:8
+docs_dir <- dirname(knitr::current_input(dir = TRUE))
+
+# Force all libraries to be loaded from the renv environment.
+options(renv.config.synchronized.check = FALSE)
+renv::load(project = docs_dir, quiet = TRUE)
+
+# Point reticulate at the Python environment one level above docs/.
+library(reticulate)
+venv <- file.path(docs_dir, "..", ".venv")
+use_virtualenv(normalizePath(venv), required = TRUE)
+```

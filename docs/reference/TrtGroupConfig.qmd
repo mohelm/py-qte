@@ -1,0 +1,6 @@
+# TrtGroupConfig { #qte.nonlinear_did.TrtGroupConfig }
+
+```python
+nonlinear_did.TrtGroupConfig()
+```
+

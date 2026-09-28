@@ -1,0 +1,15 @@
+# QteResult { #qte.cross_sectional.QteResult }
+
+```python
+cross_sectional.QteResult(
+    qtt: pl.DataFrame,
+    att: pl.DataFrame,
+    outcome: str,
+    group: tuple[str] | tuple[str, str] | None,
+    estimator: Estimator,
+    causal_target: CausalTarget,
+    ps_x_formular: FormularRhs | None = None,
+    or_x_formular: FormularRhs | None = None,
+)
+```
+

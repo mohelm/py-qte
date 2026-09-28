@@ -1,0 +1,15 @@
+# BootstrapConfig { #qte.bootstrap.BootstrapConfig }
+
+```python
+bootstrap.BootstrapConfig()
+```
+
+Configuration for the bootstrap.
+
+## Parameters {.doc-section .doc-section-parameters}
+
+| Name      | Type         | Description                       | Default    |
+|-----------|--------------|-----------------------------------|------------|
+| n_iter    | [int](`int`) | Number of bootstrap replications. | _required_ |
+| seed      | [int](`int`) |                                   | _required_ |
+| n_workers | [int](`int`) | Number of worker threads.         | _required_ |

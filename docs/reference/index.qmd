@@ -1,0 +1,43 @@
+# Function reference {.doc .doc-index}
+
+## Cross-sectional estimators
+
+| | |
+| --- | --- |
+| [estimate_simple_qte](estimate_simple_qte.qmd#qte.cross_sectional.estimate_simple_qte) |  |
+| [estimate_ipw_qte](estimate_ipw_qte.qmd#qte.cross_sectional.estimate_ipw_qte) |  |
+| [estimate_or_qte](estimate_or_qte.qmd#qte.cross_sectional.estimate_or_qte) |  |
+| [estimate_aipw_qte](estimate_aipw_qte.qmd#qte.cross_sectional.estimate_aipw_qte) |  |
+| [QteResult](QteResult.qmd#qte.cross_sectional.QteResult) |  |
+
+## Nonlinear difference-in-differences
+
+| | |
+| --- | --- |
+| [estimate_nonlinear_did_for_panel](estimate_nonlinear_did_for_panel.qmd#qte.nonlinear_did.estimate_nonlinear_did_for_panel) |  |
+| [TrtGroupConfig](TrtGroupConfig.qmd#qte.nonlinear_did.TrtGroupConfig) |  |
+| [CounterfactualModel](CounterfactualModel.qmd#qte.nonlinear_did.CounterfactualModel) |  |
+| [ControlGroup](ControlGroup.qmd#qte.nonlinear_did.ControlGroup) |  |
+| [BasePeriod](BasePeriod.qmd#qte.nonlinear_did.BasePeriod) |  |
+| [NonlinearDidResult](NonlinearDidResult.qmd#qte.nonlinear_did.NonlinearDidResult) |  |
+
+## Data
+
+| | |
+| --- | --- |
+| [load_lalonde](load_lalonde.qmd#qte.datasets.load_lalonde) |  |
+| [load_mpdta](load_mpdta.qmd#qte.datasets.load_mpdta) | Load the minimum wage panel dataset (mpdta) used in the did and qte packages. |
+
+## Bootstrap
+
+| | |
+| --- | --- |
+| [BootstrapConfig](BootstrapConfig.qmd#qte.bootstrap.BootstrapConfig) | Configuration for the bootstrap. |
+| [perform_bootstrap](perform_bootstrap.qmd#qte.bootstrap.perform_bootstrap) |  |
+
+## Types
+
+| | |
+| --- | --- |
+| [CausalTarget](CausalTarget.qmd#qte.custom_types.CausalTarget) |  |
+| [Estimator](Estimator.qmd#qte.custom_types.Estimator) |  |

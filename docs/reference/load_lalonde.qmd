@@ -1,0 +1,9 @@
+# load_lalonde { #qte.datasets.load_lalonde }
+
+```python
+datasets.load_lalonde(
+    controls_source: Literal['psid', 'experiment'] = 'psid',
+    use_panel_structure: bool = False,
+)
+```
+

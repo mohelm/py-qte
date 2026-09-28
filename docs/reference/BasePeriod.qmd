@@ -1,0 +1,6 @@
+# BasePeriod { #qte.nonlinear_did.BasePeriod }
+
+```python
+nonlinear_did.BasePeriod()
+```
+

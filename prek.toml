@@ -5,8 +5,8 @@
 [[repos]]
 repo = "builtin"
 hooks = [
-  { id = "trailing-whitespace" },
-  { id = "end-of-file-fixer" },
+  { id = "trailing-whitespace", exclude = '^docs/reference/' },
+  { id = "end-of-file-fixer", exclude = '^docs/reference/' },
   { id = "check-added-large-files" },
 ]
 
@@ -15,7 +15,7 @@ repo = "https://github.com/astral-sh/ruff-pre-commit"
 rev = "v0.16.7"
 hooks = [
   { id = "ruff-check" },
-  { id = "ruff-format", files = '\.(py|pyi|ipynb|qmd)$' },
+  { id = "ruff-format", files = '\.(py|pyi|ipynb|qmd)$', exclude = '^docs/reference/' },
 ]
 
 [[repos]]
@@ -33,9 +33,12 @@ hooks = [{ id = "taplo-format" }]
 # whose deps (xml2, V8, curl, fs) need system libraries that aren't installed.
 [[repos]]
 repo = "local"
-hooks = [
-  { id = "style-files", name = "style-files (styler)", language = "r",
-    entry = "Rscript -e 'styler::style_file(commandArgs(TRUE))'",
-    files = '^docs/.*\.(qmd|Rmd|R|r)$',
-    additional_dependencies = ["styler", "knitr"] },
-]
+
+[[repos.hooks]]
+id = "style-files"
+name = "style-files (styler)"
+language = "r"
+entry = "Rscript -e 'styler::style_file(commandArgs(TRUE))'"
+files = '^docs/.*\.(qmd|Rmd|R|r)$'
+exclude = '^docs/reference/'
+additional_dependencies = ["styler", "knitr"]

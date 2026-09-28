@@ -3,6 +3,7 @@ project:
   output-dir: _site
   render:
     - "*.qmd"
+    - "reference/*.qmd"
 
 website:
   title: "py-qte"
@@ -10,9 +11,55 @@ website:
     left:
       - text: "Benchmark"
         href: benchmark.qmd
+      - text: "Reference"
+        href: reference/index.qmd
 
 format:
   html:
     embed-resources: true
     code-fold: true
     code-summary: "Show code"
+
+# API reference, generated from docstrings with `quartodoc build`.
+quartodoc:
+  package: qte
+  dir: reference
+  source_dir: ../src
+  parser: numpy
+  renderer:
+    style: markdown
+    show_signature_annotations: true
+    display_name: name
+  sections:
+    - title: Cross-sectional estimators
+      package: qte.cross_sectional
+      contents:
+        - estimate_simple_qte
+        - estimate_ipw_qte
+        - estimate_or_qte
+        - estimate_aipw_qte
+        - QteResult
+    - title: Nonlinear difference-in-differences
+      package: qte.nonlinear_did
+      contents:
+        - estimate_nonlinear_did_for_panel
+        - TrtGroupConfig
+        - CounterfactualModel
+        - ControlGroup
+        - BasePeriod
+        - NonlinearDidResult
+    - title: Data
+      package: qte.datasets
+      contents:
+        - load_lalonde
+        - load_mpdta
+    - title: Bootstrap
+      package: qte.bootstrap
+      contents:
+        - BootstrapConfig
+        - perform_bootstrap
+    - title: Types
+      package: qte.custom_types
+      contents:
+        - CausalTarget
+        - Estimator

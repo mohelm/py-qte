@@ -46,12 +46,14 @@ Issues = "https://github.com/mohelm/py-qte/issues"
 [dependency-groups]
 dev = [
   "cibuildwheel>=4.0.0",
+  "griffe<2",
   "jupyter>=1.1.1",
   "meson-python>=0.20.0",
   "ninja>=1.13.0",
   "pillow>=12.3.0",
   "pytest-sugar>=1.1.1",
   "pytest>=9.1.1",
+  "quartodoc>=0.11.1",
   "ruff>=0.16.1",
   "ty>=0.0.66",
   "vl-convert-python>=1.7.0",
@@ -61,7 +63,7 @@ dev-helpers = ["ipython>=9.16.1", "notebook>=7.6.2"]
 [tool.ruff]
 line-length = 100
 target-version = "py312"
-extension = {qmd = "markdown" }
+extension = { qmd = "markdown" }
 
 
 [tool.ruff.lint]
