@@ -51,16 +51,15 @@ def _make_rule_layer(
 
 
 def _make_facets(grouped_by: tuple[str] | tuple[str, str]) -> dict:
-    # If there is a single group (tuple[str] case), we want to put the associated dimension in the
-    # column. If there are two group, we put the the first group in the rows and the second in the
-    # columns. The call has then to ensure that the groups order reflect how the plot should look
-    # like.
-    n_grouped_by = len(grouped_by)
-    row_group = 0 if n_grouped_by == 1 else 1
-    facets = {"column": alt.Column(f"{grouped_by[row_group]}:N")}
-    if n_grouped_by > 1:
-        facets["row"] = alt.Row(f"{grouped_by[0]}:N")
-    return facets
+    # With a single group (tuple[str] case) the associated dimension goes in the column. With two
+    # groups, the first goes in the rows and the second in the columns. The caller has to ensure
+    # that the group order reflects how the plot should look.
+    if len(grouped_by) == 1:
+        return {"column": alt.Column(f"{grouped_by[0]}:N")}
+    return {
+        "column": alt.Column(f"{grouped_by[1]}:N"),
+        "row": alt.Row(f"{grouped_by[0]}:N"),
+    }
 
 
 def _make_plot_with_multiple_quantiles(

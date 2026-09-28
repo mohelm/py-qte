@@ -26,7 +26,7 @@ class _BasicQteResult:
     qtt: pl.DataFrame = field(repr=False)
     att: pl.DataFrame = field(repr=False)
     outcome: str
-    group: str | tuple[str, ...] | None
+    group: tuple[str] | tuple[str, str] | None
 
     _exclude_from_qtt_tables: ClassVar[tuple[str, ...]] = (
         QUANTILE_TREATED_VAL_ID,
