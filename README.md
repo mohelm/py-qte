@@ -117,6 +117,14 @@ Development is somewhat complicated due to the inclusion of the Fortan code for 
  uv sync --all-groups --no-install-project && uv sync --all-groups
  ```
 
+## Website
+
+```{sh}
+Rscript -e "if (!requireNamespace('renv', quietly = TRUE)) install.packages('renv'); renv::restore(prompt = FALSE)"
+Rscript -e "renv::scaffold(action = 'setup')"
+quarto render # or quarto render <document>.qmd
+```
+
 ## Regenerating the README assets
 
 Regenerate the figures above after changing the estimators or their presentation:
