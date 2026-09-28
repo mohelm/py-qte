@@ -119,11 +119,16 @@ Development is somewhat complicated due to the inclusion of the Fortan code for 
 
 ## Website
 
+To render the website you need `quarto` and `R` on your system. Then:
+
 ```{sh}
+cd docs
 Rscript -e "if (!requireNamespace('renv', quietly = TRUE)) install.packages('renv'); renv::restore(prompt = FALSE)"
 Rscript -e "renv::scaffold(action = 'setup')"
-quarto render # or quarto render <document>.qmd
+quarto render # or quarto render <document>.qmd 
 ```
+
+The website is then rendered into `docs/_site`.
 
 ## Regenerating the README assets
 
