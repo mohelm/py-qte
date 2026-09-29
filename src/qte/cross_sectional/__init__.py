@@ -13,6 +13,10 @@ from qte.cross_sectional.or_ import compute_or_qte
 from qte.cross_sectional.results import QteResult
 from qte.cross_sectional.results import _QteIntermediateResult as _QteIntermediateResult
 from qte.cross_sectional.simple import compute_simple_qte
+from qte.cross_sectional.simulate import (
+    simulate_covariate_data as simulate_covariate_data,
+)
+from qte.cross_sectional.simulate import simulate_simple_data as simulate_simple_data
 from qte.custom_types import (
     CausalTarget,
     ColumnName,
