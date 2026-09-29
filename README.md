@@ -120,7 +120,7 @@ Development is somewhat complicated due to the inclusion of the Fortan code for 
 ## Website
 
 The website is a [Quarto](https://quarto.org) project in `docs/`. To render it
-you need `quarto`, `R`, and the Python dev environment (`uv sync`). Then:
+you need `quarto`, `R`, and the Python docs environment (`uv sync --group docs`). Then:
 
 ```{sh}
 cd docs
@@ -129,13 +129,8 @@ cd docs
 uv run quartodoc build
 
 # Restore the R environment used by the benchmark document.
-Rscript -e "if (!requireNamespace('renv', quietly = TRUE)) install.packages('renv'); renv::restore(prompt = FALSE)"
-
-# Render the whole site, a single document, or with a parameter file.
-quarto render
-quarto render <document>.qmd
-quarto render --execute-params fast_params.yml   # quick local render
-quarto render --execute-params prd_params.yml    # full published run
+Rscript -e 'if (!requireNamespace("renv", quietly = TRUE)) install.packages("renv"); renv::load("."); renv::restore(prompt = FALSE)'
+quarto render # or quarto render <document>.qmd
 ```
 
 The benchmark parameters live in `docs/fast_params.yml` (small, for quick
