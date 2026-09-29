@@ -62,7 +62,7 @@ def _merge_group_time_effects_on_grid(
     ecdfs_on_grid_o = np.array([g.ecdf_observed.evaluate(y_grid) for g in gtes]) * weights_
     ecdfs_on_grid_cf = np.array([g.ecdf_counterfact.evaluate(y_grid) for g in gtes]) * weights_
     means_o = np.array([gte.mean_observed for gte in gtes]) * weights_.squeeze()
-    means_cf = np.array([gte.mean_countfact for gte in gtes]) * weights_.squeeze()
+    means_cf = np.array([gte.mean_counterfact for gte in gtes]) * weights_.squeeze()
     return (ecdfs_on_grid_o, ecdfs_on_grid_cf, means_o, means_cf)
 
 
@@ -164,7 +164,7 @@ def get_group_time_treatment_effects(
                 "group": [gte.group],
                 "time": [gte.tp],
                 MEAN_TREATED_ID: [gte.mean_observed],
-                MEAN_CONTROL_ID: [gte.mean_countfact],
+                MEAN_CONTROL_ID: [gte.mean_counterfact],
             }
         )
         for gte in gtes

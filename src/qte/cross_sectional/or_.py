@@ -65,7 +65,7 @@ def compute_or_qte(
         preds_control = predict_outcome_model(ors_control, treated, flatten=True)
         # Get the corresponding weights.
         w_c = make_weights(weights_c, treated, outcome_reg_quantiles.shape[0])
-        # Comute the statistics of interest from the counterfactual outcomes and the corresponding
+        # Compute the statistics of interest from the counterfactual outcomes and the corresponding
         # weights.
         q_c = get_quantiles(qs, preds_control, w_c)
         mean_c = np.average(preds_control, weights=w_c)

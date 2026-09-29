@@ -5,7 +5,7 @@ from pytest import fixture, mark
 
 import qte.quantile_regression as qr
 from qte.constants import MEDIAN
-from qte.datasets import load_engel_with_with_weights
+from qte.datasets import load_engel_with_weights
 from qte.quantile_regression import QuantileRegression, QuantileRegressionResult
 
 QS = [0.1, 0.5, 0.9]
@@ -93,7 +93,7 @@ def test_weighted_quantile_regression_matches_statsmodels_on_scaled_data(data_wi
 
 @mark.skipif(qr.rq_fortran is None, reason="requires the compiled Fortran extension")
 def test_quantile_regression_matches_r_quantregpackage_results():
-    ds = load_engel_with_with_weights()
+    ds = load_engel_with_weights()
 
     weighted = QuantileRegression("log_foodexp ~ log_income", ds=ds).fit(QS, weights_c="w")
     assert np.allclose(weighted.coefficients, WEIGHTED_EXPECTED_COEFFS, atol=1e-6)
@@ -103,7 +103,7 @@ def test_quantile_regression_matches_r_quantregpackage_results():
 
 
 def test_quantile_regression_falls_back_to_statsmodels(monkeypatch):
-    ds = load_engel_with_with_weights()
+    ds = load_engel_with_weights()
 
     monkeypatch.setattr(qr, "rq_fortran", None)
 

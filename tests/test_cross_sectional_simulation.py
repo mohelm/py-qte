@@ -8,95 +8,100 @@ from qte.cross_sectional import (
     estimate_aipw_qte,
     estimate_ipw_qte,
     estimate_simple_qte,
-    simulate_data,
+    simulate_covariate_data,
+    simulate_simple_data,
 )
+from qte.cross_sectional.simulate import true_effects, true_means
 from qte.custom_types import CausalTarget
 from qte.names import EFFECT_ID
 
 QS = (0.25, 0.5, 0.75)
 CFG = BootstrapConfig(n_iter=8, seed=1)
 
+N_USED_COVARIATES = 5
+SIMPLE_COLUMNS = ["treat", "y"]
+COVARIATE_COLUMNS = [f"x{i}" for i in range(N_USED_COVARIATES)] + ["treat", "y", "y_0", "y_1"]
 
-def test_simulate_without_covariates_shape_and_columns():
-    ds = simulate_data(n=500, treatment_share=0.4, seed=0)
+
+def _add_correct_features(ds: pl.DataFrame) -> pl.DataFrame:
+    return ds.with_columns(
+        ind1=(pl.col("x1") > 0.1).cast(pl.Float64),
+        ind2=((pl.col("x0") * pl.col("x2")) > 0).cast(pl.Float64),
+        sq=(2.5 + 0.3 * pl.col("x1")).sqrt(),
+    )
+
+
+def test_simulate_simple_shape_and_columns():
+    ds = simulate_simple_data(n=500, treatment_share=0.4, seed=0)
 
     assert isinstance(ds, pl.DataFrame)
-    assert ds.columns == ["treat", "y"]
+    assert ds.columns == SIMPLE_COLUMNS
     assert ds.shape == (500, 2)
-    assert ds["treat"].sum() == 200
-    assert set(ds["treat"].unique()) == {0, 1}
+    assert set(ds["treat"].unique()) <= {0, 1}
 
 
-def test_simulate_with_covariates_shape_and_columns():
-    ds = simulate_data(n=500, with_covariates=True, seed=0)
+def test_simulate_covariate_shape_and_columns():
+    ds = simulate_covariate_data(n=500, seed=0)
 
     assert isinstance(ds, pl.DataFrame)
-    assert ds.columns == ["x1", "x2", "treat", "y"]
-    assert ds.shape == (500, 4)
-    assert set(ds["x2"].unique()) == {0.0, 1.0}
-    assert set(ds["treat"].unique()) == {0, 1}
+    assert ds.columns == COVARIATE_COLUMNS
+    assert ds.shape == (500, len(COVARIATE_COLUMNS))
+
+
+def test_simulate_noise_covariates_are_appended():
+    ds = simulate_covariate_data(n=100, n_noise_covariates=3, seed=0)
+
+    used = [f"x{i}" for i in range(N_USED_COVARIATES)]
+    noise = [f"x{i}" for i in range(N_USED_COVARIATES, N_USED_COVARIATES + 3)]
+    assert ds.columns == used + noise + ["treat", "y", "y_0", "y_1"]
 
 
 def test_simulate_is_reproducible():
-    first = simulate_data(n=100, seed=42)
-    second = simulate_data(n=100, seed=42)
-    third = simulate_data(n=100, seed=43)
-    cov_first = simulate_data(n=100, with_covariates=True, seed=42)
-    cov_second = simulate_data(n=100, with_covariates=True, seed=42)
-
-    assert first.equals(second)
-    assert not first.equals(third)
-    assert cov_first.equals(cov_second)
+    assert simulate_simple_data(n=100, seed=42).equals(simulate_simple_data(n=100, seed=42))
+    assert not simulate_simple_data(n=100, seed=42).equals(simulate_simple_data(n=100, seed=43))
+    assert simulate_covariate_data(n=100, seed=42).equals(simulate_covariate_data(n=100, seed=42))
 
 
 def test_estimators_recover_the_simple_truth():
-    ds = simulate_data(n=20_000, treatment_effect=1.5, seed=0)
+    ds = simulate_simple_data(n=20_000, treatment_effect=1.5, seed=0)
     res = estimate_simple_qte(ds, "y", "treat", qs=QS, bootstrap_config=CFG)
 
     assert_allclose(res.qtt[EFFECT_ID].to_numpy(), 1.5, atol=0.05)
     assert res.att[EFFECT_ID].item() == pytest.approx(1.5, abs=0.05)
 
 
-def test_covariate_data_is_confounded_but_ipw_recovers_the_truth():
-    ds = simulate_data(n=20_000, with_covariates=True, treatment_effect=1.0, seed=0)
-    truth = 1.0
+def test_covariate_data_is_confounded_but_aipw_recovers_the_truth():
+    ds = _add_correct_features(simulate_covariate_data(n=20_000, effect_scale=1.0, seed=0))
+    truth = true_effects(QS, n_oracle=200_000, effect_scale=1.0, seed=0)[EFFECT_ID].to_numpy()
 
     naive = estimate_simple_qte(ds, "y", "treat", qs=QS, bootstrap_config=CFG)
-    ipw = estimate_ipw_qte(ds, "y", "treat", qs=QS, ps_x_formular="x1 + x2", bootstrap_config=CFG)
     aipw = estimate_aipw_qte(
         ds,
         "y",
         "treat",
         qs=QS,
-        ps_x_formular="x1 + x2",
-        or_x_formular="x1 + x2",
+        ps_x_formular="x1 + x3 + I(x0 > 0)",
+        or_x_formular="x3 + x4 + ind1 + ind2 + sq",
         bootstrap_config=CFG,
     )
 
     # Confounding biases the unadjusted estimator away from the true effect.
-    assert not np.allclose(naive.qtt[EFFECT_ID].to_numpy(), truth, atol=0.2)
-    assert_allclose(ipw.qtt[EFFECT_ID].to_numpy(), truth, atol=0.15)
-    assert_allclose(aipw.qtt[EFFECT_ID].to_numpy(), truth, atol=0.15)
+    assert not np.allclose(naive.qtt[EFFECT_ID].to_numpy(), truth, atol=0.1)
+    assert_allclose(aipw.qtt[EFFECT_ID].to_numpy(), truth, atol=0.1)
 
 
-def test_covariate_data_att_matches_qte():
-    # The treatment effect is constant, so ATT == ATE == QTE at every quantile.
-    ds = simulate_data(n=10_000, with_covariates=True, treatment_effect=2.0, seed=0)
+def test_covariate_data_att_matches_true_ate():
+    ds = simulate_covariate_data(n=20_000, effect_scale=1.0, seed=0)
+    truth = true_means(n_oracle=200_000, effect_scale=1.0, seed=0)[EFFECT_ID].item()
+
     res = estimate_ipw_qte(
         ds,
         "y",
         "treat",
         qs=QS,
-        ps_x_formular="x1 + x2",
+        ps_x_formular="x1 + x3 + I(x0 > 0)",
         target=CausalTarget.QTT,
         bootstrap_config=CFG,
     )
 
-    assert_allclose(res.qtt[EFFECT_ID].to_numpy(), 2.0, atol=0.2)
-    assert res.att[EFFECT_ID].item() == pytest.approx(2.0, abs=0.2)
-
-
-@pytest.mark.parametrize("with_covariates", [False, True])
-def test_validation(with_covariates):
-    with pytest.raises(ValueError, match="n must be positive"):
-        simulate_data(n=0, with_covariates=with_covariates)
+    assert res.att[EFFECT_ID].item() == pytest.approx(truth, abs=0.1)

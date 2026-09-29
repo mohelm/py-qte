@@ -1,7 +1,7 @@
 import polars as pl
 import pytest
 
-from qte.datasets import load_engel_with_with_weights, load_lalonde, load_mpdta
+from qte.datasets import load_engel_with_weights, load_lalonde, load_mpdta
 
 
 @pytest.mark.parametrize(
@@ -49,7 +49,7 @@ def test_mpdta():
 
 
 def test_engel_with_weights():
-    ds = load_engel_with_with_weights()
+    ds = load_engel_with_weights()
     assert isinstance(ds, pl.DataFrame)
     expected_columns = ["w", "log_foodexp", "log_income"]
     for c in expected_columns:

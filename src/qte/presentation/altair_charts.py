@@ -4,7 +4,7 @@ import polars as pl
 from qte.names import CI_LB_ID, CI_UB_ID, EFFECT_ID, QUANTILE_ID
 
 _ESTIMATE_TYPE_ORDER = ["qte", "att"]
-_ESTIAMTE_TYPE_COLOR = alt.Scale(domain=_ESTIMATE_TYPE_ORDER, range=["black", "red"])
+_ESTIMATE_TYPE_COLOR = alt.Scale(domain=_ESTIMATE_TYPE_ORDER, range=["black", "red"])
 _EFFECT_STROKE = (1, 0)
 _CONFIDENCE_INTERVAL_STROKE = (8, 8)
 
@@ -71,7 +71,7 @@ def _make_plot_with_multiple_quantiles(
     # In Altair, that is not totally simple. We opt for only showing the leftmost label. We achieve
     # this by essentially making the other labels transparent. For this we need a query that
     # identifies the left most panel in the column dimension (not the row dimension is always
-    # irrelevan t here). The column dimension is always the last one.
+    # irrelevant here). The column dimension is always the last one.
     x_label_position_query = (
         None if group is None else f"parent['{group[-1]}'] == {combined[group[-1]].min()} ? 1 : 0"
     )
@@ -106,7 +106,7 @@ def _make_plot_for_single_quantile(
 ) -> alt.LayerChart | alt.FacetChart:
     base = alt.Chart(combined)
     x = alt.X("__kind", title=None, sort=_ESTIMATE_TYPE_ORDER)
-    color = alt.Color("__kind:N", scale=_ESTIAMTE_TYPE_COLOR, legend=None)
+    color = alt.Color("__kind:N", scale=_ESTIMATE_TYPE_COLOR, legend=None)
     title = alt.Title(
         text="Quantile and Average Treatment Effects",
         subtitle=f"The QTE is measured for {quantile=}.",

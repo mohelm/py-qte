@@ -108,12 +108,12 @@ def _make_reference_period(
     n_anticipation_periods: int,
     base_period: BasePeriod,
 ) -> int:
-    # In the post-treatment period we always compare to the earlist pre-treatment period
+    # In the post-treatment period we always compare to the earliest pre-treatment period
     # (accounting for anticipation).
     reference_period = treated_group - n_anticipation_periods - 1
 
     # However, in the pre-treatment period we might want to compare to a time period that is prior
-    # to the per-treatment period in question ("varying" time period)
+    # to the pre-treatment period in question ("varying" time period)
     if (time_period < treated_group) & (base_period == BasePeriod.VARYING):
         reference_period = time_period - n_anticipation_periods - 1
     return reference_period
@@ -235,7 +235,7 @@ def _compute_group_time_effect(
         ecdf_observed=ecdf_post_treated_observed,
         ecdf_counterfact=ecdf_post_treated_counterfact,
         mean_observed=np.average(post_trt["o"], weights=post_trt["w"]),
-        mean_countfact=np.average(kcf, weights=pre_trt["w"]),
+        mean_counterfact=np.average(kcf, weights=pre_trt["w"]),
         group_size_observed=post_trt["w"].sum(),
         group_size_counterfactual=pre_trt["w"].sum(),
     )

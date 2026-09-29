@@ -38,7 +38,7 @@ def load_mpdta() -> pl.DataFrame:
         return pl.read_parquet(path)
 
 
-def load_engel_with_with_weights() -> pl.DataFrame:
+def load_engel_with_weights() -> pl.DataFrame:
     """Load Engel (1857) food expenditure data with an additional weights column.
 
     It is mainly used for comparing the quantile regression with and without weights against the

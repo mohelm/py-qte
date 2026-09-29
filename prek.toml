@@ -52,6 +52,6 @@ id = "prettier"
 name = "prettier (markdown)"
 language = "node"
 entry = "prettier --write"
-files = '^docs/.*\.(qmd|md)$'
+files = '^(docs/.*\.(qmd|md)|README(_PYPI)?\.md)$'
 exclude = '^docs/reference/'
 additional_dependencies = ["prettier@3.3.3"]

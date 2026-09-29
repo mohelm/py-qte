@@ -228,8 +228,8 @@ respective estimators. Parallelized approaches benefit `qte` relatively more (in
 parallelization the gap remains sizeable, and the `qte` package takes about 3 times as long as the
 `py-qte` package (see @tbl-aipw-timings).
 
-For a larger simulated dataset (`{r} formatC(N_SIM_UNCONFOUNDED, format = "d", big.mark = ",")`
-observations), we find that _without confounders_ `py-qte` is about 10 times as fast even after
+For a _larger simulated dataset_ (`{r} formatC(N_SIM_UNCONFOUNDED, format = "d", big.mark = ",")`
+observations), we find that _without confounders_ `py-qte` is orders of magnitude as fast even after
 parallelization. See @tbl-sim-simple-time. For the AIPW estimator we find that the parallelized
 `py-qte` version on a medium-sized dataset
 (`{r} formatC(N_SIM_CONFOUNDED, format = "d", big.mark = ",")` observations and 5 covariates) with a
@@ -557,7 +557,10 @@ def add_correct_features(ds):
 
 EFFECT_SCALE = 1000.0
 sim_simple = simulate_simple_data(
-    int(r.N_SIM_UNCONFOUNDED), treatment_effect=EFFECT_SCALE, seed=int(r.SEED)
+    int(r.N_SIM_UNCONFOUNDED),
+    treatment_effect=EFFECT_SCALE,
+    error_var=EFFECT_SCALE**2,  # keep the residual sd on the same scale as the effect
+    seed=int(r.SEED),
 )
 sim_cov = add_correct_features(
     simulate_covariate_data(

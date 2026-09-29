@@ -32,7 +32,7 @@ class _BasicQteResult:
         QUANTILE_TREATED_VAL_ID,
         QUANTILE_CONTROL_VAL_ID,
     )
-    _exlude_from_att_tables: ClassVar[tuple[str, ...]] = (
+    _exclude_from_att_tables: ClassVar[tuple[str, ...]] = (
         MEAN_CONTROL_ID,
         MEAN_TREATED_ID,
     )
@@ -73,7 +73,7 @@ class _BasicQteResult:
     def tabulate(self, alpha: float = 0.95) -> GT:
         return make_great_table(
             self.qtt.drop(self._exclude_from_qtt_tables).with_columns(get_ci(alpha)),
-            self.att.drop(self._exlude_from_att_tables).with_columns(get_ci(alpha)),
+            self.att.drop(self._exclude_from_att_tables).with_columns(get_ci(alpha)),
             self.group,
             self._make_table_header_content(alpha),
         )
@@ -84,7 +84,7 @@ class _BasicQteResult:
     def summarize(self, alpha: float = 0.95) -> Group:
         return make_rich_table(
             self.qtt.drop(self._exclude_from_qtt_tables).with_columns(get_ci(alpha)),
-            self.att.drop(self._exlude_from_att_tables).with_columns(get_ci(alpha)),
+            self.att.drop(self._exclude_from_att_tables).with_columns(get_ci(alpha)),
             self._make_table_header_content(alpha),
             float_precision=2,
             group=self.group,

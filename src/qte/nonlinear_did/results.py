@@ -17,7 +17,7 @@ class GroupTimeEffect(NamedTuple):
     ecdf_observed: Ecdf
     ecdf_counterfact: Ecdf
     mean_observed: float
-    mean_countfact: float
+    mean_counterfact: float
     group_size_observed: int
     group_size_counterfactual: int
 

@@ -36,10 +36,20 @@ _HTML_LINK = re.compile(r'(?P<attr>\b(?:src|href))="(?P<path>' + _RELATIVE_PATH 
 _MD_LINK = re.compile(r"\]\((?P<path>" + _RELATIVE_PATH + r")\)")
 
 
-def _make_links_absolute(readme: str, raw_base: str) -> str:
-    """Rewrite relative HTML/Markdown links in *readme* into *raw_base* URLs."""
+def _make_links_absolute(readme: str, raw_base: str, blob_base: str) -> str:
+    """Rewrite relative HTML/Markdown links in *readme* into absolute GitHub URLs.
+
+    Images (HTML ``src``) and asset links resolve to *raw_base* so they render on
+    PyPI; links to Markdown documents resolve to *blob_base* so they open as
+    rendered pages on GitHub.
+    """
     readme = _HTML_LINK.sub(lambda m: f'{m["attr"]}="{raw_base}/{m["path"]}"', readme)
-    return _MD_LINK.sub(lambda m: f"]({raw_base}/{m['path']})", readme)
+
+    def _md_link(m: re.Match[str]) -> str:
+        base = blob_base if m["path"].endswith(".md") else raw_base
+        return f"]({base}/{m['path']})"
+
+    return _MD_LINK.sub(_md_link, readme)
 
 
 def generate_pypi_readme() -> None:
@@ -52,9 +62,12 @@ def generate_pypi_readme() -> None:
     repo = pyproject["project"]["urls"]["Repository"]
     raw_repo = repo.replace("github.com", "raw.githubusercontent.com")
     raw_base = f"{raw_repo}/{_PYPI_README_BRANCH}"
+    blob_base = f"{repo}/blob/{_PYPI_README_BRANCH}"
 
     readme = (_ROOT / "README.md").read_text(encoding="utf-8")
-    (_ROOT / "README_PYPI.md").write_text(_make_links_absolute(readme, raw_base), encoding="utf-8")
+    (_ROOT / "README_PYPI.md").write_text(
+        _make_links_absolute(readme, raw_base, blob_base), encoding="utf-8"
+    )
 
 
 def generate_readme_assets(
