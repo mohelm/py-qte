@@ -8,7 +8,9 @@ params:
   seed: 42
   n_sim_unconfounded: 2000
   n_sim_confounded: 2000
-  n_iter_sim: 3
+  n_iter_sim_unconfounded: 3
+  n_iter_sim_confounded: 3
+  n_iter_sim_py_qte_only: 3
   n_sim_py_qte_only: 0
 format:
   html:
@@ -49,7 +51,9 @@ SEED <- as.integer(params$seed)
 N_SIM_UNCONFOUNDED <- as.integer(params$n_sim_unconfounded)
 N_SIM_CONFOUNDED <- as.integer(params$n_sim_confounded)
 N_SIM_PY_QTE_ONLY <- as.integer(params$n_sim_py_qte_only)
-N_ITER_SIM <- as.integer(params$n_iter_sim)
+N_ITER_SIM_UNCONFOUNDED <- as.integer(params$n_iter_sim_unconfounded)
+N_ITER_SIM_CONFOUNDED <- as.integer(params$n_iter_sim_confounded)
+N_ITER_SIM_PY_QTE_ONLY <- as.integer(params$n_iter_sim_py_qte_only)
 ```
 
 ```{r}
@@ -80,20 +84,20 @@ qs_simple = [float(q) for q in r.QS_SIMPLE]
 ```{python}
 #| label: py-helpers
 #| code-summary: "Show code (Python defining the comparison-table helpers)"
-def make_timing_table(ds: pl.DataFrame, estimation: str) -> GT:
+def make_source_note(n_obs: int, n_iter: int, n_workers: int) -> str:
     return (
-        GT(ds)
-        .cols_label(
-            language="Language",
-            package="Package",
-            computation="Computation",
-            workers="Workers",
-            iterations="Bootstrap Iterations",
-            seconds="Seconds",
-        )
+        f"N = {int(n_obs):,}; {int(n_iter):,} bootstrap iterations; "
+        f"{int(n_workers)} workers for parallel computations."
+    )
+
+
+def make_timing_table(ds: pl.DataFrame, estimation: str, source_note: str) -> GT:
+    return (
+        GT(ds.select("package", "computation", "seconds"))
+        .cols_label(package="Package", computation="Computation", seconds="Seconds")
         .fmt_number(columns=["seconds"], decimals=1, use_seps=True)
-        .fmt_number(columns=["iterations"], decimals=0, use_seps=True)
         .tab_header(title=md("**Speed Comparison**"), subtitle=estimation)
+        .tab_source_note(source_note)
     )
 
 
@@ -130,7 +134,7 @@ def make_comparison_data(qs, series) -> pl.DataFrame:
     return pl.DataFrame(records)
 
 
-def make_estimate_comparison_table(data: pl.DataFrame, estimation: str) -> GT:
+def make_estimate_comparison_table(data: pl.DataFrame, estimation: str, source_note: str) -> GT:
     """Render tidy comparison data (see ``make_comparison_data``).
 
     Rows are grouped under ``QTE``/``ATT``; package names become the top-level
@@ -167,6 +171,7 @@ def make_estimate_comparison_table(data: pl.DataFrame, estimation: str) -> GT:
         .cols_label(quantile="Quantile", **leaf_labels)
         .fmt_number(columns=est_cols + se_cols, decimals=1, use_seps=True)
         .tab_header(title=md("**Results Comparison**"), subtitle=estimation)
+        .tab_source_note(source_note)
         .tab_style(style=style.fill(color="#E8F1FA"), locations=loc.body(columns=est_cols))
         .tab_style(style=style.fill(color="#FBF0E1"), locations=loc.body(columns=se_cols))
         .tab_style(style=style.fill(color="#D3E4F5"), locations=loc.column_labels(columns=est_cols))
@@ -205,35 +210,55 @@ def make_estimate_comparison_table(data: pl.DataFrame, estimation: str) -> GT:
 
 ## Summary
 
-In summary, we find sizeable differences between the `qte` and the `py-qte` package in sequential
-computations. These can be tigthly connected to different implementation approaches. Parallized
-approaches benefit `qte` relatively more.
+Here, we compare the performance of the `py-qte` and the `qte` package. We use a
+medium-sized machine (see the [Environment](#environment) section for details).
+The comparisons are based on the relatively small Lalonde dataset that comes
+with the `qte` package and on a medium-sized simulated dataset inspired by
+[this](https://docs.doubleml.org/stable/examples/py_double_ml_pq.html#Data)
+section from the documentation of the DoubleML package.
 
-For estimation without confounders `py-qte` advantages is in the double-digit percentages on a
-powerful machine and about 300% on a slower machine. This suggest that the `qte` implementation
-benefits more from the chosen parallization strategies.
+Notice that in particular estimators that involve an outcome model are
+relatively computationally intensive since they involve fitting a quantile
+regression model on a grid of quantiles in each bootstrap run.
 
-For estimation with confounders the same holds true although in principle but the gap remains larger
-(firmly in the triple digit percentages).
+Even for the _small Lalonde_ dataset (`{r} formatC(py$DATA$height, format = "d", big.mark = ",")` observations), we
+find sizeable differences between the `qte` and the `py-qte` package in
+sequential computations. These can be tightly connected
+to different implementation approaches. Parallelized approaches benefit `qte`
+relatively more (in this setting). See @tbl-simple-time. For estimation with
+confounders, the same holds true, but even after parallelization the gap remains
+sizeable, and the `qte` package takes about 3 times as long as the `py-qte`
+package (see @tbl-aipw-timings).
 
-An important point is that these results were derived on a fairly (very) small dataset with only a
-few thousand observations. In general, it might be optimal to tailor the optimization stratgey more
-close to the estimator and the dataset size.For larger datasets, other approaches
+For a larger simulated dataset (`{r} formatC(N_SIM_UNCONFOUNDED, format = "d", big.mark = ",")` observations), we find that without
+confounders `py-qte` is about X times as fast even after parallelization. See
+@tbl-sim-simple-time. For the AIPW estimator we find that the parallelized
+`py-qte` version on a medium-sized dataset (`{r} formatC(N_SIM_CONFOUNDED, format = "d", big.mark = ",")`) with a reasonable number of
+bootstrap iterations is more than ten times faster than the `qte` version. See
+@tbl-sim-cov-time.
+
+Lastly, the Python version can provide results for `{r} formatC(N_SIM_PY_QTE_ONLY, format = "d", big.mark = ",")` observations in about the same time that the parallelized `qte`
+version took for `{r} formatC(N_SIM_CONFOUNDED, format = "d", big.mark = ",")` observations.
+See @tbl-py-only-time.
+
+These results stress the importance of algorithmic choices and also
+parallelization strategies for the bootstrap iterations.
 
 ## Cross-Sectional Data
 
 ```{r}
 #| include: false
-num_rows_lalonde <- nrow(py$DATA)
+num_rows_lalonde <- py$DATA$height
 ```
 
 We compare cross-sectional estimators on the Lalonde dataset. The Lalonde dataset is a relatively
-small dataset with only `{r} num_rows_lalonde` observation.
+small dataset with only `{r} formatC(num_rows_lalonde, format = "d", big.mark = ",")` observations.
 
 ### Estimation under Unconfoundedness
 
 ```{r r-simple}
 #| code-summary: "Show code (R estimate of the unconditional QTE)"
+#| time_it: true
 # Unconditional QTE with no covariates == R's IPW branch with x = NULL.
 run_r_simple <- function(cl) {
   set.seed(SEED)
@@ -263,6 +288,7 @@ r_simple_par_vals <- r_simple_par$vals
 ```{python}
 #| label: py-simple
 #| code-summary: "Show code (Python estimate of the unconditional QTE)"
+#| time_it: true
 def run_py_simple(n_workers):
     cfg = BootstrapConfig(n_iter=int(r.N_ITER_SIMPLE), seed=int(r.SEED), n_workers=n_workers)
     t0 = time.perf_counter()
@@ -294,6 +320,7 @@ def r_simple_cols(vals):
     return eff, err
 
 
+simple_source_note = make_source_note(DATA.height, int(r.N_ITER_SIMPLE), int(r.N_WORKERS))
 simple_table_html = make_estimate_comparison_table(
     make_comparison_data(
         qs_simple,
@@ -305,6 +332,7 @@ simple_table_html = make_estimate_comparison_table(
         },
     ),
     "Estimation under Unconfoundedness",
+    simple_source_note,
 ).as_raw_html()
 
 data = pl.DataFrame(
@@ -323,28 +351,41 @@ data = pl.DataFrame(
     }
 )
 
-simple_timing_html = make_timing_table(data, "Estimation under Unconfoundedness").as_raw_html()
+simple_timing_html = make_timing_table(
+    data, "Estimation under Unconfoundedness", simple_source_note
+).as_raw_html()
 ```
 
-```{r results='asis', echo=FALSE}
+```{r}
+#| label: tbl-simple-res
+#| tbl-cap: "Unconditional QTE Estimates on the Lalonde Data."
+#| results: asis
+#| echo: false
 cat(py$simple_table_html)
-cat("<p></p>")
+```
+
+```{r}
+#| label: tbl-simple-time
+#| tbl-cap: "Unconditional QTE Runtimes on the Lalonde Data."
+#| results: asis
+#| echo: false
 cat(py$simple_timing_html)
 ```
 
-Notice first that first `py-qte` replicates the point estimates of the `qte` package and produces
+Notice first that `py-qte` replicates the point estimates of the `qte` package and produces
 similar standard errors. Notice that the `py-qte` produces consistent standard error estimates
-across the sequential and the parallized run as it should.
+across the sequential and the parallelized run as it should.
 
 We see that `py-qte` is in a _sequential scenario_ much faster than `qte`. This is probably mostly
 because `np.quantile` provides an efficient implementation of computing weighted quantiles whereas
-the `qte` package runs a solver for each quantile. The speed-up from parallization is very large for
+the `qte` package runs a solver for each quantile. The speed-up from parallelization is very large for
 `qte` and sizeable but relatively low `py-qte`.
 
 ### AIPW Estimator
 
 ```{r r-sequential}
 #| code-summary: "Show code (R AIPW estimate (sequential))"
+#| time_it: true
 set.seed(SEED)
 t0 <- Sys.time()
 res_r_seq <- unc_qte(
@@ -361,6 +402,7 @@ r_seq_vals <- list(
 
 ```{r r-parallel}
 #| code-summary: "Show code (R AIPW estimate (parallel))"
+#| time_it: true
 set.seed(SEED)
 t0 <- Sys.time()
 res_r_par <- unc_qte(
@@ -378,6 +420,7 @@ r_par_vals <- list(
 ```{python}
 #| label: py-sequential
 #| code-summary: "Show code (Python AIPW estimate (sequential))"
+#| time_it: true
 cfg = BootstrapConfig(n_iter=int(r.N_ITER), seed=int(r.SEED), n_workers=1)
 t0 = time.perf_counter()
 res_py_seq = estimate_aipw_qte(
@@ -395,6 +438,7 @@ py_seq_seconds = time.perf_counter() - t0
 ```{python}
 #| label: py-parallel
 #| code-summary: "Show code (Python AIPW estimate (parallel))"
+#| time_it: true
 cfg = BootstrapConfig(n_iter=int(r.N_ITER), seed=int(r.SEED), n_workers=int(r.N_WORKERS))
 t0 = time.perf_counter()
 res_py_par = estimate_aipw_qte(
@@ -444,7 +488,10 @@ aipw_data = make_comparison_data(
     },
 )
 
-table_html = make_estimate_comparison_table(aipw_data, "Estimation via AIPW").as_raw_html()
+aipw_source_note = make_source_note(DATA.height, int(r.N_ITER), int(r.N_WORKERS))
+table_html = make_estimate_comparison_table(
+    aipw_data, "Estimation via AIPW", aipw_source_note
+).as_raw_html()
 
 timing = pl.DataFrame(
     {
@@ -457,37 +504,46 @@ timing = pl.DataFrame(
     }
 )
 
-timing_html = make_timing_table(timing, "Estimation via AIPW").as_raw_html()
+timing_html = make_timing_table(timing, "Estimation via AIPW", aipw_source_note).as_raw_html()
 ```
 
-```{r results='asis', echo=FALSE}
+```{r}
+#| label: tbl-aipw-res
+#| tbl-cap: "AIPW Comparison of `py-qte` and `qte`."
+#| results: asis
+#| echo: false
 cat(py$table_html)
-cat("<p></p>")
+```
+
+In terms of results, we see in @tbl-aipw-res that the point estimates are close between `py-qte`
+and `qte`. The standard errors are once more consistent across the sequential
+and parallelized runs.
+
+
+```{r results='asis', echo=FALSE}
+#| label: tbl-aipw-timings
+#| tbl-cap: "AIPW Comparison of `py-qte` and `qte`."
+#| results: asis
 cat(py$timing_html)
 ```
 
-In terms of results, we see that the point estimates are close between `py-qte` and `qte`. The
-standard errors are once more consistent across the sequential and parallized runs.
 
-We see once more that the sequential version of `py-qte` is much faster than the `qte` version. This
-is probably largely due to the fact that `py-qte` computes $F_{AIPW}(y)$ on the y-grid in a single
-(vectorized) pass whereas the `qte` version computes each point on the y-grid separatley in a loop.
-The parallized version of `py-qte` retains a sizeable advantages over the `qte` version although the
-gaps is sizeably narrower than in the sequential case.
+We further see in @tbl-aipw-timings that the sequential version of `py-qte` is
+much faster than the `qte` version. This is probably largely due to the fact
+that `py-qte` computes $F_{AIPW}(y)$ on the
+y-grid in a single (vectorized) pass whereas the `qte` version computes each
+point on the y-grid separately in a loop.
+The parallelized version of `py-qte` retains a sizeable advantage over the `qte` version although the
+gap is sizeably narrower than in the sequential case.
 
 ## Simulated Data
 
-The sections above use the Lalonde dataset, which has only a few thousand observations. To study
-how the two packages behave on larger samples we compare them on data generated with the
-`simulate_simple_data` and `simulate_covariate_data` helpers. The sample sizes
-are controlled by the `n_sim_unconfounded` and `n_sim_confounded` parameters.
-Setting `n_sim_py_qte_only` to a positive sample size adds a separate
-`py-qte`-only run at the end of the section, with effect sizes scaled by a
-factor of 1000 via the `effect_scale` argument of `simulate_covariate_data`.
+The sections above use the Lalonde dataset, which has only a few thousand observations. To see how well the `py-qte` and the `qte` package do on large dataset we resort to simulated data.
 
 ```{python}
 #| label: sim-data
 #| code-summary: "Show code (Python simulating the datasets)"
+#| time_it: true
 from qte.cross_sectional import simulate_covariate_data, simulate_simple_data
 
 
@@ -499,9 +555,14 @@ def add_correct_features(ds):
     )
 
 
-sim_simple = simulate_simple_data(int(r.N_SIM_UNCONFOUNDED), seed=int(r.SEED))
+EFFECT_SCALE = 1000.0
+sim_simple = simulate_simple_data(
+    int(r.N_SIM_UNCONFOUNDED), treatment_effect=EFFECT_SCALE, seed=int(r.SEED)
+)
 sim_cov = add_correct_features(
-    simulate_covariate_data(int(r.N_SIM_CONFOUNDED), seed=int(r.SEED) + 1)
+    simulate_covariate_data(
+        int(r.N_SIM_CONFOUNDED), effect_scale=EFFECT_SCALE, seed=int(r.SEED) + 1
+    )
 )
 
 # Plain dicts so reticulate hands R a data.frame (polars objects are not converted).
@@ -511,16 +572,17 @@ SIM_COV_R = sim_cov.to_dict(as_series=False)
 
 ```{r r-sim}
 #| code-summary: "Show code (R estimates on the simulated datasets)"
+#| time_it: true
 sim_simple_df <- as.data.frame(py$SIM_SIMPLE_R)
 sim_cov_df <- as.data.frame(py$SIM_COV_R)
 
-run_r_sim <- function(data, xformla, est_method, target, cl) {
+run_r_sim <- function(data, xformla, est_method, target, cl, biters) {
   set.seed(SEED)
   t0 <- Sys.time()
   res <- unc_qte(
     yname = "y", dname = "treat", data = data, xformla = xformla,
     probs = QS, est_method = est_method, target = target,
-    cl = cl, biters = N_ITER_SIM
+    cl = cl, biters = biters
   )
   list(
     seconds = as.numeric(Sys.time() - t0, units = "secs"),
@@ -531,22 +593,27 @@ run_r_sim <- function(data, xformla, est_method, target, cl) {
   )
 }
 
-r_sim_simple_par <- run_r_sim(sim_simple_df, NULL, "ipw", "qtt", N_WORKERS)
-r_sim_cov_par <- run_r_sim(sim_cov_df, ~ x3 + x4 + ind1 + ind2 + sq, "aipw", "qte", N_WORKERS)
+r_sim_simple_par <- run_r_sim(sim_simple_df, NULL, "ipw", "qtt", N_WORKERS, N_ITER_SIM_UNCONFOUNDED)
+r_sim_cov_par <- run_r_sim(sim_cov_df, ~ x3 + x4 + ind1 + ind2 + sq, "aipw", "qte", N_WORKERS, N_ITER_SIM_CONFOUNDED)
 ```
 
 ```{python}
 #| label: py-sim
 #| code-summary: "Show code (Python estimates on the simulated datasets)"
+#| time_it: true
 def run_py_sim_simple(n_workers):
-    cfg = BootstrapConfig(n_iter=int(r.N_ITER_SIM), seed=int(r.SEED), n_workers=n_workers)
+    cfg = BootstrapConfig(
+        n_iter=int(r.N_ITER_SIM_UNCONFOUNDED), seed=int(r.SEED), n_workers=n_workers
+    )
     t0 = time.perf_counter()
     res = estimate_simple_qte(sim_simple, "y", "treat", qs=qs, bootstrap_config=cfg)
     return time.perf_counter() - t0, res
 
 
 def run_py_sim_cov(n_workers):
-    cfg = BootstrapConfig(n_iter=int(r.N_ITER_SIM), seed=int(r.SEED), n_workers=n_workers)
+    cfg = BootstrapConfig(
+        n_iter=int(r.N_ITER_SIM_CONFOUNDED), seed=int(r.SEED), n_workers=n_workers
+    )
     t0 = time.perf_counter()
     res = estimate_aipw_qte(
         sim_cov,
@@ -569,7 +636,7 @@ py_sim_cov_par_seconds, res_py_sim_cov_par = run_py_sim_cov(int(r.N_WORKERS))
 ```{python}
 #| label: sim-tables
 #| code-summary: "Show code (Python building the simulated-data comparison tables)"
-def make_sim_tables(title, py_seq, py_par, r_par):
+def make_sim_tables(title, py_seq, py_par, r_par, source_note):
     py_seq_seconds, py_seq_res = py_seq
     py_par_seconds, py_par_res = py_par
     series = {
@@ -581,7 +648,6 @@ def make_sim_tables(title, py_seq, py_par, r_par):
         "package": ["py-qte", "py-qte"],
         "computation": ["Sequential", "Parallel"],
         "workers": [1, int(r.N_WORKERS)],
-        "iterations": [int(r.N_ITER_SIM)] * 2,
         "seconds": [py_seq_seconds, py_par_seconds],
     }
     if r_par is not None:
@@ -590,12 +656,11 @@ def make_sim_tables(title, py_seq, py_par, r_par):
         rows["package"].append("qte")
         rows["computation"].append("Parallel")
         rows["workers"].append(int(r.N_WORKERS))
-        rows["iterations"].append(int(r.N_ITER_SIM))
         rows["seconds"].append(float(r_par["seconds"]))
     table_html = make_estimate_comparison_table(
-        make_comparison_data(qs, series), title
+        make_comparison_data(qs, series), title, source_note
     ).as_raw_html()
-    timing_html = make_timing_table(pl.DataFrame(rows), title).as_raw_html()
+    timing_html = make_timing_table(pl.DataFrame(rows), title, source_note).as_raw_html()
     return table_html, timing_html
 
 
@@ -604,50 +669,120 @@ sim_simple_table_html, sim_simple_timing_html = make_sim_tables(
     (py_sim_simple_seq_seconds, res_py_sim_simple_seq),
     (py_sim_simple_par_seconds, res_py_sim_simple_par),
     r.r_sim_simple_par,
+    make_source_note(r.N_SIM_UNCONFOUNDED, r.N_ITER_SIM_UNCONFOUNDED, r.N_WORKERS),
 )
 sim_cov_table_html, sim_cov_timing_html = make_sim_tables(
     "Simulated data with covariates",
     (py_sim_cov_seq_seconds, res_py_sim_cov_seq),
     (py_sim_cov_par_seconds, res_py_sim_cov_par),
     r.r_sim_cov_par,
+    make_source_note(r.N_SIM_CONFOUNDED, r.N_ITER_SIM_CONFOUNDED, r.N_WORKERS),
 )
 ```
 
 ### Estimation under Unconfoundedness
 
-```{r results='asis', echo=FALSE}
+```{r}
+#| label: tbl-sim-simple-res
+#| tbl-cap: "QTE Estimates on the Simulated Unconfounded Data."
+#| results: asis
+#| echo: false
 cat(py$sim_simple_table_html)
-cat("<p></p>")
+```
+
+```{r}
+#| label: tbl-sim-simple-time
+#| tbl-cap: "QTE Runtimes on the Simulated Unconfounded Data."
+#| results: asis
+#| echo: false
 cat(py$sim_simple_timing_html)
 ```
 
 As in the Lalonde comparison, the two packages agree on the point estimates and standard errors. We
 omit the sequential `qte` run here because it is very slow on larger data; even against the parallel
 `qte` run `py-qte` is faster. Because the simulated design is randomised, the treatment effect is
-identified by the unadjusted comparison; `simulate_simple_data` generates it with a default effect of
-one.
+identified by the unadjusted comparison; `simulate_simple_data` generates it with the treatment
+effect set by `EFFECT_SCALE`.
 
 ### AIPW Estimator
 
-```{r results='asis', echo=FALSE}
+```{python}
+#| label: sim-true
+#| code-summary: "Show code (Python true effects of the confounded simulation)"
+#| time_it: true
+import gc
+
+import numpy as np
+
+N_TRUE = int(10e6)
+true_ds = simulate_covariate_data(N_TRUE, effect_scale=EFFECT_SCALE, seed=int(r.SEED))
+true_y0 = true_ds["y_0"].to_numpy()
+true_y1 = true_ds["y_1"].to_numpy()
+true_ate = float(np.mean(true_y1 - true_y0))
+true_qte = np.quantile(true_y1, qs) - np.quantile(true_y0, qs)
+
+# Drop the large simulated population before the later runs.
+del true_ds, true_y0, true_y1
+gc.collect()
+
+true_rows = pl.concat(
+    [
+        pl.DataFrame({"Quantity": ["ATE"], "Estimate": [true_ate]}),
+        pl.DataFrame({"Quantity": [f"QTE({q:.2f})" for q in qs], "Estimate": true_qte}),
+    ]
+)
+true_table_html = (
+    GT(true_rows)
+    .fmt_number(columns=["Estimate"], decimals=1, use_seps=True)
+    .tab_header(
+        title=md("**True Effects**"),
+        subtitle="Confounded simulation (population QTE)",
+    )
+    .tab_source_note(f"True values from a simulation with N = {N_TRUE:,} units.")
+    .as_raw_html()
+)
+```
+
+```{r}
+#| label: tbl-sim-true
+#| tbl-cap: "True Mean and Quantile Treatment Effects of the Confounded Simulation."
+#| results: asis
+#| echo: false
+cat(py$true_table_html)
+```
+
+```{r}
+#| label: tbl-sim-cov-res
+#| tbl-cap: "AIPW QTE Estimates on the Simulated Confounded Data."
+#| results: asis
+#| echo: false
 cat(py$sim_cov_table_html)
-cat("<p></p>")
+```
+
+```{r}
+#| label: tbl-sim-cov-time
+#| tbl-cap: "AIPW QTE Runtimes on the Simulated Confounded Data."
+#| results: asis
+#| echo: false
 cat(py$sim_cov_timing_html)
 ```
 
 The covariate design is confounded and the treated outcome is more dispersed, so the quantile
-treatment effect increases with the quantile while the average effect is 0.5. Here too `py-qte` is
+treatment effect increases with the quantile while the average effect is `{r} py$EFFECT_SCALE * 0.5`. Here too `py-qte` is
 faster than the parallel `qte` run.
 
 ```{python}
 #| label: py-only-sim
 #| code-summary: "Show code (Python-only simulated-data run)"
+#| time_it: true
 if int(r.N_SIM_PY_QTE_ONLY) > 0:
     sim_py_only = add_correct_features(
-        simulate_covariate_data(int(r.N_SIM_PY_QTE_ONLY), effect_scale=1000, seed=int(r.SEED) + 2)
+        simulate_covariate_data(
+            int(r.N_SIM_PY_QTE_ONLY), effect_scale=EFFECT_SCALE, seed=int(r.SEED) + 2
+        )
     )
     sim_cfg = BootstrapConfig(
-        n_iter=int(r.N_ITER_SIM), seed=int(r.SEED), n_workers=int(r.N_WORKERS)
+        n_iter=int(r.N_ITER_SIM_PY_QTE_ONLY), seed=int(r.SEED), n_workers=int(r.N_WORKERS)
     )
     t0 = time.perf_counter()
     res_py_only_seq = estimate_aipw_qte(
@@ -676,6 +811,7 @@ if int(r.N_SIM_PY_QTE_ONLY) > 0:
         (py_only_seq_seconds, res_py_only_seq),
         (py_only_par_seconds, res_py_only_par),
         None,
+        make_source_note(r.N_SIM_PY_QTE_ONLY, r.N_ITER_SIM_PY_QTE_ONLY, r.N_WORKERS),
     )
 else:
     py_only_table_html = ""
@@ -686,10 +822,23 @@ else:
 if (N_SIM_PY_QTE_ONLY > 0) {
   cat("### py-qte only\n\n")
   cat("With `n_sim_py_qte_only` set we run a separate confounded simulation of that size with only `py-qte`. The tables therefore contain only `py-qte` columns.\n\n")
-  cat(py$py_only_table_html)
-  cat("<p></p>")
-  cat(py$py_only_timing_html)
 }
+```
+
+```{r}
+#| label: tbl-py-only-res
+#| tbl-cap: "AIPW QTE Estimates for the py-qte-only Run."
+#| results: asis
+#| echo: false
+if (N_SIM_PY_QTE_ONLY > 0) cat(py$py_only_table_html)
+```
+
+```{r}
+#| label: tbl-py-only-time
+#| tbl-cap: "AIPW QTE Runtimes for the py-qte-only Run."
+#| results: asis
+#| echo: false
+if (N_SIM_PY_QTE_ONLY > 0) cat(py$py_only_timing_html)
 ```
 
 ## Environment
