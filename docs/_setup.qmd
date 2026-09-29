@@ -3,8 +3,11 @@
 # missing:
 #   - Python: `uv sync` (creates ../.venv)
 #   - R:      `renv::restore()` inside docs/ (installs the pinned packages)
-# Override params from the CLI, e.g.:
-#   quarto render docs -P n_iter:100 -P n_iter_simple:1000 -P n_workers:8
+# Params files live in docs/: fast_params.yml for quick renders and
+# prd_params.yml for the full run, e.g.:
+#   quarto render docs --execute-params docs/fast_params.yml
+#   quarto render docs --execute-params docs/prd_params.yml
+# Override single values with -P, e.g. -P n_sim_confounded:1000000
 docs_dir <- dirname(knitr::current_input(dir = TRUE))
 
 # Force all libraries to be loaded from the renv environment.

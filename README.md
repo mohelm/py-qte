@@ -128,12 +128,20 @@ cd docs
 # Regenerate the API reference from the Python docstrings.
 uv run quartodoc build
 
-# Restore the R environment used by the benchmark document. `renv::load()`
-# activates the project first, otherwise `restore()` silently checks the wrong
-# library and reports "already synchronized".
-Rscript -e "if (!requireNamespace('renv', quietly = TRUE)) install.packages('renv'); renv::load('.'); renv::restore(prompt = FALSE)"
-quarto render # or quarto render <document>.qmd
+# Restore the R environment used by the benchmark document.
+Rscript -e "if (!requireNamespace('renv', quietly = TRUE)) install.packages('renv'); renv::restore(prompt = FALSE)"
+
+# Render the whole site, a single document, or with a parameter file.
+quarto render
+quarto render <document>.qmd
+quarto render --execute-params fast_params.yml   # quick local render
+quarto render --execute-params prd_params.yml    # full published run
 ```
+
+The benchmark parameters live in `docs/fast_params.yml` (small, for quick
+renders) and `docs/prd_params.yml` (large, for the published run). They are
+merged on top of the defaults in the document and can be overridden per run,
+e.g. `quarto render --execute-params prd_params.yml -P n_sim_confounded:1000000`.
 
 The website is then rendered into `docs/_site`. Quarto runs every `.qmd` in its
 own session, so any document with R or Python chunks needs the activation chunk

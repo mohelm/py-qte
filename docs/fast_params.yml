@@ -1,0 +1,9 @@
+# Fast parameters for quick local renders.
+n_iter: 3            # bootstrap iterations for the Lalonde AIPW comparison
+n_iter_simple: 20    # bootstrap iterations for the unconfoundedness comparison
+n_workers: 4         # parallel workers
+seed: 42             # shared RNG seed
+n_sim_unconfounded: 1000  # unconfounded simulated sample size
+n_sim_confounded: 1000    # confounded simulated sample size
+n_iter_sim: 3        # bootstrap iterations for the simulated-data comparison
+n_sim_py_qte_only: 500  # extra py-qte-only run; 0 disables it
