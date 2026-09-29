@@ -42,3 +42,16 @@ entry = "Rscript -e 'styler::style_file(commandArgs(TRUE))'"
 files = '^docs/.*\.(qmd|Rmd|R|r)$'
 exclude = '^docs/reference/'
 additional_dependencies = ["styler", "knitr"]
+
+# Markdown/Quarto formatting via Prettier; config in .prettierrc.json.
+[[repos]]
+repo = "local"
+
+[[repos.hooks]]
+id = "prettier"
+name = "prettier (markdown)"
+language = "node"
+entry = "prettier --write"
+files = '^docs/.*\.(qmd|md)$'
+exclude = '^docs/reference/'
+additional_dependencies = ["prettier@3.3.3"]

@@ -1,0 +1,6 @@
+{
+  "printWidth": 100,
+  "proseWrap": "always",
+  "embeddedLanguageFormatting": "off",
+  "overrides": [{ "files": "*.qmd", "options": { "parser": "markdown" } }]
+}

@@ -210,39 +210,37 @@ def make_estimate_comparison_table(data: pl.DataFrame, estimation: str, source_n
 
 ## Summary
 
-Here, we compare the performance of the `py-qte` and the `qte` package. We use a
-medium-sized machine (see the [Environment](#environment) section for details).
-The comparisons are based on the relatively small Lalonde dataset that comes
-with the `qte` package and on a medium-sized simulated dataset inspired by
-[this](https://docs.doubleml.org/stable/examples/py_double_ml_pq.html#Data)
+Here, we compare the performance of the `py-qte` and the `qte` package. We use a medium-sized
+machine (see the [Environment](#environment) section for details). The comparisons are based on the
+relatively small Lalonde dataset that comes with the `qte` package and on a medium-sized simulated
+dataset inspired by [this](https://docs.doubleml.org/stable/examples/py_double_ml_pq.html#Data)
 section from the documentation of the DoubleML package.
 
-Notice that in particular estimators that involve an outcome model are
-relatively computationally intensive since they involve fitting a quantile
-regression model on a grid of quantiles in each bootstrap run.
+Notice that in particular estimators that involve an outcome model are relatively computationally
+intensive since they involve fitting a quantile regression model on a grid of quantiles in each
+bootstrap run.
 
-Even for the _small Lalonde_ dataset (`{r} formatC(py$DATA$height, format = "d", big.mark = ",")` observations), we
-find sizeable differences between the `qte` and the `py-qte` package in
-sequential computations. These can be tightly connected
-to different implementation approaches. Parallelized approaches benefit `qte`
-relatively more (in this setting). See @tbl-simple-time. For estimation with
-confounders, the same holds true, but even after parallelization the gap remains
-sizeable, and the `qte` package takes about 3 times as long as the `py-qte`
-package (see @tbl-aipw-timings).
+Even for the _small Lalonde_ dataset (`{r} formatC(py$DATA$height, format = "d", big.mark = ",")`
+observations), we find sizeable differences between the `qte` and the `py-qte` package in sequential
+computations. These can be tightly connected to different implementation approaches. Parallelized
+approaches benefit `qte` relatively more (in this setting). See @tbl-simple-time. For estimation
+with confounders, the same holds true, but even after parallelization the gap remains sizeable, and
+the `qte` package takes about 3 times as long as the `py-qte` package (see @tbl-aipw-timings).
 
-For a larger simulated dataset (`{r} formatC(N_SIM_UNCONFOUNDED, format = "d", big.mark = ",")` observations), we find that without
-confounders `py-qte` is about X times as fast even after parallelization. See
-@tbl-sim-simple-time. For the AIPW estimator we find that the parallelized
-`py-qte` version on a medium-sized dataset (`{r} formatC(N_SIM_CONFOUNDED, format = "d", big.mark = ",")`) with a reasonable number of
-bootstrap iterations is more than ten times faster than the `qte` version. See
-@tbl-sim-cov-time.
+For a larger simulated dataset (`{r} formatC(N_SIM_UNCONFOUNDED, format = "d", big.mark = ",")`
+observations), we find that without confounders `py-qte` is about X times as fast even after
+parallelization. See @tbl-sim-simple-time. For the AIPW estimator we find that the parallelized
+`py-qte` version on a medium-sized dataset
+(`{r} formatC(N_SIM_CONFOUNDED, format = "d", big.mark = ",")`) with a reasonable number of
+bootstrap iterations is more than ten times faster than the `qte` version. See @tbl-sim-cov-time.
 
-Lastly, the Python version can provide results for `{r} formatC(N_SIM_PY_QTE_ONLY, format = "d", big.mark = ",")` observations in about the same time that the parallelized `qte`
-version took for `{r} formatC(N_SIM_CONFOUNDED, format = "d", big.mark = ",")` observations.
-See @tbl-py-only-time.
+Lastly, the Python version can provide results for
+`{r} formatC(N_SIM_PY_QTE_ONLY, format = "d", big.mark = ",")` observations in about the same time
+that the parallelized `qte` version took for
+`{r} formatC(N_SIM_CONFOUNDED, format = "d", big.mark = ",")` observations. See @tbl-py-only-time.
 
-These results stress the importance of algorithmic choices and also
-parallelization strategies for the bootstrap iterations.
+These results stress the importance of algorithmic choices and also parallelization strategies for
+the bootstrap iterations.
 
 ## Cross-Sectional Data
 
@@ -372,14 +370,14 @@ cat(py$simple_table_html)
 cat(py$simple_timing_html)
 ```
 
-Notice first that `py-qte` replicates the point estimates of the `qte` package and produces
-similar standard errors. Notice that the `py-qte` produces consistent standard error estimates
-across the sequential and the parallelized run as it should.
+Notice first that `py-qte` replicates the point estimates of the `qte` package and produces similar
+standard errors. Notice that the `py-qte` produces consistent standard error estimates across the
+sequential and the parallelized run as it should.
 
 We see that `py-qte` is in a _sequential scenario_ much faster than `qte`. This is probably mostly
 because `np.quantile` provides an efficient implementation of computing weighted quantiles whereas
-the `qte` package runs a solver for each quantile. The speed-up from parallelization is very large for
-`qte` and sizeable but relatively low `py-qte`.
+the `qte` package runs a solver for each quantile. The speed-up from parallelization is very large
+for `qte` and sizeable but relatively low `py-qte`.
 
 ### AIPW Estimator
 
@@ -515,10 +513,8 @@ timing_html = make_timing_table(timing, "Estimation via AIPW", aipw_source_note)
 cat(py$table_html)
 ```
 
-In terms of results, we see in @tbl-aipw-res that the point estimates are close between `py-qte`
-and `qte`. The standard errors are once more consistent across the sequential
-and parallelized runs.
-
+In terms of results, we see in @tbl-aipw-res that the point estimates are close between `py-qte` and
+`qte`. The standard errors are once more consistent across the sequential and parallelized runs.
 
 ```{r results='asis', echo=FALSE}
 #| label: tbl-aipw-timings
@@ -527,18 +523,16 @@ and parallelized runs.
 cat(py$timing_html)
 ```
 
-
-We further see in @tbl-aipw-timings that the sequential version of `py-qte` is
-much faster than the `qte` version. This is probably largely due to the fact
-that `py-qte` computes $F_{AIPW}(y)$ on the
-y-grid in a single (vectorized) pass whereas the `qte` version computes each
-point on the y-grid separately in a loop.
-The parallelized version of `py-qte` retains a sizeable advantage over the `qte` version although the
-gap is sizeably narrower than in the sequential case.
+We further see in @tbl-aipw-timings that the sequential version of `py-qte` is much faster than the
+`qte` version. This is probably largely due to the fact that `py-qte` computes $F_{AIPW}(y)$ on the
+y-grid in a single (vectorized) pass whereas the `qte` version computes each point on the y-grid
+separately in a loop. The parallelized version of `py-qte` retains a sizeable advantage over the
+`qte` version although the gap is sizeably narrower than in the sequential case.
 
 ## Simulated Data
 
-The sections above use the Lalonde dataset, which has only a few thousand observations. To see how well the `py-qte` and the `qte` package do on large dataset we resort to simulated data.
+The sections above use the Lalonde dataset, which has only a few thousand observations. To see how
+well the `py-qte` and the `qte` package do on large dataset we resort to simulated data.
 
 ```{python}
 #| label: sim-data
@@ -768,8 +762,8 @@ cat(py$sim_cov_timing_html)
 ```
 
 The covariate design is confounded and the treated outcome is more dispersed, so the quantile
-treatment effect increases with the quantile while the average effect is `{r} py$EFFECT_SCALE * 0.5`. Here too `py-qte` is
-faster than the parallel `qte` run.
+treatment effect increases with the quantile while the average effect is
+`{r} py$EFFECT_SCALE * 0.5`. Here too `py-qte` is faster than the parallel `qte` run.
 
 ```{python}
 #| label: py-only-sim
