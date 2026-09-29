@@ -128,8 +128,10 @@ cd docs
 # Regenerate the API reference from the Python docstrings.
 uv run quartodoc build
 
-# Restore the R environment used by the benchmark document.
-Rscript -e "if (!requireNamespace('renv', quietly = TRUE)) install.packages('renv'); renv::restore(prompt = FALSE)"
+# Restore the R environment used by the benchmark document. `renv::load()`
+# activates the project first, otherwise `restore()` silently checks the wrong
+# library and reports "already synchronized".
+Rscript -e "if (!requireNamespace('renv', quietly = TRUE)) install.packages('renv'); renv::load('.'); renv::restore(prompt = FALSE)"
 quarto render # or quarto render <document>.qmd
 ```
 

@@ -24,7 +24,7 @@ R/
 # Quarto render cache
 docs/.quarto/
 
-# renv project library (recreated by docs/setup-r.sh)
+# renv project library (generated; docs/renv.lock is the committed source of truth)
 docs/renv/
 
 # Quarto website output (published to the gh-pages branch)
