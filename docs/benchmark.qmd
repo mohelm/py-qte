@@ -11,7 +11,7 @@ params:
   n_iter_sim_unconfounded: 3
   n_iter_sim_confounded: 3
   n_iter_sim_py_qte_only: 3
-  n_sim_py_qte_only: 0
+  n_sim_py_qte_only: 400
 format:
   html:
     embed-resources: true
@@ -34,7 +34,7 @@ library(qte)
 ```{r}
 #| label: set-blas-open-mp-env-vars
 #| code-summary: "Show code (R configuring single-threaded BLAS/OpenMP)"
-# For parallel bootstrap in qte (r-package) we need BLAS/OpenMP to be single threaed.
+# For parallel bootstrap in qte (r-package) we need BLAS/OpenMP to be single-threaded.
 library(RhpcBLASctl)
 blas_set_num_threads(1L)
 omp_set_num_threads(1L)
@@ -216,31 +216,36 @@ relatively small Lalonde dataset that comes with the `qte` package and on a medi
 dataset inspired by [this](https://docs.doubleml.org/stable/examples/py_double_ml_pq.html#Data)
 section from the documentation of the DoubleML package.
 
-Notice that in particular estimators that involve an outcome model are relatively computationally
-intensive since they involve fitting a quantile regression model on a grid of quantiles in each
-bootstrap run.
+In particular, estimators that involve an outcome model are relatively computationally intensive
+since they involve fitting a quantile regression model on a grid of quantiles in each bootstrap run.
+So speed matters here.
 
 Even for the _small Lalonde_ dataset (`{r} formatC(py$DATA$height, format = "d", big.mark = ",")`
-observations), we find sizeable differences between the `qte` and the `py-qte` package in sequential
-computations. These can be tightly connected to different implementation approaches. Parallelized
-approaches benefit `qte` relatively more (in this setting). See @tbl-simple-time. For estimation
-with confounders, the same holds true, but even after parallelization the gap remains sizeable, and
-the `qte` package takes about 3 times as long as the `py-qte` package (see @tbl-aipw-timings).
+observations), we find sizeable differences between the `qte` and the `py-qte` packages in
+sequential computations. These can be closely tied to different implementation approaches of the
+respective estimators. Parallelized approaches benefit `qte` relatively more (in this setting). See
+@tbl-simple-time. For estimation with confounders, the same holds true, but even after
+parallelization the gap remains sizeable, and the `qte` package takes about 3 times as long as the
+`py-qte` package (see @tbl-aipw-timings).
 
 For a larger simulated dataset (`{r} formatC(N_SIM_UNCONFOUNDED, format = "d", big.mark = ",")`
-observations), we find that without confounders `py-qte` is about X times as fast even after
+observations), we find that _without confounders_ `py-qte` is about 10 times as fast even after
 parallelization. See @tbl-sim-simple-time. For the AIPW estimator we find that the parallelized
 `py-qte` version on a medium-sized dataset
-(`{r} formatC(N_SIM_CONFOUNDED, format = "d", big.mark = ",")`) with a reasonable number of
-bootstrap iterations is more than ten times faster than the `qte` version. See @tbl-sim-cov-time.
+(`{r} formatC(N_SIM_CONFOUNDED, format = "d", big.mark = ",")` observations and 5 covariates) with a
+reasonable number of bootstrap iterations is more than 20 times faster than the `qte` version. See
+@tbl-sim-cov-time.
 
-Lastly, the Python version can provide results for
-`{r} formatC(N_SIM_PY_QTE_ONLY, format = "d", big.mark = ",")` observations in about the same time
-that the parallelized `qte` version took for
-`{r} formatC(N_SIM_CONFOUNDED, format = "d", big.mark = ",")` observations. See @tbl-py-only-time.
+Lastly, the `py-qte` version can provide results for
+`{r} formatC(N_SIM_PY_QTE_ONLY, format = "d", big.mark = ",")` observations and
+`{r} formatC(N_ITER_SIM_PY_QTE_ONLY, format = "d", big.mark = ",")` bootstrap iterations in about
+260 seconds. This is about half the time the parallelized `qte` version took for a dataset that has
+only 20% of the rows. Interestingly, the parallelized `py-qte` version with `{r} N_WORKERS` workers
+is about 10 times faster than the sequential version, which suggests that the chosen parallelization
+strategy based on threads is close to optimal for larger datasets. See @tbl-py-only-time.
 
-These results stress the importance of algorithmic choices and also parallelization strategies for
-the bootstrap iterations.
+Overall, these results stress the importance of algorithmic choices and parallelization strategies
+for the bootstrap iterations.
 
 ## Cross-Sectional Data
 
@@ -371,13 +376,13 @@ cat(py$simple_timing_html)
 ```
 
 Notice first that `py-qte` replicates the point estimates of the `qte` package and produces similar
-standard errors. Notice that the `py-qte` produces consistent standard error estimates across the
-sequential and the parallelized run as it should.
+standard errors. Notice that `py-qte` produces consistent standard error estimates across the
+sequential and the parallelized runs, as it should.
 
 We see that `py-qte` is in a _sequential scenario_ much faster than `qte`. This is probably mostly
 because `np.quantile` provides an efficient implementation of computing weighted quantiles whereas
 the `qte` package runs a solver for each quantile. The speed-up from parallelization is very large
-for `qte` and sizeable but relatively low `py-qte`.
+for `qte` and sizeable but relatively low for `py-qte`.
 
 ### AIPW Estimator
 
@@ -516,10 +521,11 @@ cat(py$table_html)
 In terms of results, we see in @tbl-aipw-res that the point estimates are close between `py-qte` and
 `qte`. The standard errors are once more consistent across the sequential and parallelized runs.
 
-```{r results='asis', echo=FALSE}
+```{r}
 #| label: tbl-aipw-timings
-#| tbl-cap: "AIPW Comparison of `py-qte` and `qte`."
+#| tbl-cap: "AIPW Runtimes Comparison of `py-qte` and `qte`."
 #| results: asis
+#| echo: false
 cat(py$timing_html)
 ```
 
@@ -527,7 +533,7 @@ We further see in @tbl-aipw-timings that the sequential version of `py-qte` is m
 `qte` version. This is probably largely due to the fact that `py-qte` computes $F_{AIPW}(y)$ on the
 y-grid in a single (vectorized) pass whereas the `qte` version computes each point on the y-grid
 separately in a loop. The parallelized version of `py-qte` retains a sizeable advantage over the
-`qte` version although the gap is sizeably narrower than in the sequential case.
+`qte` version although the gap is considerably narrower than in the sequential case.
 
 ## Simulated Data
 
@@ -694,11 +700,19 @@ cat(py$sim_simple_timing_html)
 
 As in the Lalonde comparison, the two packages agree on the point estimates and standard errors. We
 omit the sequential `qte` run here because it is very slow on larger data; even against the parallel
-`qte` run `py-qte` is faster. Because the simulated design is randomised, the treatment effect is
+`qte` run `py-qte` is faster. Because the simulated design is randomized, the treatment effect is
 identified by the unadjusted comparison; `simulate_simple_data` generates it with the treatment
 effect set by `EFFECT_SCALE`.
 
-### AIPW Estimator
+### AIPW Estimator <aipw-on-simulated-data>
+
+The simulated dataset has five covariates: the outcome model uses five transformed features of them,
+whereas the propensity score uses three of the raw covariates. Note that `qte::unc_qte` takes a
+single `xformla` used for both the propensity score and the outcome regression, so the R run below
+fits both models on the same five features while the `py-qte` run uses separate formulas. The
+population ("true") effects of this design are reported in @tbl-sim-true. They are obtained by
+generating a large dataset at the true parameter values and subsequently computing the quantities of
+interest from that dataset.
 
 ```{python}
 #| label: sim-true
@@ -717,7 +731,7 @@ true_qte = np.quantile(true_y1, qs) - np.quantile(true_y0, qs)
 
 # Drop the large simulated population before the later runs.
 del true_ds, true_y0, true_y1
-gc.collect()
+_ = gc.collect()
 
 true_rows = pl.concat(
     [
@@ -760,10 +774,6 @@ cat(py$sim_cov_table_html)
 #| echo: false
 cat(py$sim_cov_timing_html)
 ```
-
-The covariate design is confounded and the treated outcome is more dispersed, so the quantile
-treatment effect increases with the quantile while the average effect is
-`{r} py$EFFECT_SCALE * 0.5`. Here too `py-qte` is faster than the parallel `qte` run.
 
 ```{python}
 #| label: py-only-sim
