@@ -5,5 +5,7 @@ n_workers: 8         # parallel workers
 seed: 42             # shared RNG seed
 n_sim_unconfounded: 100000  # unconfounded simulated sample size
 n_sim_confounded: 100000    # confounded simulated sample size
-n_iter_sim: 20       # bootstrap iterations for the simulated-data comparison
+n_iter_sim_unconfounded: 20  # bootstrap iterations for the unconfounded simulation
+n_iter_sim_confounded: 20    # bootstrap iterations for the confounded simulation
+n_iter_sim_py_qte_only: 20   # bootstrap iterations for the py-qte-only run
 n_sim_py_qte_only: 1000000  # extra py-qte-only run; 0 disables it (scaled x1000)
