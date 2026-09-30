@@ -136,14 +136,14 @@ class QuantileRegression:
         self.formula = formula
         self._ds = ds
 
-    def fit(self, qs: NDArray, *, weights_c: ColumnName | None = None) -> QuantileRegressionResult:
+    def fit(self, qs: NDArray, *, weights: ColumnName | None = None) -> QuantileRegressionResult:
         """Fit the model at one or more quantiles.
 
         Parameters
         ----------
         qs : NDArray
             Quantiles to fit, each in ``(0, 1)``.
-        weights_c : str, optional
+        weights : ColumnName, optional
             Column of ``ds`` holding positive observation weights.
 
         Returns
@@ -153,6 +153,6 @@ class QuantileRegression:
         """
         fml = Formula(self.formula)
         y, X = fml.get_model_matrix(self._ds, output="numpy")
-        weights = self._ds[weights_c].to_numpy() if weights_c is not None else None
-        coeffs = np.column_stack([_fast_quantreg(X, y.ravel(), q, weights) for q in qs])
+        sample_weights = self._ds[weights].to_numpy() if weights is not None else None
+        coeffs = np.column_stack([_fast_quantreg(X, y.ravel(), q, sample_weights) for q in qs])
         return QuantileRegressionResult(coeffs, x_fit=X, formula=fml)

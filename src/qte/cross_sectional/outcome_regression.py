@@ -6,7 +6,7 @@ from qte.constants import PERCENTILES
 from qte.cross_sectional.custom_types import CausalTarget
 from qte.cross_sectional.or_helpers import make_weights, predict_outcome_model
 from qte.cross_sectional.results import _QteIntermediateResult
-from qte.custom_types import ColumnName, DataFrame
+from qte.custom_types import ColumnName, DataFrame, FormulaRhs
 from qte.names import (
     EFFECT_ID,
     MEAN_CONTROL_ID,
@@ -18,25 +18,25 @@ from qte.names import (
 from qte.stats import estimate_outcome_model, get_quantiles
 
 
-def compute_or_qte(
+def compute_outcome_regression_effects(
     ds: DataFrame,
-    outcome_c: ColumnName,
-    treatment_c: ColumnName,
+    outcome: ColumnName,
+    treatment: ColumnName,
     qs: NDArray[np.float64] = (0.5,),  # type: ignore
     *,
-    or_x_formular: str,
-    weights_c: ColumnName | None = None,
+    outcome_regression_formula: FormulaRhs,
+    weights: ColumnName | None = None,
     target: CausalTarget = CausalTarget.QTE,
     outcome_reg_quantiles: NDArray = PERCENTILES,
 ) -> _QteIntermediateResult:
     treated, control = (
-        ds.filter(pl.col(treatment_c) == 1),
-        ds.filter(pl.col(treatment_c) == 0),
+        ds.filter(pl.col(treatment) == 1),
+        ds.filter(pl.col(treatment) == 0),
     )
 
     # Estimate the outcome model on the controls
     ors_control = estimate_outcome_model(
-        control, outcome_c, or_x_formular, outcome_reg_quantiles, weights_c
+        control, outcome, outcome_regression_formula, outcome_reg_quantiles, weights
     )
 
     if target == CausalTarget.QTE:
@@ -45,27 +45,29 @@ def compute_or_qte(
         # treatment from the outcome model estimated on the controls.
         preds_control = predict_outcome_model(ors_control, ds, flatten=True)
         # Align the sampling weights with this 'distribution'.
-        weights = make_weights(weights_c, ds, outcome_reg_quantiles.shape[0])  # TODO: really tile??
+        sample_weights = make_weights(
+            weights, ds, outcome_reg_quantiles.shape[0]
+        )  # TODO: really tile??
         # Obtain the statistics of interest from that distribution.
-        q_c = get_quantiles(qs, preds_control, weights)
-        mean_c = np.average(preds_control, weights=weights)
+        q_c = get_quantiles(qs, preds_control, sample_weights)
+        mean_c = np.average(preds_control, weights=sample_weights)
 
         # Do the same for the scenario under trewatment. That is, estimate an outcome model on the
         # treated. Then obtain the predictions from that model for all observations, and lastly
         # compute the statistics of interest.
         ors_treated = estimate_outcome_model(
-            treated, outcome_c, or_x_formular, outcome_reg_quantiles, weights_c
+            treated, outcome, outcome_regression_formula, outcome_reg_quantiles, weights
         )
         preds_treated = predict_outcome_model(ors_treated, ds, flatten=True)
-        q_t = get_quantiles(qs, preds_treated, weights)
-        mean_t = np.average(preds_treated, weights=weights)
+        q_t = get_quantiles(qs, preds_treated, sample_weights)
+        mean_t = np.average(preds_treated, weights=sample_weights)
 
     if target == CausalTarget.QTT:
         # For treatment effects on the treated, get (counterfactual) predictions for the treated's
         # data.
         preds_control = predict_outcome_model(ors_control, treated, flatten=True)
         # Get the corresponding weights.
-        w_c = make_weights(weights_c, treated, outcome_reg_quantiles.shape[0])
+        w_c = make_weights(weights, treated, outcome_reg_quantiles.shape[0])
         # Compute the statistics of interest from the counterfactual outcomes and the corresponding
         # weights.
         q_c = get_quantiles(qs, preds_control, w_c)
@@ -73,8 +75,8 @@ def compute_or_qte(
 
         # For the treatment effects on the treated, we can obtain the statistics of the treated
         # 'directly'.
-        w_t = make_weights(weights_c, treated)
-        y_t = treated[outcome_c].to_numpy()
+        w_t = make_weights(weights, treated)
+        y_t = treated[outcome].to_numpy()
         q_t = get_quantiles(qs, y_t, w=w_t)
         mean_t = np.average(y_t, weights=w_t)
 

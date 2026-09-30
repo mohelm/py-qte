@@ -38,7 +38,7 @@ def mock_qte_result():
         ),
         outcome="re78",
         group=None,
-        estimator=Estimator.SIMPLE,
+        estimator=Estimator.UNADJUSTED,
         causal_target=CausalTarget.QTE,
     )
 
@@ -66,7 +66,7 @@ def mock_single_quantile_qte_result():
         ),
         outcome="re78",
         group=None,
-        estimator=Estimator.SIMPLE,
+        estimator=Estimator.UNADJUSTED,
         causal_target=CausalTarget.QTE,
     )
 

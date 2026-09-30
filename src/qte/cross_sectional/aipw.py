@@ -6,6 +6,7 @@ from qte.constants import PERCENTILES
 from qte.cross_sectional.custom_types import CausalTarget
 from qte.cross_sectional.or_helpers import make_weights, predict_outcome_model
 from qte.cross_sectional.results import _QteIntermediateResult
+from qte.custom_types import ColumnName, FormulaRhs
 from qte.names import (
     EFFECT_ID,
     MEAN_CONTROL_ID,
@@ -62,74 +63,76 @@ def _compute_aipw_mean(
     )
 
 
-def compute_aipw_qte(
+def compute_aipw_effects(
     ds: pl.DataFrame,
-    outcome_c: str,
-    treatment_c: str,
+    outcome: ColumnName,
+    treatment: ColumnName,
     qs: ArrayLike = (0.5,),
     *,
-    ps_x_formular: str,
-    or_x_formular: str,
-    weights_c: str,
+    propensity_score_formula: FormulaRhs,
+    outcome_regression_formula: FormulaRhs,
+    weights: ColumnName,
     target: CausalTarget = CausalTarget.QTE,
     or_quantiles: NDArray = PERCENTILES,
 ) -> _QteIntermediateResult:
 
     qs = np.array(qs)
-    treated, control = (ds.filter(pl.col(treatment_c) == 1), ds.filter(pl.col(treatment_c) == 0))
-    ps = estimate_propensity_score(ds, treatment_c, ps_x_formular, weights_c).predict()
-    ors_control = estimate_outcome_model(control, outcome_c, or_x_formular, or_quantiles, weights_c)
+    treated, control = (ds.filter(pl.col(treatment) == 1), ds.filter(pl.col(treatment) == 0))
+    ps = estimate_propensity_score(ds, treatment, propensity_score_formula, weights).predict()
+    ors_control = estimate_outcome_model(
+        control, outcome, outcome_regression_formula, or_quantiles, weights
+    )
     preds = predict_outcome_model(ors_control, ds, flatten=False)
 
-    outcome_grid = ds[outcome_c].unique().sort().to_numpy()
-    w_t = treated[weights_c].to_numpy()
-    y_t = treated[outcome_c].to_numpy()
+    outcome_grid = ds[outcome].unique().sort().to_numpy()
+    w_t = treated[weights].to_numpy()
+    y_t = treated[outcome].to_numpy()
 
-    w_all = make_weights(weights_c, ds, 1)
+    w_all = make_weights(weights, ds, 1)
     if w_all is None:
         w_all = np.ones(ds.shape[0])
-    d = ds[treatment_c].to_numpy()
+    d = ds[treatment].to_numpy()
 
     if target == CausalTarget.QTE:
         q_c = _compute_aipw_quantiles(
             qs,
             outcome_grid,
             preds,
-            ds[outcome_c].to_numpy(),
+            ds[outcome].to_numpy(),
             treatment_status=1 - d,
             propensity_scores=1 - ps,
             sampling_weights=w_all,
         )
-        m_c = _compute_aipw_mean(preds, ds[outcome_c].to_numpy(), 1 - d, 1 - ps, w_all)
+        m_c = _compute_aipw_mean(preds, ds[outcome].to_numpy(), 1 - d, 1 - ps, w_all)
 
         ors_treated = estimate_outcome_model(
-            treated, outcome_c, or_x_formular, or_quantiles, weights_c
+            treated, outcome, outcome_regression_formula, or_quantiles, weights
         )
         preds_treated = predict_outcome_model(ors_treated, ds, flatten=False)
         q_t = _compute_aipw_quantiles(
             qs,
             outcome_grid,
             preds_treated,
-            ds[outcome_c].to_numpy(),
+            ds[outcome].to_numpy(),
             treatment_status=d,
             propensity_scores=ps,
             sampling_weights=w_all,
         )
-        m_t = _compute_aipw_mean(preds_treated, ds[outcome_c].to_numpy(), d, ps, w_all)
+        m_t = _compute_aipw_mean(preds_treated, ds[outcome].to_numpy(), d, ps, w_all)
 
     if target == CausalTarget.QTT:
         q_c = _compute_aipw_quantiles(
             qs,
             outcome_grid,
             preds,
-            ds[outcome_c].to_numpy(),
+            ds[outcome].to_numpy(),
             treatment_status=1 - d,
             propensity_scores=1 - ps,
             sampling_weights=w_all * ps,
         )
-        m_c = _compute_aipw_mean(preds, ds[outcome_c].to_numpy(), 1 - d, 1 - ps, w_all * ps)
+        m_c = _compute_aipw_mean(preds, ds[outcome].to_numpy(), 1 - d, 1 - ps, w_all * ps)
 
-        q_t = get_quantiles(qs, treated[outcome_c].to_numpy(), w=make_weights(weights_c, treated))
+        q_t = get_quantiles(qs, treated[outcome].to_numpy(), w=make_weights(weights, treated))
         m_t = np.average(y_t, weights=w_t)
     return _QteIntermediateResult(
         qtt=pl.DataFrame(

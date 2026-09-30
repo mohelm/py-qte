@@ -15,24 +15,24 @@ from qte.names import (
 from qte.stats import get_quantiles
 
 
-def compute_simple_qte(
+def compute_unadjusted_effects(
     ds: pl.DataFrame,
-    outcome_c: ColumnName,
-    treatment_c: ColumnName,
+    outcome: ColumnName,
+    treatment: ColumnName,
     qs: ArrayLike,
     *,
-    weight_c: str | None = None,
+    weights: ColumnName | None = None,
 ) -> _QteIntermediateResult:
     qs = np.array(qs)
 
     # TODO: look into that
     treated, control = (
-        ds.filter(pl.col(treatment_c) == 1.0),
-        ds.filter(pl.col(treatment_c) == 0.0),
+        ds.filter(pl.col(treatment) == 1.0),
+        ds.filter(pl.col(treatment) == 0.0),
     )
-    w_t = weight_c if weight_c is None else treated[weight_c].to_numpy()
-    w_c = weight_c if weight_c is None else control[weight_c].to_numpy()
-    y_t, y_c = treated[outcome_c].to_numpy(), control[outcome_c].to_numpy()
+    w_t = weights if weights is None else treated[weights].to_numpy()
+    w_c = weights if weights is None else control[weights].to_numpy()
+    y_t, y_c = treated[outcome].to_numpy(), control[outcome].to_numpy()
     return _QteIntermediateResult(
         qtt=pl.DataFrame(
             {

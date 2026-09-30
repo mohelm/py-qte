@@ -18,7 +18,7 @@ import tomllib
 from pathlib import Path
 
 from qte.constants import DECILES
-from qte.cross_sectional import estimate_aipw_qte
+from qte.cross_sectional import estimate_aipw_effects
 from qte.datasets import load_lalonde, load_mpdta
 from qte.nonlinear_did import estimate_nonlinear_did_for_panel
 from qte.nonlinear_did.custom_types import CounterfactualModel, TrtGroupConfig
@@ -154,13 +154,13 @@ def main() -> None:
 
     ds = load_lalonde(controls_source="psid", use_panel_structure=False)
     xf = "age + education + black + hispanic + married"
-    res = estimate_aipw_qte(
+    res = estimate_aipw_effects(
         ds,
         "re78",
         "treat",
         qs=DECILES,
-        or_x_formular=xf,
-        ps_x_formular=xf,
+        outcome_regression_formula=xf,
+        propensity_score_formula=xf,
         bootstrap_config=50,
     )
     generate_readme_assets(res, "aipw_qte")

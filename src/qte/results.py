@@ -6,6 +6,7 @@ import polars as pl
 from great_tables import GT
 from rich.console import Group
 
+from qte.custom_types import ColumnName
 from qte.names import (
     MEAN_CONTROL_ID,
     MEAN_TREATED_ID,
@@ -25,7 +26,7 @@ type AltairChart = alt.Chart | alt.LayerChart | alt.FacetChart
 class _BasicQteResult:
     qtt: pl.DataFrame = field(repr=False)
     att: pl.DataFrame = field(repr=False)
-    outcome: str
+    outcome: ColumnName
     group: tuple[str] | tuple[str, str] | None
 
     _exclude_from_qtt_tables: ClassVar[tuple[str, ...]] = (

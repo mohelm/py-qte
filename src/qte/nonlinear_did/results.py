@@ -38,7 +38,7 @@ class NonlinearDidResult(_BasicQteResult):
         Quantile-specific effects.
     att : polars.DataFrame
         Average treatment effects.
-    outcome : str
+    outcome : ColumnName
         Outcome variable the effect was estimated for.
     group : tuple[str, ...] or None
         Columns the estimates are grouped by.

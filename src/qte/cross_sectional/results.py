@@ -3,7 +3,7 @@ from dataclasses import dataclass
 import polars as pl
 
 from qte.cross_sectional.custom_types import CausalTarget, Estimator
-from qte.custom_types import FormularRhs
+from qte.custom_types import FormulaRhs
 from qte.results import _BasicQteResult
 
 
@@ -27,7 +27,7 @@ class QteResult(_BasicQteResult):
         Quantile-specific effects, one row per quantile.
     att : polars.DataFrame
         Average treatment effects.
-    outcome : str
+    outcome : ColumnName
         Outcome variable the effect was estimated for.
     group : tuple[str, ...] or None
         Columns the estimates are grouped by.
@@ -35,13 +35,13 @@ class QteResult(_BasicQteResult):
         Estimator that produced the result.
     causal_target : `CausalTarget`
         Estimand that was targeted.
-    ps_x_formular : str, optional
+    propensity_score_formula : FormulaRhs, optional
         Propensity score formula, when applicable.
-    or_x_formular : str, optional
+    outcome_regression_formula : FormulaRhs, optional
         Outcome regression formula, when applicable.
     """
 
     estimator: Estimator
     causal_target: CausalTarget
-    ps_x_formular: FormularRhs | None = None
-    or_x_formular: FormularRhs | None = None
+    propensity_score_formula: FormulaRhs | None = None
+    outcome_regression_formula: FormulaRhs | None = None

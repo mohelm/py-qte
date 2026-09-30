@@ -20,13 +20,13 @@ class CausalTarget(StrEnum):
     --------
     Target the effect on the treated instead of the whole population:
 
-    >>> from qte.cross_sectional import CausalTarget, estimate_ipw_qte
+    >>> from qte.cross_sectional import CausalTarget, estimate_ipw_effects
     >>> from qte.datasets import load_lalonde
-    >>> res = estimate_ipw_qte(
+    >>> res = estimate_ipw_effects(
     ...     load_lalonde(),
     ...     "re78",
     ...     "treat",
-    ...     ps_x_formular="age + education",
+    ...     propensity_score_formula="age + education",
     ...     target=CausalTarget.QTT,
     ... )
     """
@@ -43,7 +43,7 @@ class Estimator(StrEnum):
 
     Attributes
     ----------
-    SIMPLE
+    UNADJUSTED
         Difference in group quantiles without covariate adjustment.
     IPW
         Inverse probability weighting.
@@ -56,14 +56,14 @@ class Estimator(StrEnum):
     --------
     Inspect which estimator produced a result:
 
-    >>> from qte.cross_sectional import Estimator, estimate_simple_qte
+    >>> from qte.cross_sectional import Estimator, estimate_unadjusted_effects
     >>> from qte.datasets import load_lalonde
-    >>> res = estimate_simple_qte(load_lalonde(), "re78", "treat")
-    >>> res.estimator is Estimator.SIMPLE
+    >>> res = estimate_unadjusted_effects(load_lalonde(), "re78", "treat")
+    >>> res.estimator is Estimator.UNADJUSTED
     True
     """
 
-    SIMPLE = "simple"
+    UNADJUSTED = "unadjusted"
     IPW = "ipw"
     OR = "or"
     AIPW = "aipw"

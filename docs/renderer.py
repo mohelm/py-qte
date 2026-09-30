@@ -24,11 +24,13 @@ def _is_enum(obj: object) -> bool:
 
 def _enum_signature(obj: object) -> str:
     target = _target(obj)
-    base = target.bases[0].name if target.bases else "Enum"
-    lines = [f"class {target.name}({base}):"]
-    for name, member in getattr(target, "members", {}).items():
+    bases = getattr(target, "bases", None) or []
+    base = getattr(bases[0], "name", "Enum") if bases else "Enum"
+    name = getattr(target, "name", "?")
+    lines = [f"class {name}({base}):"]
+    for member_name, member in getattr(target, "members", {}).items():
         value = getattr(member, "value", None)
-        lines.append(f"    {name} = {value}" if value is not None else f"    {name}")
+        lines.append(f"    {member_name} = {value}" if value is not None else f"    {member_name}")
     body = "\n".join(lines)
     return f"```python\n{body}\n```"
 

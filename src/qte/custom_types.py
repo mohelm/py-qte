@@ -8,7 +8,7 @@ type ColumnName = str
 type DataFrame = pl.DataFrame
 """A :class:`polars.DataFrame`."""
 
-type FormularRhs = str
+type FormulaRhs = str
 """Right-hand side of a formula, e.g. ``"age + education"``."""
 
 type Series = pl.Series

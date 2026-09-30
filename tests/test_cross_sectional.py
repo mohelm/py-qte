@@ -8,10 +8,10 @@ from polars.testing import assert_frame_equal, assert_series_equal
 from qte.bootstrap import BootstrapConfig
 from qte.constants import QUARTILES
 from qte.cross_sectional import (
-    estimate_aipw_qte,
-    estimate_ipw_qte,
-    estimate_or_qte,
-    estimate_simple_qte,
+    estimate_aipw_effects,
+    estimate_ipw_effects,
+    estimate_outcome_regression_effects,
+    estimate_unadjusted_effects,
 )
 from qte.cross_sectional.custom_types import CausalTarget
 from qte.cross_sectional.results import QteResult
@@ -32,21 +32,21 @@ def make_data(n_treated: int = 500, n_control: int | None = None) -> pl.DataFram
     )
 
 
-def test_estimate_qte():
+def test_estimate_unadjusted_effects():
     ds = make_data(5000)
     assert isinstance(ds, pl.DataFrame)
 
-    res = estimate_simple_qte(ds, "outcome", "treated", qs=(0.05, 0.5, 0.95))
+    res = estimate_unadjusted_effects(ds, "outcome", "treated", qs=(0.05, 0.5, 0.95))
     assert isinstance(res, QteResult)
 
 
-def test_estimate_qte_parallel_matches_sequential():
+def test_estimate_unadjusted_effects_parallel_matches_sequential():
     ds = make_data(500)
     cfg = BootstrapConfig(n_iter=8, seed=42)
-    serial = estimate_simple_qte(
+    serial = estimate_unadjusted_effects(
         ds, "outcome", "treated", qs=(0.25, 0.5, 0.75), bootstrap_config=cfg
     )
-    parallel = estimate_simple_qte(
+    parallel = estimate_unadjusted_effects(
         ds,
         "outcome",
         "treated",
@@ -57,9 +57,11 @@ def test_estimate_qte_parallel_matches_sequential():
     assert_frame_equal(serial.att, parallel.att)
 
 
-def test_estimate_ipw_qte():
+def test_estimate_ipw_effects():
     ds = make_data(5000)
-    res = estimate_ipw_qte(ds, "outcome", "treated", ps_x_formular="1", qs=(0.05, 0.5, 0.95))
+    res = estimate_ipw_effects(
+        ds, "outcome", "treated", propensity_score_formula="1", qs=(0.05, 0.5, 0.95)
+    )
     assert isinstance(res, QteResult)
 
 
@@ -84,9 +86,11 @@ IPW_LALONDE_TEST_CASE = [
 
 
 @pytest.mark.parametrize("estimate_params,expected_results", IPW_LALONDE_TEST_CASE)
-def test_estimate_ipw_qte_with_lalonde(lalonde_psid, estimate_params, expected_results):
+def test_estimate_ipw_effects_with_lalonde(lalonde_psid, estimate_params, expected_results):
     xf = "age + I(age**2) + education + black + hispanic + married + nodegree"
-    res = estimate_ipw_qte(lalonde_psid, "re78", "treat", ps_x_formular=xf, **estimate_params)
+    res = estimate_ipw_effects(
+        lalonde_psid, "re78", "treat", propensity_score_formula=xf, **estimate_params
+    )
     assert_series_equal(pl.Series("q", expected_results["q"]), res.qtt[QUANTILE_ID])
     assert_series_equal(pl.Series("effect", expected_results["effect_q"]), res.qtt[EFFECT_ID])
     assert_series_equal(pl.Series("effect", expected_results["effect_m"]), res.att[EFFECT_ID])
@@ -105,9 +109,13 @@ OR_TEST_CASES = [
 
 
 @pytest.mark.parametrize("estimate_params,expected_results", OR_TEST_CASES)
-def test_estimate_or_qte_with_lalonde(lalonde_psid, estimate_params, expected_results):
+def test_estimate_outcome_regression_effects_with_lalonde(
+    lalonde_psid, estimate_params, expected_results
+):
     xf = "age + I(age**2) + education + black + hispanic + married + nodegree"
-    res = estimate_or_qte(lalonde_psid, "re78", "treat", or_x_formular=xf, **estimate_params)
+    res = estimate_outcome_regression_effects(
+        lalonde_psid, "re78", "treat", outcome_regression_formula=xf, **estimate_params
+    )
     assert_series_equal(pl.Series("q", expected_results["q"]), res.get_as_dataframe()["q"])
     assert_series_equal(
         pl.Series("effect", expected_results["effect_q"]),
@@ -143,14 +151,14 @@ AIPW_TEST_CASES = [
 
 
 @pytest.mark.parametrize("estimate_params,expected_results", AIPW_TEST_CASES)
-def test_estimate_aipw_qte_with_lalonde(lalonde_psid, estimate_params, expected_results):
+def test_estimate_aipw_effects_with_lalonde(lalonde_psid, estimate_params, expected_results):
     xf = "age + I(age**2) + education + black + hispanic + married + nodegree"
-    res = estimate_aipw_qte(
+    res = estimate_aipw_effects(
         lalonde_psid,
         "re78",
         "treat",
-        or_x_formular=xf,
-        ps_x_formular=xf,
+        outcome_regression_formula=xf,
+        propensity_score_formula=xf,
         **estimate_params,
     )
     assert_series_equal(pl.Series("q", expected_results["q"]), res.get_as_dataframe()["q"])

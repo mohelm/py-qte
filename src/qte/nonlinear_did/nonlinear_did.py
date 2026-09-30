@@ -74,7 +74,7 @@ def _make_nonlinear_did_results(
     agg: _NonlinearDidAggregation,
     bs_res: Estimates,
     *,
-    outcome: str,
+    outcome: ColumnName,
     base_period: BasePeriod,
     control_group: ControlGroup,
     counterfactual_model: CounterfactualModel,
@@ -126,38 +126,38 @@ def _get_data_for_two_by_two(
     time_period: int,
     reference_period: int,
     n_anticipation_periods: int,
-    treatment_group_c: str,
-    time_c: str,
+    treatment_group: ColumnName,
+    time: ColumnName,
     control_group: ControlGroup,
 ) -> pl.DataFrame:
 
-    is_treated_g = pl.col(treatment_group_c) == treated_group
-    is_control_g = pl.col(treatment_group_c).is_infinite()
+    is_treated_g = pl.col(treatment_group) == treated_group
+    is_control_g = pl.col(treatment_group).is_infinite()
     if control_group == ControlGroup.NOT_YET_TREATED:
         is_control_g = is_control_g | (
-            pl.col(treatment_group_c) > time_period + n_anticipation_periods
+            pl.col(treatment_group) > time_period + n_anticipation_periods
         )
 
     return ds.filter(
-        (is_treated_g | is_control_g) & pl.col(time_c).is_in((time_period, reference_period))
+        (is_treated_g | is_control_g) & pl.col(time).is_in((time_period, reference_period))
     ).with_columns(
-        _is_treated=pl.col(treatment_group_c) == treated_group,
-        _is_post=pl.col(time_c) == time_period,
+        _is_treated=pl.col(treatment_group) == treated_group,
+        _is_post=pl.col(time) == time_period,
     )
 
 
 def _get_group_data(
-    ds: pl.DataFrame, filter_: pl.Expr, outcome_c: str, weights_c: str, unit_c: str
+    ds: pl.DataFrame, filter_: pl.Expr, outcome: ColumnName, weights: ColumnName, unit: ColumnName
 ) -> NDArray:
     return (
         ds.filter(filter_)
         .select(
-            outcome_c,
-            weights_c,
-            unit_c,
+            outcome,
+            weights,
+            unit,
         )
-        .sort(outcome_c)
-        .rename({outcome_c: "o", weights_c: "w", unit_c: "u"})
+        .sort(outcome)
+        .rename({outcome: "o", weights: "w", unit: "u"})
         .to_numpy(structured=True)
     )
 
@@ -203,17 +203,17 @@ def _compute_group_time_effect(
     two_by_two_data: pl.DataFrame,
     g: int,
     tp: int,
-    outcome_c: ColumnName,
-    unit_c: ColumnName,
-    weights_c: ColumnName,
+    outcome: ColumnName,
+    unit: ColumnName,
+    weights: ColumnName,
     counterfactual_model: CounterfactualModel,
 ) -> GroupTimeEffect:
     _group_time_extractor = partial(
         _get_group_data,
         two_by_two_data,
-        outcome_c=outcome_c,
-        weights_c=weights_c,
-        unit_c=unit_c,
+        outcome=outcome,
+        weights=weights,
+        unit=unit,
     )
 
     post_trt = _group_time_extractor(pl.col("_is_treated") & pl.col("_is_post"))
@@ -244,13 +244,13 @@ def _compute_group_time_effect(
 
 def _compute_nonlinear_did_for_panel(
     ds: pl.DataFrame,
-    outcome_c: str,
-    treatment_group_c: str,
-    time_c: str,
-    unit_c: str,
+    outcome: ColumnName,
+    treatment_group: ColumnName,
+    time: ColumnName,
+    unit: ColumnName,
     qs: ArrayLike = MEDIAN,
     *,
-    weights_c: str,
+    weights: ColumnName,
     base_period: BasePeriod = BasePeriod.UNIVERSAL,
     control_group: ControlGroup = ControlGroup.NEVER_TREATED,
     counterfactual_model: CounterfactualModel = CounterfactualModel.CIC,
@@ -260,14 +260,14 @@ def _compute_nonlinear_did_for_panel(
     outcome_grid_size = 1000
 
     post_trt_ds = ds.filter(
-        pl.col(treatment_group_c).is_finite() & (pl.col(time_c) >= pl.col(treatment_group_c))
+        pl.col(treatment_group).is_finite() & (pl.col(time) >= pl.col(treatment_group))
     )
-    outcome = post_trt_ds[outcome_c].unique().to_numpy()
-    y_grid = np.linspace(outcome.min(), outcome.max(), outcome_grid_size)
+    outcome_values = post_trt_ds[outcome].unique().to_numpy()
+    y_grid = np.linspace(outcome_values.min(), outcome_values.max(), outcome_grid_size)
 
     # Compute group time effects
-    time_periods = ds[time_c].unique().sort()
-    treated_groups = ds[treatment_group_c].unique().sort()[:-1]  # TODO: FIX
+    time_periods = ds[time].unique().sort()
+    treated_groups = ds[treatment_group].unique().sort()[:-1]  # TODO: FIX
 
     group_time_effects = [
         _get_data_for_two_by_two(
@@ -276,16 +276,16 @@ def _compute_nonlinear_did_for_panel(
             tp,
             rp,
             n_anticipation_periods,
-            treatment_group_c,
-            time_c,
+            treatment_group,
+            time,
             control_group,
         ).pipe(
             _compute_group_time_effect,
             g,
             tp,
-            outcome_c=outcome_c,
-            unit_c=unit_c,
-            weights_c=weights_c,
+            outcome=outcome,
+            unit=unit,
+            weights=weights,
             counterfactual_model=counterfactual_model,
         )
         for tp, g in product(time_periods, treated_groups)
@@ -296,8 +296,8 @@ def _compute_nonlinear_did_for_panel(
         )
     ]
     group_sizes_per_time = ds.group_by(
-        pl.col(treatment_group_c).alias("group"), pl.col(time_c).alias("time_period")
-    ).agg(weight=pl.col(weights_c).sum())
+        pl.col(treatment_group).alias("group"), pl.col(time).alias("time_period")
+    ).agg(weight=pl.col(weights).sum())
     post_trt_group_time_effects = [gte for gte in group_time_effects if gte.tp >= gte.group]
 
     # AGGREGATE
@@ -337,13 +337,13 @@ def _compute_nonlinear_did_for_panel(
 
 def estimate_nonlinear_did_for_panel(
     ds: pl.DataFrame,
-    outcome_c: ColumnName,
-    treatment_group_c: ColumnName | TrtGroupConfig,
-    time_c: ColumnName,
-    unit_c: ColumnName,
+    outcome: ColumnName,
+    treatment_group: ColumnName | TrtGroupConfig,
+    time: ColumnName,
+    unit: ColumnName,
     qs: ArrayLike = MEDIAN,
     *,
-    weights_c: str | None = None,
+    weights: ColumnName | None = None,
     n_anticipation_periods: int = 0,
     base_period: BasePeriod = BasePeriod.UNIVERSAL,
     control_group: ControlGroup = ControlGroup.NEVER_TREATED,
@@ -360,19 +360,19 @@ def estimate_nonlinear_did_for_panel(
     ----------
     ds : polars.DataFrame
         Panel data in long format.
-    outcome_c : str
+    outcome : ColumnName
         Name of the outcome column.
-    treatment_group_c : str or `TrtGroupConfig`
+    treatment_group : ColumnName or `TrtGroupConfig`
         Column holding the first treatment period of a unit. A plain string
         treats the column as already coded with ``inf`` for never-treated units;
         a `TrtGroupConfig` maps a custom never-treated value to ``inf``.
-    time_c : str
+    time : ColumnName
         Name of the time period column.
-    unit_c : str
+    unit : ColumnName
         Name of the unit identifier column.
     qs : array_like, default=0.5
         Quantiles in ``(0, 1)`` at which to estimate the effects.
-    weights_c : str, optional
+    weights : ColumnName, optional
         Name of a column with sampling weights.
     n_anticipation_periods : int, default=0
         Number of periods before treatment in which units may anticipate it.
@@ -391,44 +391,44 @@ def estimate_nonlinear_did_for_panel(
         The group, event-study, overall and group-time effects.
     """
     bootstrap_config = _make_bootstrap_config(bootstrap_config)
-    if isinstance(treatment_group_c, str):
-        treatment_group_c = TrtGroupConfig(name=treatment_group_c)
+    if isinstance(treatment_group, str):
+        treatment_group = TrtGroupConfig(name=treatment_group)
     ds = ds.with_columns(
         cs.by_name(
-            treatment_group_c.name,
-            time_c,
+            treatment_group.name,
+            time,
         ).cast(pl.Float64)
     )
-    if treatment_group_c.never_treated_identifier != float("inf"):
+    if treatment_group.never_treated_identifier != float("inf"):
         ds = ds.with_columns(
-            pl.when(pl.col(treatment_group_c.name) == treatment_group_c.never_treated_identifier)
+            pl.when(pl.col(treatment_group.name) == treatment_group.never_treated_identifier)
             .then(float("inf"))
-            .otherwise(pl.col(treatment_group_c.name))
-            .alias(treatment_group_c.name)
+            .otherwise(pl.col(treatment_group.name))
+            .alias(treatment_group.name)
         )
 
-    if weights_c is None:
-        weights_c = "_w"
-        ds = ds.with_columns(pl.lit(1).alias(weights_c))
-    all_groups = ds[treatment_group_c.name].unique()
+    if weights is None:
+        weights = "_w"
+        ds = ds.with_columns(pl.lit(1).alias(weights))
+    all_groups = ds[treatment_group.name].unique()
     all_treated_groups = all_groups.filter(all_groups.is_finite())
-    time_periods = ds[time_c].unique().sort().to_list()
+    time_periods = ds[time].unique().sort().to_list()
 
     treated_groups: pl.Series = all_treated_groups.filter(
         all_treated_groups >= min(time_periods) + 1 + n_anticipation_periods
     )
     ds = ds.filter(
-        pl.col(treatment_group_c.name).is_in(set(treated_groups.to_list()))
-        | pl.col(treatment_group_c.name).is_infinite()
+        pl.col(treatment_group.name).is_in(set(treated_groups.to_list()))
+        | pl.col(treatment_group.name).is_infinite()
     )
     fcn = partial(
         _compute_nonlinear_did_for_panel,
-        outcome_c=outcome_c,
-        treatment_group_c=treatment_group_c.name,
-        time_c=time_c,
-        unit_c=unit_c,
+        outcome=outcome,
+        treatment_group=treatment_group.name,
+        time=time,
+        unit=unit,
         qs=qs,
-        weights_c=weights_c,
+        weights=weights,
         base_period=base_period,
         control_group=control_group,
         counterfactual_model=counterfactual_model,
@@ -438,7 +438,7 @@ def estimate_nonlinear_did_for_panel(
     bs_iterations = _perform_block_bootstrap(
         ds,
         fcn,
-        unit_c,
+        unit,
         n_iter=bootstrap_config.n_iter,
         seed=bootstrap_config.seed,
         n_workers=bootstrap_config.n_workers,
@@ -453,7 +453,7 @@ def estimate_nonlinear_did_for_panel(
         agg_name: _make_nonlinear_did_results(
             agg,
             bs_aggs[agg_name],
-            outcome=outcome_c,
+            outcome=outcome,
             base_period=base_period,
             control_group=control_group,
             counterfactual_model=counterfactual_model,

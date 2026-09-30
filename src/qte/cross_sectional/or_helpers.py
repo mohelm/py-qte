@@ -2,6 +2,7 @@ import numpy as np
 import polars as pl
 from numpy.typing import NDArray
 
+from qte.custom_types import ColumnName
 from qte.quantile_regression import QuantileRegressionResult
 
 
@@ -14,9 +15,9 @@ def predict_outcome_model(
 
 
 def make_weights(
-    weights_c: str | None, ds: pl.DataFrame, rep: int | None = None
+    weights: ColumnName | None, ds: pl.DataFrame, rep: int | None = None
 ) -> NDArray[np.float64] | None:
-    if weights_c is None:
+    if weights is None:
         return None
-    weights = ds[weights_c].to_numpy()
-    return weights if rep is None else np.tile(weights, rep)  # TODO: really tile?
+    sample_weights = ds[weights].to_numpy()
+    return sample_weights if rep is None else np.tile(sample_weights, rep)  # TODO: really tile?

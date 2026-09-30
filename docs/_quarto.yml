@@ -68,10 +68,10 @@ quartodoc:
       desc: Quantile treatment effect estimators for cross-sectional data (`qte.cross_sectional`).
       package: qte.cross_sectional
       contents:
-        - estimate_simple_qte
-        - estimate_ipw_qte
-        - estimate_or_qte
-        - estimate_aipw_qte
+        - estimate_unadjusted_effects
+        - estimate_ipw_effects
+        - estimate_outcome_regression_effects
+        - estimate_aipw_effects
         - name: QteResult
           include_inherited: true
         - CausalTarget

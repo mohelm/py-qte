@@ -60,19 +60,19 @@ def data_with_int_weights():
 
 def test_weighted_quantile_regression_matches_replication_on_exploded_data(data_with_int_weights):
     qs = np.array([0.25, 0.5, 0.75])
-    formular = "y~x"
+    formula = "y~x"
 
-    weighted = QuantileRegression(formular, ds=data_with_int_weights).fit(qs, weights_c="w")
+    weighted = QuantileRegression(formula, ds=data_with_int_weights).fit(qs, weights="w")
     # Integer weights are equivalent to replicating every row w_i times.
     replicated = data_with_int_weights.select(pl.all().repeat_by("w").explode()).drop("w")
-    unweighted = QuantileRegression(formular, ds=replicated).fit(qs, weights_c=None)
+    unweighted = QuantileRegression(formula, ds=replicated).fit(qs, weights=None)
 
     # The statsmodels fallback is less precise than the Fortran solver.
     atol = 1e-6 if qr.rq_fortran is not None else 5e-5
     assert np.allclose(weighted.coefficients, unweighted.coefficients, atol=atol)
 
     # Compare to statsmmodels
-    mod = smf.quantreg(formular, replicated)
+    mod = smf.quantreg(formula, replicated)
 
     sm_coeffs = np.c_[*[mod.fit(q=q).params.values for q in qs]]
     assert np.allclose(weighted.coefficients, sm_coeffs, atol=1e-4)
@@ -81,7 +81,7 @@ def test_weighted_quantile_regression_matches_replication_on_exploded_data(data_
 def test_weighted_quantile_regression_matches_statsmodels_on_scaled_data(data_with_int_weights):
     qs = np.array([0.25, 0.5, 0.75])
 
-    weighted = QuantileRegression("y ~ x", ds=data_with_int_weights).fit(qs, weights_c="w")
+    weighted = QuantileRegression("y ~ x", ds=data_with_int_weights).fit(qs, weights="w")
 
     scaled_data = data_with_int_weights.with_columns(
         [(pl.col(c) * pl.col("w")).alias(f"{c}_w") for c in ["y", "x"]]
@@ -95,10 +95,10 @@ def test_weighted_quantile_regression_matches_statsmodels_on_scaled_data(data_wi
 def test_quantile_regression_matches_r_quantregpackage_results():
     ds = load_engel_with_weights()
 
-    weighted = QuantileRegression("log_foodexp ~ log_income", ds=ds).fit(QS, weights_c="w")
+    weighted = QuantileRegression("log_foodexp ~ log_income", ds=ds).fit(QS, weights="w")
     assert np.allclose(weighted.coefficients, WEIGHTED_EXPECTED_COEFFS, atol=1e-6)
 
-    unweighted = QuantileRegression("log_foodexp ~ log_income", ds=ds).fit(QS, weights_c=None)
+    unweighted = QuantileRegression("log_foodexp ~ log_income", ds=ds).fit(QS, weights=None)
     assert np.allclose(unweighted.coefficients, UNWEIGHTED_EXPECTED_COEFFS, atol=1e-6)
 
 
@@ -107,8 +107,8 @@ def test_quantile_regression_falls_back_to_statsmodels(monkeypatch):
 
     monkeypatch.setattr(qr, "rq_fortran", None)
 
-    weighted = QuantileRegression("log_foodexp ~ log_income", ds=ds).fit(QS, weights_c="w")
+    weighted = QuantileRegression("log_foodexp ~ log_income", ds=ds).fit(QS, weights="w")
     assert np.allclose(weighted.coefficients, WEIGHTED_EXPECTED_COEFFS, atol=5e-5)
 
-    unweighted = QuantileRegression("log_foodexp ~ log_income", ds=ds).fit(QS, weights_c=None)
+    unweighted = QuantileRegression("log_foodexp ~ log_income", ds=ds).fit(QS, weights=None)
     assert np.allclose(unweighted.coefficients, UNWEIGHTED_EXPECTED_COEFFS, atol=5e-5)

@@ -9,7 +9,7 @@ from numpy.typing import NDArray
 from scipy.stats import norm
 from statsmodels.genmod.generalized_linear_model import GLMResultsWrapper
 
-from qte.custom_types import ColumnName, FormularRhs, Series
+from qte.custom_types import ColumnName, FormulaRhs, Series
 from qte.names import CI_LB_ID, CI_UB_ID, EFFECT_ID, SE_ID
 from qte.quantile_regression import QuantileRegression, QuantileRegressionResult
 
@@ -28,30 +28,30 @@ def get_quantiles(
 
 def estimate_propensity_score(
     ds: pl.DataFrame,
-    treatment_c: str,
-    x_formular: FormularRhs,
-    weights_c: ColumnName | None = None,
+    treatment: ColumnName,
+    x_formula: FormulaRhs,
+    weights: ColumnName | None = None,
 ) -> GLMResultsWrapper:
     # Need to use glm since the standard logistic regression in statsmodels does not seem to
     # consider the sampling weights.
     ds_as_dict = {col.name: col.to_numpy() for col in ds.iter_columns()}
-    weights = ds[weights_c].to_numpy() if weights_c is not None else None
+    sample_weights = ds[weights].to_numpy() if weights is not None else None
     return smf.glm(
-        formula=f"{treatment_c}~{x_formular}",
+        formula=f"{treatment}~{x_formula}",
         data=ds_as_dict,
         family=sm.families.Binomial(),
-        freq_weights=weights,
+        freq_weights=sample_weights,
     ).fit()
 
 
 def estimate_outcome_model(
     ds: pl.DataFrame,
-    outcome_c: ColumnName,
-    x_formular: str,
+    outcome: ColumnName,
+    x_formula: FormulaRhs,
     qs: NDArray[np.float64],
-    weights_c: str | None,
+    weights: ColumnName | None,
 ) -> QuantileRegressionResult:
-    return QuantileRegression(f"{outcome_c}~{x_formular}", ds=ds).fit(qs, weights_c=weights_c)
+    return QuantileRegression(f"{outcome}~{x_formula}", ds=ds).fit(qs, weights=weights)
 
 
 @dataclass

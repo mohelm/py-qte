@@ -7,7 +7,7 @@ This is an attempt at a Python implementation of the qte R package by Brantly Ca
 
 The main **features** are:
 
-- Availability of **cross-sectional quantile treatment effects** estimators (simple, inverse
+- Availability of **cross-sectional quantile treatment effects** estimators (unadjusted, inverse
   probability weighted, outcome regression, doubly robust) and **non-linear
   difference-in-differences** estimator (changes-in-changes and quantile difference-in-differences);
 - **Fast**:
@@ -46,17 +46,17 @@ We can estimate quantile treatment (and average) treatment effects using an augm
 propensity score (AIPW) estimator .
 
 ```python
-from qte.cross_sectional import estimate_aipw_qte
+from qte.cross_sectional import estimate_aipw_effects
 from qte.datasets import load_lalonde
 
 ds = load_lalonde()
 
-res = estimate_aipw_qte(
+res = estimate_aipw_effects(
     ds=ds,
-    outcome_c="re78",
-    treatment_c="treat",
-    or_x_formular="age + education",
-    ps_x_formular="age + education",
+    outcome="re78",
+    treatment="treat",
+    outcome_regression_formula="age + education",
+    propensity_score_formula="age + education",
 )
 
 res.plot()  # Vega-Altair plot (see below)

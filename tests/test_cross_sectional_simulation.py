@@ -5,9 +5,9 @@ from numpy.testing import assert_allclose
 
 from qte.bootstrap import BootstrapConfig
 from qte.cross_sectional import (
-    estimate_aipw_qte,
-    estimate_ipw_qte,
-    estimate_simple_qte,
+    estimate_aipw_effects,
+    estimate_ipw_effects,
+    estimate_unadjusted_effects,
     simulate_covariate_data,
     simulate_simple_data,
 )
@@ -64,7 +64,7 @@ def test_simulate_is_reproducible():
 
 def test_estimators_recover_the_simple_truth():
     ds = simulate_simple_data(n=20_000, treatment_effect=1.5, seed=0)
-    res = estimate_simple_qte(ds, "y", "treat", qs=QS, bootstrap_config=CFG)
+    res = estimate_unadjusted_effects(ds, "y", "treat", qs=QS, bootstrap_config=CFG)
 
     assert_allclose(res.qtt[EFFECT_ID].to_numpy(), 1.5, atol=0.05)
     assert res.att[EFFECT_ID].item() == pytest.approx(1.5, abs=0.05)
@@ -74,14 +74,14 @@ def test_covariate_data_is_confounded_but_aipw_recovers_the_truth():
     ds = _add_correct_features(simulate_covariate_data(n=20_000, effect_scale=1.0, seed=0))
     truth = get_true_quantiles(QS, n_oracle=200_000, effect_scale=1.0, seed=0)[EFFECT_ID].to_numpy()
 
-    naive = estimate_simple_qte(ds, "y", "treat", qs=QS, bootstrap_config=CFG)
-    aipw = estimate_aipw_qte(
+    naive = estimate_unadjusted_effects(ds, "y", "treat", qs=QS, bootstrap_config=CFG)
+    aipw = estimate_aipw_effects(
         ds,
         "y",
         "treat",
         qs=QS,
-        ps_x_formular="x1 + x3 + I(x0 > 0)",
-        or_x_formular="x3 + x4 + ind1 + ind2 + sq",
+        propensity_score_formula="x1 + x3 + I(x0 > 0)",
+        outcome_regression_formula="x3 + x4 + ind1 + ind2 + sq",
         bootstrap_config=CFG,
     )
 
@@ -94,12 +94,12 @@ def test_covariate_data_att_matches_true_ate():
     ds = simulate_covariate_data(n=20_000, effect_scale=1.0, seed=0)
     truth = get_true_means(n_oracle=200_000, effect_scale=1.0, seed=0)[EFFECT_ID].item()
 
-    res = estimate_ipw_qte(
+    res = estimate_ipw_effects(
         ds,
         "y",
         "treat",
         qs=QS,
-        ps_x_formular="x1 + x3 + I(x0 > 0)",
+        propensity_score_formula="x1 + x3 + I(x0 > 0)",
         target=CausalTarget.QTT,
         bootstrap_config=CFG,
     )

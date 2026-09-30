@@ -75,7 +75,7 @@ import polars as pl
 from great_tables import GT, loc, md, px, style
 
 from qte.bootstrap import BootstrapConfig
-from qte.cross_sectional import estimate_aipw_qte, estimate_simple_qte
+from qte.cross_sectional import estimate_aipw_effects, estimate_unadjusted_effects
 from qte.datasets import load_lalonde
 
 DATA = load_lalonde(controls_source="psid")
@@ -297,7 +297,7 @@ r_simple_par_vals <- r_simple_par$vals
 def run_py_simple(n_workers):
     cfg = BootstrapConfig(n_iter=int(r.N_ITER_SIMPLE), seed=int(r.SEED), n_workers=n_workers)
     t0 = time.perf_counter()
-    res = estimate_simple_qte(DATA, "re78", "treat", qs=qs_simple, bootstrap_config=cfg)
+    res = estimate_unadjusted_effects(DATA, "re78", "treat", qs=qs_simple, bootstrap_config=cfg)
     return time.perf_counter() - t0, res
 
 
@@ -428,13 +428,13 @@ r_par_vals <- list(
 #| time_it: true
 cfg = BootstrapConfig(n_iter=int(r.N_ITER), seed=int(r.SEED), n_workers=1)
 t0 = time.perf_counter()
-res_py_seq = estimate_aipw_qte(
+res_py_seq = estimate_aipw_effects(
     DATA,
     "re78",
     "treat",
     qs=qs,
-    ps_x_formular=r.X_PY,
-    or_x_formular=r.X_PY,
+    propensity_score_formula=r.X_PY,
+    outcome_regression_formula=r.X_PY,
     bootstrap_config=cfg,
 )
 py_seq_seconds = time.perf_counter() - t0
@@ -446,13 +446,13 @@ py_seq_seconds = time.perf_counter() - t0
 #| time_it: true
 cfg = BootstrapConfig(n_iter=int(r.N_ITER), seed=int(r.SEED), n_workers=int(r.N_WORKERS))
 t0 = time.perf_counter()
-res_py_par = estimate_aipw_qte(
+res_py_par = estimate_aipw_effects(
     DATA,
     "re78",
     "treat",
     qs=qs,
-    ps_x_formular=r.X_PY,
-    or_x_formular=r.X_PY,
+    propensity_score_formula=r.X_PY,
+    outcome_regression_formula=r.X_PY,
     bootstrap_config=cfg,
 )
 py_par_seconds = time.perf_counter() - t0
@@ -611,7 +611,7 @@ def run_py_sim_simple(n_workers):
         n_iter=int(r.N_ITER_SIM_UNCONFOUNDED), seed=int(r.SEED), n_workers=n_workers
     )
     t0 = time.perf_counter()
-    res = estimate_simple_qte(sim_simple, "y", "treat", qs=qs, bootstrap_config=cfg)
+    res = estimate_unadjusted_effects(sim_simple, "y", "treat", qs=qs, bootstrap_config=cfg)
     return time.perf_counter() - t0, res
 
 
@@ -620,13 +620,13 @@ def run_py_sim_cov(n_workers):
         n_iter=int(r.N_ITER_SIM_CONFOUNDED), seed=int(r.SEED), n_workers=n_workers
     )
     t0 = time.perf_counter()
-    res = estimate_aipw_qte(
+    res = estimate_aipw_effects(
         sim_cov,
         "y",
         "treat",
         qs=qs,
-        ps_x_formular="x1 + x3 + I(x0 > 0)",
-        or_x_formular="x3 + x4 + ind1 + ind2 + sq",
+        propensity_score_formula="x1 + x3 + I(x0 > 0)",
+        outcome_regression_formula="x3 + x4 + ind1 + ind2 + sq",
         bootstrap_config=cfg,
     )
     return time.perf_counter() - t0, res
@@ -794,24 +794,24 @@ if int(r.N_SIM_PY_QTE_ONLY) > 0:
         n_iter=int(r.N_ITER_SIM_PY_QTE_ONLY), seed=int(r.SEED), n_workers=int(r.N_WORKERS)
     )
     t0 = time.perf_counter()
-    res_py_only_seq = estimate_aipw_qte(
+    res_py_only_seq = estimate_aipw_effects(
         sim_py_only,
         "y",
         "treat",
         qs=qs,
-        ps_x_formular="x1 + x3 + I(x0 > 0)",
-        or_x_formular="x3 + x4 + ind1 + ind2 + sq",
+        propensity_score_formula="x1 + x3 + I(x0 > 0)",
+        outcome_regression_formula="x3 + x4 + ind1 + ind2 + sq",
         bootstrap_config=sim_cfg._replace(n_workers=1),
     )
     py_only_seq_seconds = time.perf_counter() - t0
     t0 = time.perf_counter()
-    res_py_only_par = estimate_aipw_qte(
+    res_py_only_par = estimate_aipw_effects(
         sim_py_only,
         "y",
         "treat",
         qs=qs,
-        ps_x_formular="x1 + x3 + I(x0 > 0)",
-        or_x_formular="x3 + x4 + ind1 + ind2 + sq",
+        propensity_score_formula="x1 + x3 + I(x0 > 0)",
+        outcome_regression_formula="x3 + x4 + ind1 + ind2 + sq",
         bootstrap_config=sim_cfg,
     )
     py_only_par_seconds = time.perf_counter() - t0
