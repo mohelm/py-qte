@@ -1,11 +1,11 @@
 # Production parameters for the published benchmark (large, slow).
-n_iter: 100          # bootstrap iterations for the Lalonde AIPW comparison
+n_iter:  100         # bootstrap iterations for the Lalonde AIPW comparison
 n_iter_simple: 1000  # bootstrap iterations for the unconfoundedness comparison
-n_workers: 8         # parallel workers
-seed: 42             # shared RNG seed
-n_sim_unconfounded: 100000  # unconfounded simulated sample size
-n_sim_confounded: 100000    # confounded simulated sample size
-n_iter_sim_unconfounded: 20  # bootstrap iterations for the unconfounded simulation
-n_iter_sim_confounded: 20    # bootstrap iterations for the confounded simulation
-n_iter_sim_py_qte_only: 20   # bootstrap iterations for the py-qte-only run
-n_sim_py_qte_only: 1000000  # extra py-qte-only run; 0 disables it (scaled x1000)
+n_workers: 10         # parallel workers
+seed:  555            # shared RNG seed
+n_sim_unconfounded: 250000  # unconfounded simulated sample size
+n_sim_confounded: 10000    # confounded simulated sample size
+n_iter_sim_unconfounded: 200  # bootstrap iterations for the unconfounded simulation
+n_iter_sim_confounded: 200    # bootstrap iterations for the confounded simulation
+n_sim_py_qte_only: 100000  # extra py-qte-only run; 0 disables it (scaled x1000)
+n_iter_sim_py_qte_only: 200   # bootstrap iterations for the py-qte-only run

@@ -32,9 +32,11 @@ library(qte)
 ```
 
 ```{r}
-#| label: set-blas-open-mp-env-vars
+#| label: configure-blas
 #| code-summary: "Show code (R configuring single-threaded BLAS/OpenMP)"
-# For parallel bootstrap in qte (r-package) we need BLAS/OpenMP to be single-threaded.
+# The qte parallel bootstrap forks worker processes; forking while BLAS/OpenMP is
+# multithreaded can deadlock. Pin both to a single thread globally so every run
+# uses the same single-threaded BLAS baseline.
 library(RhpcBLASctl)
 blas_set_num_threads(1L)
 omp_set_num_threads(1L)
