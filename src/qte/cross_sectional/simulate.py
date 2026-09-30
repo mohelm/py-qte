@@ -32,7 +32,7 @@ Two independent designs are provided.
     when given them.
 
 The population effects of the covariate design are recovered by simulating a
-large population with :func:`true_effects` and :func:`true_means`.
+large population with `get_true_quantiles` and `get_true_means`.
 """
 
 import numpy as np
@@ -41,7 +41,7 @@ from numpy.typing import ArrayLike, NDArray
 from scipy.special import expit
 
 from qte.constants import MEDIAN
-from qte.custom_types import CausalTarget
+from qte.cross_sectional.custom_types import CausalTarget
 from qte.names import (
     EFFECT_ID,
     MEAN_CONTROL_ID,
@@ -101,7 +101,7 @@ def simulate_simple_data(
     error_var : float
         Variance of the error term.
     seed : int, optional
-        Seed for :class:`numpy.random.default_rng`.
+        Seed for `numpy.random.default_rng`.
 
     Returns
     -------
@@ -139,7 +139,7 @@ def simulate_covariate_data(
     error_var : float
         Multiplies the conditional variance of both arms.
     seed : int, optional
-        Seed for :class:`numpy.random.default_rng`.
+        Seed for `numpy.random.default_rng`.
 
     Returns
     -------
@@ -183,7 +183,7 @@ def _potential_outcomes(
     return y_0, y_1
 
 
-def true_means(
+def get_true_means(
     *,
     target: CausalTarget = CausalTarget.QTE,
     n_oracle: int = 1_000_000,
@@ -196,6 +196,24 @@ def true_means(
     With ``target=QTE`` the means are over the whole population (``effect`` is
     the ATE); with ``target=QTT`` they are over the treated (``effect`` is the
     ATT). The truth is recovered by simulating ``n_oracle`` units.
+
+    Parameters
+    ----------
+    target : `CausalTarget`, default=`CausalTarget.QTE`
+        Estimand to recover, ``QTE`` (population) or ``QTT`` (treated).
+    n_oracle : int, default=1_000_000
+        Size of the simulated population.
+    effect_scale : float, default=1.0
+        Treatment effect scale used in `simulate_covariate_data`.
+    error_var : float, default=1.0
+        Error variance used in `simulate_covariate_data`.
+    seed : int, default=0
+        Seed for the simulated population.
+
+    Returns
+    -------
+    polars.DataFrame
+        Columns ``m_c``, ``m_t`` and ``effect`` (``m_t - m_c``).
     """
     y_0, y_1 = _potential_outcomes(target, n_oracle, effect_scale, error_var, seed)
     mean_0, mean_1 = float(np.mean(y_0)), float(np.mean(y_1))
@@ -208,7 +226,7 @@ def true_means(
     )
 
 
-def true_effects(
+def get_true_quantiles(
     qs: ArrayLike = MEDIAN,
     *,
     target: CausalTarget = CausalTarget.QTE,
@@ -226,14 +244,14 @@ def true_effects(
     ----------
     qs : array_like
         Probabilities in ``(0, 1)``.
-    target : CausalTarget
+    target : `CausalTarget`
         ``QTE`` for the population, ``QTT`` for the treated.
     n_oracle : int
         Size of the simulated population.
     effect_scale : float
-        Treatment effect scale used in :func:`simulate_covariate_data`.
+        Treatment effect scale used in `simulate_covariate_data`.
     error_var : float
-        Error variance used in :func:`simulate_covariate_data`.
+        Error variance used in `simulate_covariate_data`.
     seed : int
         Seed for the simulated population.
 

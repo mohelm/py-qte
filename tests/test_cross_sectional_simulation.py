@@ -11,8 +11,8 @@ from qte.cross_sectional import (
     simulate_covariate_data,
     simulate_simple_data,
 )
-from qte.cross_sectional.simulate import true_effects, true_means
-from qte.custom_types import CausalTarget
+from qte.cross_sectional.custom_types import CausalTarget
+from qte.cross_sectional.simulate import get_true_means, get_true_quantiles
 from qte.names import EFFECT_ID
 
 QS = (0.25, 0.5, 0.75)
@@ -72,7 +72,7 @@ def test_estimators_recover_the_simple_truth():
 
 def test_covariate_data_is_confounded_but_aipw_recovers_the_truth():
     ds = _add_correct_features(simulate_covariate_data(n=20_000, effect_scale=1.0, seed=0))
-    truth = true_effects(QS, n_oracle=200_000, effect_scale=1.0, seed=0)[EFFECT_ID].to_numpy()
+    truth = get_true_quantiles(QS, n_oracle=200_000, effect_scale=1.0, seed=0)[EFFECT_ID].to_numpy()
 
     naive = estimate_simple_qte(ds, "y", "treat", qs=QS, bootstrap_config=CFG)
     aipw = estimate_aipw_qte(
@@ -92,7 +92,7 @@ def test_covariate_data_is_confounded_but_aipw_recovers_the_truth():
 
 def test_covariate_data_att_matches_true_ate():
     ds = simulate_covariate_data(n=20_000, effect_scale=1.0, seed=0)
-    truth = true_means(n_oracle=200_000, effect_scale=1.0, seed=0)[EFFECT_ID].item()
+    truth = get_true_means(n_oracle=200_000, effect_scale=1.0, seed=0)[EFFECT_ID].item()
 
     res = estimate_ipw_qte(
         ds,

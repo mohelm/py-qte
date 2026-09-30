@@ -1,6 +1,0 @@
-# Estimator { #qte.custom_types.Estimator }
-
-```python
-custom_types.Estimator()
-```
-

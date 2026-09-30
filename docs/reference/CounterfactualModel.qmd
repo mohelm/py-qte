@@ -1,6 +1,0 @@
-# CounterfactualModel { #qte.nonlinear_did.CounterfactualModel }
-
-```python
-nonlinear_did.CounterfactualModel()
-```
-

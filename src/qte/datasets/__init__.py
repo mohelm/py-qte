@@ -1,3 +1,5 @@
+"""Datasets bundled with py-qte."""
+
 import importlib.resources
 from typing import Literal
 
@@ -21,7 +23,21 @@ def load_lalonde(
     controls_source: Literal["psid", "experiment"] = "psid",
     use_panel_structure: bool = False,
 ) -> pl.DataFrame:
+    """Load the LaLonde (1986) job training dataset.
 
+    Parameters
+    ----------
+    controls_source : {"psid", "experiment"}, default="psid"
+        Source of the control group: the PSID comparison sample or the
+        experimental controls.
+    use_panel_structure : bool, default=False
+        Return the panel version of the data instead of the cross-section.
+
+    Returns
+    -------
+    polars.DataFrame
+        The requested LaLonde dataset.
+    """
     with importlib.resources.path(
         "qte.datasets.lalonde",
         _make_lalonde_filename(controls_source, use_panel_structure),
@@ -30,35 +46,31 @@ def load_lalonde(
 
 
 def load_mpdta() -> pl.DataFrame:
-    """Load the minimum wage panel dataset (mpdta) used in the did and qte packages.
+    """Load the minimum wage panel dataset (mpdta).
 
-    Contains county-level teen employment data from 2003-2007.
+    County-level teen employment data from 2003 to 2007, used in the ``did`` and
+    ``qte`` R packages.
+
+    Returns
+    -------
+    polars.DataFrame
+        County-year panel of teen employment and minimum wage variables.
     """
     with importlib.resources.path("qte.datasets", "mpdta.parquet") as path:
         return pl.read_parquet(path)
 
 
 def load_engel_with_weights() -> pl.DataFrame:
-    """Load Engel (1857) food expenditure data with an additional weights column.
+    """Load Engel (1857) food expenditure data with a sampling weights column.
 
-    It is mainly used for comparing the quantile regression with and without weights against the
-    results obtained from quantreg::rq in R. The columns were generated as
+    Mainly used to compare weighted and unweighted quantile regression against
+    ``quantreg::rq`` in R. The ``w`` column is the inverse probability of
+    selection, where the selection probability decreases with income.
 
-    ```{r}
-    library(dplyr)
-    data(engel)
-    engel_weighted <- engel %>%
-    mutate(
-    # Probability of selection decreases as income grows
-    prob_selection = 1 / (1 + exp((income - mean(income)) / sd(income))),
-    # Sampling weight is the inverse selection probability
-    w = 1 / prob_selection,
-
-    log_income = log(income),
-    log_foodexp = log(foodexp)
-    )
-    ```
-
+    Returns
+    -------
+    polars.DataFrame
+        Food expenditure data with an additional ``w`` column.
     """
     with importlib.resources.path("qte.datasets", "engel_with_weights.parquet") as path:
         return pl.read_parquet(path)

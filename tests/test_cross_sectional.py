@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 import numpy as np
 import polars as pl
 import pytest
@@ -11,8 +13,8 @@ from qte.cross_sectional import (
     estimate_or_qte,
     estimate_simple_qte,
 )
+from qte.cross_sectional.custom_types import CausalTarget
 from qte.cross_sectional.results import QteResult
-from qte.custom_types import CausalTarget
 from qte.names import EFFECT_ID, QUANTILE_ID
 
 
@@ -49,7 +51,7 @@ def test_estimate_qte_parallel_matches_sequential():
         "outcome",
         "treated",
         qs=(0.25, 0.5, 0.75),
-        bootstrap_config=cfg._replace(n_workers=2),
+        bootstrap_config=replace(cfg, n_workers=2),
     )
     assert_frame_equal(serial.qtt, parallel.qtt)
     assert_frame_equal(serial.att, parallel.att)

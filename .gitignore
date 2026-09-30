@@ -30,6 +30,13 @@ docs/renv/
 # Quarto website output (published to the gh-pages branch)
 docs/_site/
 
+# quartodoc-generated API reference and inventory (run `uv run quartodoc build`
+# from docs/ before rendering or publishing)
+docs/reference/
+docs/objects.json
+docs/_quartodoc-sidebar.yml
+docs/_inv/
+
 # macOS metadata (.DS_Store, AppleDouble ._* files from moving the site)
 .DS_Store
 ._*

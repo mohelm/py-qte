@@ -64,6 +64,18 @@ class _BasicQteResult:
         return header_content
 
     def plot(self, alpha: float = 0.95) -> AltairChart:
+        """Plot the quantile and average effects with confidence intervals.
+
+        Parameters
+        ----------
+        alpha : float, default=0.95
+            Confidence level of the intervals.
+
+        Returns
+        -------
+        altair.Chart
+            Altair chart of the estimates.
+        """
         return make_plot(
             self.qtt.with_columns(get_ci(alpha)),
             self.att.with_columns(get_ci(alpha)),
@@ -71,6 +83,18 @@ class _BasicQteResult:
         )
 
     def tabulate(self, alpha: float = 0.95) -> GT:
+        """Build a Great Tables table of the estimates.
+
+        Parameters
+        ----------
+        alpha : float, default=0.95
+            Confidence level of the intervals.
+
+        Returns
+        -------
+        great_tables.GT
+            Formatted table of the estimates.
+        """
         return make_great_table(
             self.qtt.drop(self._exclude_from_qtt_tables).with_columns(get_ci(alpha)),
             self.att.drop(self._exclude_from_att_tables).with_columns(get_ci(alpha)),
@@ -79,9 +103,33 @@ class _BasicQteResult:
         )
 
     def get_as_dataframe(self, alpha: float = 0.95) -> pl.DataFrame:
+        """Return the quantile effects with confidence interval columns.
+
+        Parameters
+        ----------
+        alpha : float, default=0.95
+            Confidence level of the intervals.
+
+        Returns
+        -------
+        polars.DataFrame
+            Quantile effects with ``ci_lb`` and ``ci_ub`` columns.
+        """
         return self.qtt.with_columns(get_ci(alpha))
 
     def summarize(self, alpha: float = 0.95) -> Group:
+        """Render a rich text summary of the estimates.
+
+        Parameters
+        ----------
+        alpha : float, default=0.95
+            Confidence level of the intervals.
+
+        Returns
+        -------
+        rich.console.Group
+            Rich renderable for terminals and notebooks.
+        """
         return make_rich_table(
             self.qtt.drop(self._exclude_from_qtt_tables).with_columns(get_ci(alpha)),
             self.att.drop(self._exclude_from_att_tables).with_columns(get_ci(alpha)),

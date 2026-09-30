@@ -1,14 +1,14 @@
 from collections.abc import Iterable
+from dataclasses import dataclass
 from functools import partial
 from itertools import product
-from typing import NamedTuple
 
 import numpy as np
 import polars as pl
 import polars.selectors as cs
 from numpy.typing import ArrayLike, NDArray
 
-from qte.bootstrap import BootstrapConfig, make_bootstrap_config, perform_block_bootstrap
+from qte.bootstrap import BootstrapConfig, _make_bootstrap_config, _perform_block_bootstrap
 from qte.constants import MEDIAN
 from qte.names import EFFECT_ID, QUANTILE_ID, SE_ID
 from qte.nonlinear_did.aggregate import (
@@ -37,7 +37,8 @@ from qte.nonlinear_did.results import (
 from qte.stats import Ecdf, get_quantiles
 
 
-class Estimates(NamedTuple):
+@dataclass(frozen=True)
+class Estimates:
     atts: pl.DataFrame
     qtes: pl.DataFrame
 
@@ -349,7 +350,47 @@ def estimate_nonlinear_did_for_panel(
     counterfactual_model: CounterfactualModel = CounterfactualModel.CIC,
     bootstrap_config: BootstrapConfig | int = 1000,
 ) -> NonlinearDidResults:
-    bootstrap_config = make_bootstrap_config(bootstrap_config)
+    """Estimate nonlinear difference-in-differences effects for panel data.
+
+    Implements the changes-in-changes (CiC) and quantile difference-in-differences
+    (QDiD) estimators with the aggregations of Callaway and Li. Returns the
+    group, event-study, overall and group-time effects.
+
+    Parameters
+    ----------
+    ds : polars.DataFrame
+        Panel data in long format.
+    outcome_c : str
+        Name of the outcome column.
+    treatment_group_c : str or `TrtGroupConfig`
+        Column holding the first treatment period of a unit. A plain string
+        treats the column as already coded with ``inf`` for never-treated units;
+        a `TrtGroupConfig` maps a custom never-treated value to ``inf``.
+    time_c : str
+        Name of the time period column.
+    unit_c : str
+        Name of the unit identifier column.
+    qs : array_like, default=0.5
+        Quantiles in ``(0, 1)`` at which to estimate the effects.
+    weights_c : str, optional
+        Name of a column with sampling weights.
+    n_anticipation_periods : int, default=0
+        Number of periods before treatment in which units may anticipate it.
+    base_period : `BasePeriod`, default=`BasePeriod.UNIVERSAL`
+        Pre-treatment period used for the comparisons.
+    control_group : `ControlGroup`, default=`ControlGroup.NEVER_TREATED`
+        Comparison group used for the counterfactual.
+    counterfactual_model : `CounterfactualModel`, default=`CounterfactualModel.CIC`
+        Model used to construct the counterfactual distribution.
+    bootstrap_config : `BootstrapConfig` or int, default=1000
+        Bootstrap settings, or the number of replications.
+
+    Returns
+    -------
+    `NonlinearDidResults`
+        The group, event-study, overall and group-time effects.
+    """
+    bootstrap_config = _make_bootstrap_config(bootstrap_config)
     if isinstance(treatment_group_c, str):
         treatment_group_c = TrtGroupConfig(name=treatment_group_c)
     ds = ds.with_columns(
@@ -394,7 +435,7 @@ def estimate_nonlinear_did_for_panel(
         n_anticipation_periods=n_anticipation_periods,
     )
     estimate: _NonlinearDidAggregations = fcn(ds)
-    bs_iterations = perform_block_bootstrap(
+    bs_iterations = _perform_block_bootstrap(
         ds,
         fcn,
         unit_c,

@@ -77,7 +77,7 @@ def _fast_quantreg(
 
 
 class QuantileRegressionResult:
-    """Fitted coefficients of a :class:`QuantileRegression`.
+    """Fitted coefficients of a `QuantileRegression`.
 
     Parameters
     ----------

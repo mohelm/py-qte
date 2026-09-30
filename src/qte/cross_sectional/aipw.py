@@ -3,9 +3,9 @@ import polars as pl
 from numpy.typing import ArrayLike, NDArray
 
 from qte.constants import PERCENTILES
+from qte.cross_sectional.custom_types import CausalTarget
 from qte.cross_sectional.or_helpers import make_weights, predict_outcome_model
 from qte.cross_sectional.results import _QteIntermediateResult
-from qte.custom_types import CausalTarget
 from qte.names import (
     EFFECT_ID,
     MEAN_CONTROL_ID,

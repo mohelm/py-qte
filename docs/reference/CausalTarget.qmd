@@ -1,6 +1,0 @@
-# CausalTarget { #qte.custom_types.CausalTarget }
-
-```python
-custom_types.CausalTarget()
-```
-

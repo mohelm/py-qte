@@ -5,9 +5,10 @@ import numpy as np
 import polars as pl
 from numpy.typing import ArrayLike
 
-from qte.bootstrap import BootstrapConfig, make_bootstrap_config, perform_bootstrap
+from qte.bootstrap import BootstrapConfig, _make_bootstrap_config, _perform_bootstrap
 from qte.constants import MEDIAN
 from qte.cross_sectional.aipw import compute_aipw_qte
+from qte.cross_sectional.custom_types import CausalTarget, Estimator
 from qte.cross_sectional.ipw import compute_ipw_qte as compute_ipw_qte
 from qte.cross_sectional.or_ import compute_or_qte
 from qte.cross_sectional.results import QteResult
@@ -18,9 +19,7 @@ from qte.cross_sectional.simulate import (
 )
 from qte.cross_sectional.simulate import simulate_simple_data as simulate_simple_data
 from qte.custom_types import (
-    CausalTarget,
     ColumnName,
-    Estimator,
     FormularRhs,
 )
 from qte.names import EFFECT_ID, QUANTILE_ID, SE_ID
@@ -45,7 +44,36 @@ def estimate_simple_qte(
     weight_c: str | None = None,
     bootstrap_config: BootstrapConfig | int = 100,
 ) -> QteResult:
-    bootstrap_config = make_bootstrap_config(bootstrap_config)
+    """Estimate a quantile treatment effect by the simple difference in quantiles.
+
+    Compares the treated and control outcome distributions without covariate
+    adjustment and attaches bootstrap standard errors.
+
+    Parameters
+    ----------
+    ds : polars.DataFrame
+        Input data.
+    outcome_c : str
+        Name of the outcome column.
+    treatment_c : str
+        Name of the binary treatment column (``1`` treated, ``0`` control).
+    qs : array_like, default=0.5
+        Quantiles in ``(0, 1)`` at which to estimate the effect.
+    weight_c : str, optional
+        Name of a column with sampling weights.
+    bootstrap_config : `BootstrapConfig` or int, default=100
+        Bootstrap settings, or the number of replications.
+
+    Returns
+    -------
+    `QteResult`
+        Estimated effects with bootstrap standard errors.
+
+    See Also
+    --------
+    `estimate_ipw_qte`, `estimate_or_qte`, `estimate_aipw_qte`
+    """
+    bootstrap_config = _make_bootstrap_config(bootstrap_config)
     qs = np.array(qs)
     fcn = partial(
         compute_simple_qte,
@@ -55,7 +83,7 @@ def estimate_simple_qte(
         weight_c=weight_c,
     )
     estimate = fcn(ds)
-    bs_it = perform_bootstrap(
+    bs_it = _perform_bootstrap(
         ds,
         fcn=fcn,
         n_iter=bootstrap_config.n_iter,
@@ -84,8 +112,41 @@ def estimate_ipw_qte(
     weight_c: str | None = None,
     bootstrap_config: BootstrapConfig | int = 100,
 ) -> QteResult:
+    """Estimate a quantile treatment effect by inverse probability weighting.
+
+    Reweights the outcome distribution with inverse propensity scores and
+    attaches bootstrap standard errors.
+
+    Parameters
+    ----------
+    ds : polars.DataFrame
+        Input data.
+    outcome_c : str
+        Name of the outcome column.
+    treatment_c : str
+        Name of the binary treatment column (``1`` treated, ``0`` control).
+    qs : array_like, default=0.5
+        Quantiles in ``(0, 1)`` at which to estimate the effect.
+    ps_x_formular : str
+        Right-hand side of the propensity score formula.
+    target : `CausalTarget`, default=`CausalTarget.QTE`
+        Estimand to target, ``QTE`` (population) or ``QTT`` (treated).
+    weight_c : str, optional
+        Name of a column with sampling weights.
+    bootstrap_config : `BootstrapConfig` or int, default=100
+        Bootstrap settings, or the number of replications.
+
+    Returns
+    -------
+    `QteResult`
+        Estimated effects with bootstrap standard errors.
+
+    See Also
+    --------
+    `estimate_simple_qte`, `estimate_or_qte`, `estimate_aipw_qte`
+    """
     qs = np.array(qs)
-    bootstrap_config = make_bootstrap_config(bootstrap_config)
+    bootstrap_config = _make_bootstrap_config(bootstrap_config)
     fcn = partial(
         compute_ipw_qte,
         outcome_c=outcome_c,
@@ -96,7 +157,7 @@ def estimate_ipw_qte(
         target=target,
     )
     estimate = fcn(ds)
-    bs_it = perform_bootstrap(
+    bs_it = _perform_bootstrap(
         ds,
         fcn=fcn,
         n_iter=bootstrap_config.n_iter,
@@ -126,6 +187,39 @@ def estimate_or_qte(
     weights_c: str | None = None,
     bootstrap_config: BootstrapConfig | int = 100,
 ) -> QteResult:
+    """Estimate a quantile treatment effect by outcome regression.
+
+    Predicts the counterfactual outcome distribution from quantile regressions
+    and attaches bootstrap standard errors.
+
+    Parameters
+    ----------
+    ds : polars.DataFrame
+        Input data.
+    outcome_c : str
+        Name of the outcome column.
+    treatment_c : str
+        Name of the binary treatment column (``1`` treated, ``0`` control).
+    qs : array_like, default=0.5
+        Quantiles in ``(0, 1)`` at which to estimate the effect.
+    or_x_formular : str
+        Right-hand side of the outcome regression formula.
+    target : `CausalTarget`, default=`CausalTarget.QTE`
+        Estimand to target, ``QTE`` (population) or ``QTT`` (treated).
+    weights_c : str, optional
+        Name of a column with sampling weights.
+    bootstrap_config : `BootstrapConfig` or int, default=100
+        Bootstrap settings, or the number of replications.
+
+    Returns
+    -------
+    `QteResult`
+        Estimated effects with bootstrap standard errors.
+
+    See Also
+    --------
+    `estimate_simple_qte`, `estimate_ipw_qte`, `estimate_aipw_qte`
+    """
     qs = np.array(qs)
     fcn = partial(
         compute_or_qte,
@@ -137,8 +231,8 @@ def estimate_or_qte(
         target=target,
     )
     estimate = fcn(ds)
-    bootstrap_config = make_bootstrap_config(bootstrap_config)
-    bs_it = perform_bootstrap(
+    bootstrap_config = _make_bootstrap_config(bootstrap_config)
+    bs_it = _perform_bootstrap(
         ds,
         fcn=fcn,
         n_iter=bootstrap_config.n_iter,
@@ -169,6 +263,41 @@ def estimate_aipw_qte(
     weights_c: str | None = None,
     bootstrap_config: BootstrapConfig | int = 100,
 ) -> QteResult:
+    """Estimate a quantile treatment effect by augmented inverse probability weighting.
+
+    Combines the propensity score and outcome regression into a doubly robust
+    estimator and attaches bootstrap standard errors.
+
+    Parameters
+    ----------
+    ds : polars.DataFrame
+        Input data.
+    outcome_c : str
+        Name of the outcome column.
+    treatment_c : str
+        Name of the binary treatment column (``1`` treated, ``0`` control).
+    qs : array_like, default=0.5
+        Quantiles in ``(0, 1)`` at which to estimate the effect.
+    ps_x_formular : str
+        Right-hand side of the propensity score formula.
+    or_x_formular : str
+        Right-hand side of the outcome regression formula.
+    target : `CausalTarget`, default=`CausalTarget.QTE`
+        Estimand to target, ``QTE`` (population) or ``QTT`` (treated).
+    weights_c : str, optional
+        Name of a column with sampling weights.
+    bootstrap_config : `BootstrapConfig` or int, default=100
+        Bootstrap settings, or the number of replications.
+
+    Returns
+    -------
+    `QteResult`
+        Estimated effects with bootstrap standard errors.
+
+    See Also
+    --------
+    `estimate_simple_qte`, `estimate_ipw_qte`, `estimate_or_qte`
+    """
     if weights_c is None:
         weights_c = "_w"
         ds = ds.with_columns(pl.lit(1).alias(weights_c))
@@ -184,8 +313,8 @@ def estimate_aipw_qte(
         target=target,
     )
     estimate = fcn(ds)
-    bootstrap_config = make_bootstrap_config(bootstrap_config)
-    bs_it = perform_bootstrap(
+    bootstrap_config = _make_bootstrap_config(bootstrap_config)
+    bs_it = _perform_bootstrap(
         ds,
         fcn=fcn,
         n_iter=bootstrap_config.n_iter,

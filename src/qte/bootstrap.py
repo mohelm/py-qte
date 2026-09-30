@@ -1,8 +1,11 @@
+"""Bootstrap resampling helpers and the public `BootstrapConfig`."""
+
 import itertools
 from collections.abc import Callable, Iterable, Iterator
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
 from functools import partial
-from typing import NamedTuple, TypeVar
+from typing import TypeVar
 
 import numpy as np
 import polars as pl
@@ -10,15 +13,17 @@ import polars as pl
 T = TypeVar("T")
 
 
-class BootstrapConfig(NamedTuple):
+@dataclass(frozen=True)
+class BootstrapConfig:
     """Configuration for the bootstrap.
 
     Parameters
     ----------
-    n_iter : int
+    n_iter : int, default=100
         Number of bootstrap replications.
     seed : int, optional
-    n_workers : int
+        Seed for the random number generator. ``None`` draws a fresh seed.
+    n_workers : int, default=1
         Number of worker threads.
     """
 
@@ -27,7 +32,8 @@ class BootstrapConfig(NamedTuple):
     n_workers: int = 1
 
 
-def make_bootstrap_config(config: BootstrapConfig | int) -> BootstrapConfig:
+def _make_bootstrap_config(config: BootstrapConfig | int) -> BootstrapConfig:
+    """Coerce an integer shorthand into a `BootstrapConfig`."""
     return config if isinstance(config, BootstrapConfig) else BootstrapConfig(config)
 
 
@@ -67,7 +73,7 @@ def _bootstrap_once[T](ds: pl.DataFrame, fcn: Callable[[pl.DataFrame], T], seed:
     return fcn(ds.sample(fraction=1.0, with_replacement=True, seed=seed))
 
 
-def perform_bootstrap[T](
+def _perform_bootstrap[T](
     ds: pl.DataFrame,
     fcn: Callable[[pl.DataFrame], T],
     *,
@@ -104,7 +110,7 @@ def _block_bootstrap_once[T](
     return fcn(boot_ds)
 
 
-def perform_block_bootstrap[T](
+def _perform_block_bootstrap[T](
     ds: pl.DataFrame,
     fcn: Callable[[pl.DataFrame], T],
     block_id: str,
