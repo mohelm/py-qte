@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>nonlineardidresult – py-qte</title>
+<title>load_engel_with_weights – py-qte</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -3872,7 +3872,7 @@ vertical-align: -.125em;
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../reference/estimate_nonlinear_did_for_panel.html">Nonlinear Difference-in-Differences</a></li><li class="breadcrumb-item"><a href="../reference/NonlinearDidResult.html">NonlinearDidResult</a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../reference/load_lalonde.html">Data</a></li><li class="breadcrumb-item"><a href="../reference/load_engel_with_weights.html">load_engel_with_weights</a></li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
     </div>
@@ -4001,7 +4001,7 @@ vertical-align: -.125em;
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../reference/NonlinearDidResult.html" class="sidebar-item-text sidebar-link active">
+  <a href="../reference/NonlinearDidResult.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">NonlinearDidResult</span></a>
   </div>
 </li>
@@ -4054,7 +4054,7 @@ vertical-align: -.125em;
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../reference/load_engel_with_weights.html" class="sidebar-item-text sidebar-link">
+  <a href="../reference/load_engel_with_weights.html" class="sidebar-item-text sidebar-link active">
  <span class="menu-text">load_engel_with_weights</span></a>
   </div>
 </li>
@@ -4084,140 +4084,18 @@ vertical-align: -.125em;
 <!-- margin-sidebar -->
     
 <!-- main -->
-<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../reference/estimate_nonlinear_did_for_panel.html">Nonlinear Difference-in-Differences</a></li><li class="breadcrumb-item"><a href="../reference/NonlinearDidResult.html">NonlinearDidResult</a></li></ol></nav></header>
+<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../reference/load_lalonde.html">Data</a></li><li class="breadcrumb-item"><a href="../reference/load_engel_with_weights.html">load_engel_with_weights</a></li></ol></nav></header>
 
 
 
 
-<section id="qte.nonlinear_did.NonlinearDidResult" class="level1">
-<h1>NonlinearDidResult</h1>
-<div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>nonlinear_did.NonlinearDidResult(</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    qtt: pl.DataFrame,</span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    att: pl.DataFrame,</span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    outcome: ColumnName,</span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    group: <span class="bu">tuple</span>[<span class="bu">str</span>, ...] <span class="op">|</span> <span class="va">None</span>,</span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    base_period: BasePeriod,</span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    control_group: ControlGroup,</span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>    sampling_scheme: SamplingScheme,</span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>    counterfactual_model: CounterfactualModel,</span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<p>Result for one aggregation of a nonlinear difference-in-differences estimation.</p>
-<p>Use <code>plot</code>, <code>tabulate</code>, <code>summarize</code> or <code>get_as_dataframe</code> to present the estimates. Instances are returned by <a href="../reference/estimate_nonlinear_did_for_panel.html#qte.nonlinear_did.estimate_nonlinear_did_for_panel" title="0"><code>estimate_nonlinear_did_for_panel</code></a>; the constructor is not part of the public API.</p>
-<section id="attributes" class="level2 doc-section doc-section-attributes">
-<h2 class="doc-section doc-section-attributes anchored" data-anchor-id="attributes">Attributes</h2>
-<table class="caption-top table">
-<thead>
-<tr class="header">
-<th>Name</th>
-<th>Type</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>qtt</td>
-<td><code>polars</code>.<code>DataFrame</code></td>
-<td>Quantile-specific effects.</td>
-</tr>
-<tr class="even">
-<td>att</td>
-<td><code>polars</code>.<code>DataFrame</code></td>
-<td>Average treatment effects.</td>
-</tr>
-<tr class="odd">
-<td>outcome</td>
-<td><code>ColumnName</code></td>
-<td>Outcome variable the effect was estimated for.</td>
-</tr>
-<tr class="even">
-<td>group</td>
-<td><code>tuple</code>[<code>str</code>, …] or None</td>
-<td>Columns the estimates are grouped by.</td>
-</tr>
-<tr class="odd">
-<td>base_period</td>
-<td><a href="../reference/BasePeriod.html#qte.nonlinear_did.BasePeriod" title="0"><code>BasePeriod</code></a></td>
-<td>Base period used for the comparisons.</td>
-</tr>
-<tr class="even">
-<td>control_group</td>
-<td><a href="../reference/ControlGroup.html#qte.nonlinear_did.ControlGroup" title="0"><code>ControlGroup</code></a></td>
-<td>Comparison group used for the counterfactual.</td>
-</tr>
-<tr class="odd">
-<td>sampling_scheme</td>
-<td><code>SamplingScheme</code></td>
-<td>Sampling scheme of the input data.</td>
-</tr>
-<tr class="even">
-<td>counterfactual_model</td>
-<td><a href="../reference/CounterfactualModel.html#qte.nonlinear_did.CounterfactualModel" title="0"><code>CounterfactualModel</code></a></td>
-<td>Model used to construct the counterfactual distribution.</td>
-</tr>
-</tbody>
-</table>
-</section>
-<section id="methods" class="level2">
-<h2 class="anchored" data-anchor-id="methods">Methods</h2>
-<table class="caption-top table">
-<thead>
-<tr class="header">
-<th>Name</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><a href="#qte.nonlinear_did.NonlinearDidResult.get_as_dataframe">get_as_dataframe</a></td>
-<td>Return the quantile effects with confidence interval columns.</td>
-</tr>
-<tr class="even">
-<td><a href="#qte.nonlinear_did.NonlinearDidResult.plot">plot</a></td>
-<td>Plot the quantile and average effects with confidence intervals.</td>
-</tr>
-<tr class="odd">
-<td><a href="#qte.nonlinear_did.NonlinearDidResult.summarize">summarize</a></td>
-<td>Render a rich text summary of the estimates.</td>
-</tr>
-<tr class="even">
-<td><a href="#qte.nonlinear_did.NonlinearDidResult.tabulate">tabulate</a></td>
-<td>Build a Great Tables table of the estimates.</td>
-</tr>
-</tbody>
-</table>
-<section id="qte.nonlinear_did.NonlinearDidResult.get_as_dataframe" class="level3">
-<h3 class="anchored" data-anchor-id="qte.nonlinear_did.NonlinearDidResult.get_as_dataframe">get_as_dataframe</h3>
-<div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>nonlinear_did.NonlinearDidResult.get_as_dataframe(alpha: <span class="bu">float</span> <span class="op">=</span> <span class="fl">0.95</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<p>Return the quantile effects with confidence interval columns.</p>
-<section id="parameters" class="level4 doc-section doc-section-parameters">
-<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters">Parameters</h4>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 10%">
-<col style="width: 24%">
-<col style="width: 49%">
-<col style="width: 15%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>Name</th>
-<th>Type</th>
-<th>Description</th>
-<th>Default</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>alpha</td>
-<td><code>float</code></td>
-<td>Confidence level of the intervals.</td>
-<td><code>0.95</code></td>
-</tr>
-</tbody>
-</table>
-</section>
-<section id="returns" class="level4 doc-section doc-section-returns">
-<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns">Returns</h4>
+<section id="qte.datasets.load_engel_with_weights" class="level1">
+<h1>load_engel_with_weights</h1>
+<div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>datasets.load_engel_with_weights()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>Load Engel (1857) food expenditure data with a sampling weights column.</p>
+<p>Mainly used to compare weighted and unweighted quantile regression against <code>quantreg::rq</code> in R. The <code>w</code> column is the inverse probability of selection, where the selection probability decreases with income.</p>
+<section id="returns" class="level2 doc-section doc-section-returns">
+<h2 class="doc-section doc-section-returns anchored" data-anchor-id="returns">Returns</h2>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 6%">
@@ -4235,182 +4113,12 @@ vertical-align: -.125em;
 <tr class="odd">
 <td></td>
 <td><code>polars</code>.<code>DataFrame</code></td>
-<td>Quantile effects with <code>ci_lb</code> and <code>ci_ub</code> columns.</td>
-</tr>
-</tbody>
-</table>
-</section>
-</section>
-<section id="qte.nonlinear_did.NonlinearDidResult.plot" class="level3">
-<h3 class="anchored" data-anchor-id="qte.nonlinear_did.NonlinearDidResult.plot">plot</h3>
-<div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>nonlinear_did.NonlinearDidResult.plot(alpha: <span class="bu">float</span> <span class="op">=</span> <span class="fl">0.95</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<p>Plot the quantile and average effects with confidence intervals.</p>
-<section id="parameters-1" class="level4 doc-section doc-section-parameters">
-<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-1">Parameters</h4>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 10%">
-<col style="width: 24%">
-<col style="width: 49%">
-<col style="width: 15%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>Name</th>
-<th>Type</th>
-<th>Description</th>
-<th>Default</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>alpha</td>
-<td><code>float</code></td>
-<td>Confidence level of the intervals.</td>
-<td><code>0.95</code></td>
-</tr>
-</tbody>
-</table>
-</section>
-<section id="returns-1" class="level4 doc-section doc-section-returns">
-<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-1">Returns</h4>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 9%">
-<col style="width: 52%">
-<col style="width: 38%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>Name</th>
-<th>Type</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td></td>
-<td><code>altair</code>.<code>Chart</code></td>
-<td>Altair chart of the estimates.</td>
-</tr>
-</tbody>
-</table>
-</section>
-</section>
-<section id="qte.nonlinear_did.NonlinearDidResult.summarize" class="level3">
-<h3 class="anchored" data-anchor-id="qte.nonlinear_did.NonlinearDidResult.summarize">summarize</h3>
-<div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>nonlinear_did.NonlinearDidResult.summarize(alpha: <span class="bu">float</span> <span class="op">=</span> <span class="fl">0.95</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<p>Render a rich text summary of the estimates.</p>
-<section id="parameters-2" class="level4 doc-section doc-section-parameters">
-<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-2">Parameters</h4>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 10%">
-<col style="width: 24%">
-<col style="width: 49%">
-<col style="width: 15%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>Name</th>
-<th>Type</th>
-<th>Description</th>
-<th>Default</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>alpha</td>
-<td><code>float</code></td>
-<td>Confidence level of the intervals.</td>
-<td><code>0.95</code></td>
-</tr>
-</tbody>
-</table>
-</section>
-<section id="returns-2" class="level4 doc-section doc-section-returns">
-<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-2">Returns</h4>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 6%">
-<col style="width: 57%">
-<col style="width: 36%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>Name</th>
-<th>Type</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td></td>
-<td><code>rich</code>.<code>console</code>.<code>Group</code></td>
-<td>Rich renderable for terminals and notebooks.</td>
-</tr>
-</tbody>
-</table>
-</section>
-</section>
-<section id="qte.nonlinear_did.NonlinearDidResult.tabulate" class="level3">
-<h3 class="anchored" data-anchor-id="qte.nonlinear_did.NonlinearDidResult.tabulate">tabulate</h3>
-<div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>nonlinear_did.NonlinearDidResult.tabulate(alpha: <span class="bu">float</span> <span class="op">=</span> <span class="fl">0.95</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<p>Build a Great Tables table of the estimates.</p>
-<section id="parameters-3" class="level4 doc-section doc-section-parameters">
-<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-3">Parameters</h4>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 10%">
-<col style="width: 24%">
-<col style="width: 49%">
-<col style="width: 15%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>Name</th>
-<th>Type</th>
-<th>Description</th>
-<th>Default</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>alpha</td>
-<td><code>float</code></td>
-<td>Confidence level of the intervals.</td>
-<td><code>0.95</code></td>
-</tr>
-</tbody>
-</table>
-</section>
-<section id="returns-3" class="level4 doc-section doc-section-returns">
-<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-3">Returns</h4>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 8%">
-<col style="width: 56%">
-<col style="width: 35%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>Name</th>
-<th>Type</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td></td>
-<td><code>great_tables</code>.<code>GT</code></td>
-<td>Formatted table of the estimates.</td>
+<td>Food expenditure data with an additional <code>w</code> column.</td>
 </tr>
 </tbody>
 </table>
 
 
-</section>
-</section>
 </section>
 </section>
 

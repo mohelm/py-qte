@@ -11,7 +11,12 @@
     "href": "reference/load_lalonde.html",
     "title": "load_lalonde",
     "section": "",
-    "text": "load_lalonde\ndatasets.load_lalonde(\n    controls_source: Literal['psid', 'experiment'] = 'psid',\n    use_panel_structure: bool = False,\n)"
+    "text": "datasets.load_lalonde(\n    controls_source: Literal['psid', 'experiment'] = 'psid',\n    use_panel_structure: bool = False,\n)\nLoad the LaLonde (1986) job training dataset.\n\n\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\nDefault\n\n\n\n\ncontrols_source\n(psid, experiment)\nSource of the control group: the PSID comparison sample or the experimental controls.\n\"psid\"\n\n\nuse_panel_structure\nbool\nReturn the panel version of the data instead of the cross-section.\nFalse\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\n\n\n\n\n\npolars.DataFrame\nThe requested LaLonde dataset.",
+    "crumbs": [
+      "Reference",
+      "Data",
+      "load_lalonde"
+    ]
   },
   {
     "objectID": "reference/estimate_simple_qte.html",
@@ -25,7 +30,12 @@
     "href": "reference/estimate_nonlinear_did_for_panel.html",
     "title": "estimate_nonlinear_did_for_panel",
     "section": "",
-    "text": "estimate_nonlinear_did_for_panel\nnonlinear_did.estimate_nonlinear_did_for_panel(\n    ds: pl.DataFrame,\n    outcome_c: ColumnName,\n    treatment_group_c: ColumnName | TrtGroupConfig,\n    time_c: ColumnName,\n    unit_c: ColumnName,\n    qs: ArrayLike = MEDIAN,\n    *,\n    weights_c: str | None = None,\n    n_anticipation_periods: int = 0,\n    base_period: BasePeriod = BasePeriod.UNIVERSAL,\n    control_group: ControlGroup = ControlGroup.NEVER_TREATED,\n    counterfactual_model: CounterfactualModel = CounterfactualModel.CIC,\n    bootstrap_config: BootstrapConfig | int = 1000,\n)"
+    "text": "nonlinear_did.estimate_nonlinear_did_for_panel(\n    ds: pl.DataFrame,\n    outcome: ColumnName,\n    treatment_group: ColumnName | TrtGroupConfig,\n    time: ColumnName,\n    unit: ColumnName,\n    qs: ArrayLike = MEDIAN,\n    *,\n    weights: ColumnName | None = None,\n    n_anticipation_periods: int = 0,\n    base_period: BasePeriod = BasePeriod.UNIVERSAL,\n    control_group: ControlGroup = ControlGroup.NEVER_TREATED,\n    counterfactual_model: CounterfactualModel = CounterfactualModel.CIC,\n    bootstrap_config: BootstrapConfig | int = 1000,\n)\nEstimate nonlinear difference-in-differences effects for panel data.\nImplements the changes-in-changes (CiC) and quantile difference-in-differences (QDiD) estimators with the aggregations of Callaway and Li. Returns the group, event-study, overall and group-time effects.\n\n\n\n\n\nName\nType\nDescription\nDefault\n\n\n\n\nds\npolars.DataFrame\nPanel data in long format.\nrequired\n\n\noutcome\nColumnName\nName of the outcome column.\nrequired\n\n\ntreatment_group\nColumnName or TrtGroupConfig\nColumn holding the first treatment period of a unit. A plain string treats the column as already coded with inf for never-treated units; a TrtGroupConfig maps a custom never-treated value to inf.\nrequired\n\n\ntime\nColumnName\nName of the time period column.\nrequired\n\n\nunit\nColumnName\nName of the unit identifier column.\nrequired\n\n\nqs\narray_like\nQuantiles in (0, 1) at which to estimate the effects.\n0.5\n\n\nweights\nColumnName\nName of a column with sampling weights.\nNone\n\n\nn_anticipation_periods\nint\nNumber of periods before treatment in which units may anticipate it.\n0\n\n\nbase_period\nBasePeriod\nPre-treatment period used for the comparisons.\nBasePeriod.UNIVERSAL\n\n\ncontrol_group\nControlGroup\nComparison group used for the counterfactual.\nControlGroup.NEVER_TREATED\n\n\ncounterfactual_model\nCounterfactualModel\nModel used to construct the counterfactual distribution.\nCounterfactualModel.CIC\n\n\nbootstrap_config\nBootstrapConfig or int\nBootstrap settings, or the number of replications.\n1000\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\n\n\n\n\n\nNonlinearDidResults\nThe group, event-study, overall and group-time effects.",
+    "crumbs": [
+      "Reference",
+      "Nonlinear Difference-in-Differences",
+      "estimate_nonlinear_did_for_panel"
+    ]
   },
   {
     "objectID": "reference/estimate_aipw_qte.html",
@@ -39,35 +49,60 @@
     "href": "reference/QteResult.html",
     "title": "QteResult",
     "section": "",
-    "text": "QteResult\ncross_sectional.QteResult(\n    qtt: pl.DataFrame,\n    att: pl.DataFrame,\n    outcome: str,\n    group: tuple[str] | tuple[str, str] | None,\n    estimator: Estimator,\n    causal_target: CausalTarget,\n    ps_x_formular: FormularRhs | None = None,\n    or_x_formular: FormularRhs | None = None,\n)"
+    "text": "cross_sectional.QteResult(\n    qtt: pl.DataFrame,\n    att: pl.DataFrame,\n    outcome: ColumnName,\n    group: tuple[str] | tuple[str, str] | None,\n    estimator: Estimator,\n    causal_target: CausalTarget,\n    propensity_score_formula: FormulaRhs | None = None,\n    outcome_regression_formula: FormulaRhs | None = None,\n)\nResult of a cross-sectional quantile treatment effect estimation.\nUse plot, tabulate, summarize or get_as_dataframe to present the estimates. Instances are returned by the estimate_* functions; the constructor is not part of the public API.\n\n\n\n\n\nName\nType\nDescription\n\n\n\n\nqtt\npolars.DataFrame\nQuantile-specific effects, one row per quantile.\n\n\natt\npolars.DataFrame\nAverage treatment effects.\n\n\noutcome\nColumnName\nOutcome variable the effect was estimated for.\n\n\ngroup\ntuple[str, …] or None\nColumns the estimates are grouped by.\n\n\nestimator\nEstimator\nEstimator that produced the result.\n\n\ncausal_target\nCausalTarget\nEstimand that was targeted.\n\n\npropensity_score_formula\n(FormulaRhs, optional)\nPropensity score formula, when applicable.\n\n\noutcome_regression_formula\n(FormulaRhs, optional)\nOutcome regression formula, when applicable.\n\n\n\n\n\n\n\n\n\nName\nDescription\n\n\n\n\nget_as_dataframe\nReturn the quantile effects with confidence interval columns.\n\n\nplot\nPlot the quantile and average effects with confidence intervals.\n\n\nsummarize\nRender a rich text summary of the estimates.\n\n\ntabulate\nBuild a Great Tables table of the estimates.\n\n\n\n\n\ncross_sectional.QteResult.get_as_dataframe(alpha: float = 0.95)\nReturn the quantile effects with confidence interval columns.\n\n\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\nDefault\n\n\n\n\nalpha\nfloat\nConfidence level of the intervals.\n0.95\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\n\n\n\n\n\npolars.DataFrame\nQuantile effects with ci_lb and ci_ub columns.\n\n\n\n\n\n\n\ncross_sectional.QteResult.plot(alpha: float = 0.95)\nPlot the quantile and average effects with confidence intervals.\n\n\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\nDefault\n\n\n\n\nalpha\nfloat\nConfidence level of the intervals.\n0.95\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\n\n\n\n\n\naltair.Chart\nAltair chart of the estimates.\n\n\n\n\n\n\n\ncross_sectional.QteResult.summarize(alpha: float = 0.95)\nRender a rich text summary of the estimates.\n\n\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\nDefault\n\n\n\n\nalpha\nfloat\nConfidence level of the intervals.\n0.95\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\n\n\n\n\n\nrich.console.Group\nRich renderable for terminals and notebooks.\n\n\n\n\n\n\n\ncross_sectional.QteResult.tabulate(alpha: float = 0.95)\nBuild a Great Tables table of the estimates.\n\n\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\nDefault\n\n\n\n\nalpha\nfloat\nConfidence level of the intervals.\n0.95\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\n\n\n\n\n\ngreat_tables.GT\nFormatted table of the estimates.",
+    "crumbs": [
+      "Reference",
+      "Cross-Sectional Estimators",
+      "QteResult"
+    ]
   },
   {
     "objectID": "reference/Estimator.html",
     "href": "reference/Estimator.html",
     "title": "Estimator",
     "section": "",
-    "text": "Estimator\ncustom_types.Estimator()"
+    "text": "class Estimator(StrEnum):\n    UNADJUSTED = 'unadjusted'\n    IPW = 'ipw'\n    OR = 'or'\n    AIPW = 'aipw'\nCross-sectional estimator that produced a result.\nThis is an output field: read it from result.estimator to see how an estimate was produced, and compare it against a member.\n\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\n\n\n\n\nUNADJUSTED\n\nDifference in group quantiles without covariate adjustment.\n\n\nIPW\n\nInverse probability weighting.\n\n\nOR\n\nOutcome regression.\n\n\nAIPW\n\nAugmented inverse probability weighting.\n\n\n\n\n\n\nInspect which estimator produced a result:\n&gt;&gt;&gt; from qte.cross_sectional import Estimator, estimate_unadjusted_effects\n&gt;&gt;&gt; from qte.datasets import load_lalonde\n&gt;&gt;&gt; res = estimate_unadjusted_effects(load_lalonde(), \"re78\", \"treat\")\n&gt;&gt;&gt; res.estimator is Estimator.UNADJUSTED\nTrue",
+    "crumbs": [
+      "Reference",
+      "Cross-Sectional Estimators",
+      "Estimator"
+    ]
   },
   {
     "objectID": "reference/ControlGroup.html",
     "href": "reference/ControlGroup.html",
     "title": "ControlGroup",
     "section": "",
-    "text": "ControlGroup\nnonlinear_did.ControlGroup()"
+    "text": "class ControlGroup(StrEnum):\n    NOT_YET_TREATED = 'not_yet_treated'\n    NEVER_TREATED = 'never_treated'\nComparison group used for the counterfactual.\nUse a member as the control_group argument of estimate_nonlinear_did_for_panel.\n\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\n\n\n\n\nNOT_YET_TREATED\n\nUnits not yet treated at the time period of interest.\n\n\nNEVER_TREATED\n\nUnits that are never treated.\n\n\n\n\n\n\nUse not-yet-treated units as the comparison group:\n&gt;&gt;&gt; from qte.datasets import load_mpdta\n&gt;&gt;&gt; from qte.nonlinear_did import ControlGroup, estimate_nonlinear_did_for_panel\n&gt;&gt;&gt; res = estimate_nonlinear_did_for_panel(\n...     load_mpdta(),\n...     \"lemp\",\n...     \"first.treat\",\n...     \"year\",\n...     \"countyreal\",\n...     control_group=ControlGroup.NOT_YET_TREATED,\n... )",
+    "crumbs": [
+      "Reference",
+      "Nonlinear Difference-in-Differences",
+      "ControlGroup"
+    ]
   },
   {
     "objectID": "reference/BootstrapConfig.html",
     "href": "reference/BootstrapConfig.html",
     "title": "BootstrapConfig",
     "section": "",
-    "text": "bootstrap.BootstrapConfig()\nConfiguration for the bootstrap.\n\n\n\n\n\nName\nType\nDescription\nDefault\n\n\n\n\nn_iter\nint\nNumber of bootstrap replications.\nrequired\n\n\nseed\nint\n\nrequired\n\n\nn_workers\nint\nNumber of worker threads.\nrequired"
+    "text": "bootstrap.BootstrapConfig(\n    n_iter: int = 100,\n    seed: int | None = None,\n    n_workers: int = 1,\n)\nConfiguration for the bootstrap.\n\n\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\nDefault\n\n\n\n\nn_iter\nint\nNumber of bootstrap replications.\n100\n\n\nseed\nint\nSeed for the random number generator. None draws a fresh seed.\nNone\n\n\nn_workers\nint\nNumber of worker threads.\n1",
+    "crumbs": [
+      "Reference",
+      "Bootstrap",
+      "BootstrapConfig"
+    ]
   },
   {
     "objectID": "reference/BootstrapConfig.html#parameters",
     "href": "reference/BootstrapConfig.html#parameters",
     "title": "BootstrapConfig",
     "section": "",
-    "text": "Name\nType\nDescription\nDefault\n\n\n\n\nn_iter\nint\nNumber of bootstrap replications.\nrequired\n\n\nseed\nint\n\nrequired\n\n\nn_workers\nint\nNumber of worker threads.\nrequired"
+    "text": "Name\nType\nDescription\nDefault\n\n\n\n\nn_iter\nint\nNumber of bootstrap replications.\n100\n\n\nseed\nint\nSeed for the random number generator. None draws a fresh seed.\nNone\n\n\nn_workers\nint\nNumber of worker threads.\n1",
+    "crumbs": [
+      "Reference",
+      "Bootstrap",
+      "BootstrapConfig"
+    ]
   },
   {
     "objectID": "index.html",
@@ -116,35 +151,60 @@
     "href": "reference/BasePeriod.html",
     "title": "BasePeriod",
     "section": "",
-    "text": "BasePeriod\nnonlinear_did.BasePeriod()"
+    "text": "class BasePeriod(StrEnum):\n    UNIVERSAL = 'universal'\n    VARYING = 'varying'\nPre-treatment period the post-treatment effect is compared to.\nUse a member as the base_period argument of estimate_nonlinear_did_for_panel.\n\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\n\n\n\n\nUNIVERSAL\n\nAlways compare to the same, earliest pre-treatment period.\n\n\nVARYING\n\nCompare to the immediately preceding pre-treatment period.\n\n\n\n\n\n\nCompare each period to the immediately preceding one:\n&gt;&gt;&gt; from qte.datasets import load_mpdta\n&gt;&gt;&gt; from qte.nonlinear_did import BasePeriod, estimate_nonlinear_did_for_panel\n&gt;&gt;&gt; res = estimate_nonlinear_did_for_panel(\n...     load_mpdta(),\n...     \"lemp\",\n...     \"first.treat\",\n...     \"year\",\n...     \"countyreal\",\n...     base_period=BasePeriod.VARYING,\n... )",
+    "crumbs": [
+      "Reference",
+      "Nonlinear Difference-in-Differences",
+      "BasePeriod"
+    ]
   },
   {
     "objectID": "reference/CausalTarget.html",
     "href": "reference/CausalTarget.html",
     "title": "CausalTarget",
     "section": "",
-    "text": "CausalTarget\ncustom_types.CausalTarget()"
+    "text": "class CausalTarget(StrEnum):\n    QTE = 'qte'\n    QTT = 'qtt'\nCausal estimand a cross-sectional estimator targets.\nUse a member as the target argument of the cross-sectional estimators, for example CausalTarget.QTT.\n\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\n\n\n\n\nQTE\n\nQuantile treatment effect for the whole population.\n\n\nQTT\n\nQuantile treatment effect on the treated.\n\n\n\n\n\n\nTarget the effect on the treated instead of the whole population:\n&gt;&gt;&gt; from qte.cross_sectional import CausalTarget, estimate_ipw_effects\n&gt;&gt;&gt; from qte.datasets import load_lalonde\n&gt;&gt;&gt; res = estimate_ipw_effects(\n...     load_lalonde(),\n...     \"re78\",\n...     \"treat\",\n...     propensity_score_formula=\"age + education\",\n...     target=CausalTarget.QTT,\n... )",
+    "crumbs": [
+      "Reference",
+      "Cross-Sectional Estimators",
+      "CausalTarget"
+    ]
   },
   {
     "objectID": "reference/CounterfactualModel.html",
     "href": "reference/CounterfactualModel.html",
     "title": "CounterfactualModel",
     "section": "",
-    "text": "CounterfactualModel\nnonlinear_did.CounterfactualModel()"
+    "text": "class CounterfactualModel(StrEnum):\n    CIC = 'cic'\n    QDID = 'qdid'\nModel used to construct the counterfactual distribution.\nUse a member as the counterfactual_model argument of estimate_nonlinear_did_for_panel.\n\n\n\n\n\nName\nType\nDescription\n\n\n\n\nCIC\n\nChanges-in-changes.\n\n\nQDID\n\nQuantile difference-in-differences.\n\n\n\n\n\n\nUse quantile difference-in-differences instead of changes-in-changes:\n&gt;&gt;&gt; from qte.datasets import load_mpdta\n&gt;&gt;&gt; from qte.nonlinear_did import CounterfactualModel, estimate_nonlinear_did_for_panel\n&gt;&gt;&gt; res = estimate_nonlinear_did_for_panel(\n...     load_mpdta(),\n...     \"lemp\",\n...     \"first.treat\",\n...     \"year\",\n...     \"countyreal\",\n...     counterfactual_model=CounterfactualModel.QDID,\n... )",
+    "crumbs": [
+      "Reference",
+      "Nonlinear Difference-in-Differences",
+      "CounterfactualModel"
+    ]
   },
   {
     "objectID": "reference/NonlinearDidResult.html",
     "href": "reference/NonlinearDidResult.html",
     "title": "NonlinearDidResult",
     "section": "",
-    "text": "NonlinearDidResult\nnonlinear_did.NonlinearDidResult(\n    qtt: pl.DataFrame,\n    att: pl.DataFrame,\n    outcome: str,\n    group: tuple[str, ...] | None,\n    base_period: BasePeriod,\n    control_group: ControlGroup,\n    sampling_scheme: SamplingScheme,\n    counterfactual_model: CounterfactualModel,\n)"
+    "text": "nonlinear_did.NonlinearDidResult(\n    qtt: pl.DataFrame,\n    att: pl.DataFrame,\n    outcome: ColumnName,\n    group: tuple[str, ...] | None,\n    base_period: BasePeriod,\n    control_group: ControlGroup,\n    sampling_scheme: SamplingScheme,\n    counterfactual_model: CounterfactualModel,\n)\nResult for one aggregation of a nonlinear difference-in-differences estimation.\nUse plot, tabulate, summarize or get_as_dataframe to present the estimates. Instances are returned by estimate_nonlinear_did_for_panel; the constructor is not part of the public API.\n\n\n\n\n\nName\nType\nDescription\n\n\n\n\nqtt\npolars.DataFrame\nQuantile-specific effects.\n\n\natt\npolars.DataFrame\nAverage treatment effects.\n\n\noutcome\nColumnName\nOutcome variable the effect was estimated for.\n\n\ngroup\ntuple[str, …] or None\nColumns the estimates are grouped by.\n\n\nbase_period\nBasePeriod\nBase period used for the comparisons.\n\n\ncontrol_group\nControlGroup\nComparison group used for the counterfactual.\n\n\nsampling_scheme\nSamplingScheme\nSampling scheme of the input data.\n\n\ncounterfactual_model\nCounterfactualModel\nModel used to construct the counterfactual distribution.\n\n\n\n\n\n\n\n\n\nName\nDescription\n\n\n\n\nget_as_dataframe\nReturn the quantile effects with confidence interval columns.\n\n\nplot\nPlot the quantile and average effects with confidence intervals.\n\n\nsummarize\nRender a rich text summary of the estimates.\n\n\ntabulate\nBuild a Great Tables table of the estimates.\n\n\n\n\n\nnonlinear_did.NonlinearDidResult.get_as_dataframe(alpha: float = 0.95)\nReturn the quantile effects with confidence interval columns.\n\n\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\nDefault\n\n\n\n\nalpha\nfloat\nConfidence level of the intervals.\n0.95\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\n\n\n\n\n\npolars.DataFrame\nQuantile effects with ci_lb and ci_ub columns.\n\n\n\n\n\n\n\nnonlinear_did.NonlinearDidResult.plot(alpha: float = 0.95)\nPlot the quantile and average effects with confidence intervals.\n\n\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\nDefault\n\n\n\n\nalpha\nfloat\nConfidence level of the intervals.\n0.95\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\n\n\n\n\n\naltair.Chart\nAltair chart of the estimates.\n\n\n\n\n\n\n\nnonlinear_did.NonlinearDidResult.summarize(alpha: float = 0.95)\nRender a rich text summary of the estimates.\n\n\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\nDefault\n\n\n\n\nalpha\nfloat\nConfidence level of the intervals.\n0.95\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\n\n\n\n\n\nrich.console.Group\nRich renderable for terminals and notebooks.\n\n\n\n\n\n\n\nnonlinear_did.NonlinearDidResult.tabulate(alpha: float = 0.95)\nBuild a Great Tables table of the estimates.\n\n\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\nDefault\n\n\n\n\nalpha\nfloat\nConfidence level of the intervals.\n0.95\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\n\n\n\n\n\ngreat_tables.GT\nFormatted table of the estimates.",
+    "crumbs": [
+      "Reference",
+      "Nonlinear Difference-in-Differences",
+      "NonlinearDidResult"
+    ]
   },
   {
     "objectID": "reference/TrtGroupConfig.html",
     "href": "reference/TrtGroupConfig.html",
     "title": "TrtGroupConfig",
     "section": "",
-    "text": "TrtGroupConfig\nnonlinear_did.TrtGroupConfig()"
+    "text": "nonlinear_did.TrtGroupConfig(\n    name: ColumnName,\n    never_treated_identifier: float = float('inf'),\n)\nLazy configuration for the treatment group column.\n\n\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\nDefault\n\n\n\n\nname\nstr\nName of the column holding the first treatment period of a unit.\nrequired\n\n\nnever_treated_identifier\nfloat\nValue in name marking never-treated units. It is mapped to inf internally.\ninf",
+    "crumbs": [
+      "Reference",
+      "Nonlinear Difference-in-Differences",
+      "TrtGroupConfig"
+    ]
   },
   {
     "objectID": "reference/estimate_ipw_qte.html",
@@ -165,35 +225,55 @@
     "href": "reference/index.html",
     "title": "Function reference",
     "section": "",
-    "text": "estimate_simple_qte\n\n\n\nestimate_ipw_qte\n\n\n\nestimate_or_qte\n\n\n\nestimate_aipw_qte\n\n\n\nQteResult\n\n\n\n\n\n\n\n\n\n\nestimate_nonlinear_did_for_panel\n\n\n\nTrtGroupConfig\n\n\n\nCounterfactualModel\n\n\n\nControlGroup\n\n\n\nBasePeriod\n\n\n\nNonlinearDidResult\n\n\n\n\n\n\n\n\n\n\nload_lalonde\n\n\n\nload_mpdta\nLoad the minimum wage panel dataset (mpdta) used in the did and qte packages.\n\n\n\n\n\n\n\n\n\nBootstrapConfig\nConfiguration for the bootstrap.\n\n\nperform_bootstrap\n\n\n\n\n\n\n\n\n\n\nCausalTarget\n\n\n\nEstimator"
+    "text": "Quantile treatment effect estimators for cross-sectional data (qte.cross_sectional).\n\n\n\nestimate_unadjusted_effects\nEstimate a quantile treatment effect by the unadjusted difference in quantiles.\n\n\nestimate_ipw_effects\nEstimate a quantile treatment effect by inverse probability weighting.\n\n\nestimate_outcome_regression_effects\nEstimate a quantile treatment effect by outcome regression.\n\n\nestimate_aipw_effects\nEstimate a quantile treatment effect by augmented inverse probability weighting.\n\n\nQteResult\nResult of a cross-sectional quantile treatment effect estimation.\n\n\nCausalTarget\nCausal estimand a cross-sectional estimator targets.\n\n\nEstimator\nCross-sectional estimator that produced a result.\n\n\n\n\n\n\nSimulation functions for the cross-sectional estimators (qte.cross_sectional.simulate).\n\n\n\nsimulate_simple_data\nSimulate a randomised experiment without covariates.\n\n\nsimulate_covariate_data\nSimulate the fixed observational setting with covariates.\n\n\nget_true_quantiles\nSimulation-based potential-outcome quantiles and the quantile effect.\n\n\nget_true_means\nSimulation-based potential-outcome means and the average effect.\n\n\n\n\n\n\nChanges-in-changes and quantile difference-in-differences estimators for panel data (qte.nonlinear_did).\n\n\n\nestimate_nonlinear_did_for_panel\nEstimate nonlinear difference-in-differences effects for panel data.\n\n\nNonlinearDidResults\nThe four aggregations returned by estimate_nonlinear_did_for_panel.\n\n\nNonlinearDidResult\nResult for one aggregation of a nonlinear difference-in-differences estimation.\n\n\nTrtGroupConfig\nLazy configuration for the treatment group column.\n\n\nCounterfactualModel\nModel used to construct the counterfactual distribution.\n\n\nControlGroup\nComparison group used for the counterfactual.\n\n\nBasePeriod\nPre-treatment period the post-treatment effect is compared to.\n\n\n\n\n\n\nDatasets bundled with py-qte (qte.datasets).\n\n\n\nload_lalonde\nLoad the LaLonde (1986) job training dataset.\n\n\nload_mpdta\nLoad the minimum wage panel dataset (mpdta).\n\n\nload_engel_with_weights\nLoad Engel (1857) food expenditure data with a sampling weights column.\n\n\n\n\n\n\nShared bootstrap configuration for the estimators (qte.bootstrap).\n\n\n\nBootstrapConfig\nConfiguration for the bootstrap.",
+    "crumbs": [
+      "Reference",
+      "Function reference"
+    ]
   },
   {
     "objectID": "reference/index.html#cross-sectional-estimators",
     "href": "reference/index.html#cross-sectional-estimators",
     "title": "Function reference",
     "section": "",
-    "text": "estimate_simple_qte\n\n\n\nestimate_ipw_qte\n\n\n\nestimate_or_qte\n\n\n\nestimate_aipw_qte\n\n\n\nQteResult"
+    "text": "Quantile treatment effect estimators for cross-sectional data (qte.cross_sectional).\n\n\n\nestimate_unadjusted_effects\nEstimate a quantile treatment effect by the unadjusted difference in quantiles.\n\n\nestimate_ipw_effects\nEstimate a quantile treatment effect by inverse probability weighting.\n\n\nestimate_outcome_regression_effects\nEstimate a quantile treatment effect by outcome regression.\n\n\nestimate_aipw_effects\nEstimate a quantile treatment effect by augmented inverse probability weighting.\n\n\nQteResult\nResult of a cross-sectional quantile treatment effect estimation.\n\n\nCausalTarget\nCausal estimand a cross-sectional estimator targets.\n\n\nEstimator\nCross-sectional estimator that produced a result.",
+    "crumbs": [
+      "Reference",
+      "Function reference"
+    ]
   },
   {
     "objectID": "reference/index.html#nonlinear-difference-in-differences",
     "href": "reference/index.html#nonlinear-difference-in-differences",
     "title": "Function reference",
     "section": "",
-    "text": "estimate_nonlinear_did_for_panel\n\n\n\nTrtGroupConfig\n\n\n\nCounterfactualModel\n\n\n\nControlGroup\n\n\n\nBasePeriod\n\n\n\nNonlinearDidResult"
+    "text": "Changes-in-changes and quantile difference-in-differences estimators for panel data (qte.nonlinear_did).\n\n\n\nestimate_nonlinear_did_for_panel\nEstimate nonlinear difference-in-differences effects for panel data.\n\n\nNonlinearDidResults\nThe four aggregations returned by estimate_nonlinear_did_for_panel.\n\n\nNonlinearDidResult\nResult for one aggregation of a nonlinear difference-in-differences estimation.\n\n\nTrtGroupConfig\nLazy configuration for the treatment group column.\n\n\nCounterfactualModel\nModel used to construct the counterfactual distribution.\n\n\nControlGroup\nComparison group used for the counterfactual.\n\n\nBasePeriod\nPre-treatment period the post-treatment effect is compared to.",
+    "crumbs": [
+      "Reference",
+      "Function reference"
+    ]
   },
   {
     "objectID": "reference/index.html#data",
     "href": "reference/index.html#data",
     "title": "Function reference",
     "section": "",
-    "text": "load_lalonde\n\n\n\nload_mpdta\nLoad the minimum wage panel dataset (mpdta) used in the did and qte packages."
+    "text": "Datasets bundled with py-qte (qte.datasets).\n\n\n\nload_lalonde\nLoad the LaLonde (1986) job training dataset.\n\n\nload_mpdta\nLoad the minimum wage panel dataset (mpdta).\n\n\nload_engel_with_weights\nLoad Engel (1857) food expenditure data with a sampling weights column.",
+    "crumbs": [
+      "Reference",
+      "Function reference"
+    ]
   },
   {
     "objectID": "reference/index.html#bootstrap",
     "href": "reference/index.html#bootstrap",
     "title": "Function reference",
     "section": "",
-    "text": "BootstrapConfig\nConfiguration for the bootstrap.\n\n\nperform_bootstrap"
+    "text": "Shared bootstrap configuration for the estimators (qte.bootstrap).\n\n\n\nBootstrapConfig\nConfiguration for the bootstrap.",
+    "crumbs": [
+      "Reference",
+      "Function reference"
+    ]
   },
   {
     "objectID": "reference/index.html#types",
@@ -207,6 +287,646 @@
     "href": "reference/load_mpdta.html",
     "title": "load_mpdta",
     "section": "",
-    "text": "load_mpdta\ndatasets.load_mpdta()\nLoad the minimum wage panel dataset (mpdta) used in the did and qte packages.\nContains county-level teen employment data from 2003-2007."
+    "text": "datasets.load_mpdta()\nLoad the minimum wage panel dataset (mpdta).\nCounty-level teen employment data from 2003 to 2007, used in the did and qte R packages.\n\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\n\n\n\n\n\npolars.DataFrame\nCounty-year panel of teen employment and minimum wage variables.",
+    "crumbs": [
+      "Reference",
+      "Data",
+      "load_mpdta"
+    ]
+  },
+  {
+    "objectID": "reference/simulate_simple_data.html",
+    "href": "reference/simulate_simple_data.html",
+    "title": "simulate_simple_data",
+    "section": "",
+    "text": "cross_sectional.simulate.simulate_simple_data(\n    n: int = 1000,\n    *,\n    treatment_effect: float = 1.0,\n    treatment_share: float = 0.5,\n    error_var: float = 1.0,\n    seed: int | None = None,\n)\nSimulate a randomised experiment without covariates.\n\n\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\nDefault\n\n\n\n\nn\nint\nNumber of units.\n1000\n\n\ntreatment_effect\nfloat\nConstant shift of the treated outcome; the true QTE and ATT equal it.\n1.0\n\n\ntreatment_share\nfloat\nProbability of treatment.\n0.5\n\n\nerror_var\nfloat\nVariance of the error term.\n1.0\n\n\nseed\nint\nSeed for numpy.random.default_rng.\nNone\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\n\n\n\n\n\npolars.DataFrame\nColumns treat and y.",
+    "crumbs": [
+      "Reference",
+      "Simulation",
+      "simulate_simple_data"
+    ]
+  },
+  {
+    "objectID": "reference/simulate_simple_data.html#parameters",
+    "href": "reference/simulate_simple_data.html#parameters",
+    "title": "simulate_simple_data",
+    "section": "",
+    "text": "Name\nType\nDescription\nDefault\n\n\n\n\nn\nint\nNumber of units.\n1000\n\n\ntreatment_effect\nfloat\nConstant shift of the treated outcome; the true QTE and ATT equal it.\n1.0\n\n\ntreatment_share\nfloat\nProbability of treatment.\n0.5\n\n\nerror_var\nfloat\nVariance of the error term.\n1.0\n\n\nseed\nint\nSeed for numpy.random.default_rng.\nNone",
+    "crumbs": [
+      "Reference",
+      "Simulation",
+      "simulate_simple_data"
+    ]
+  },
+  {
+    "objectID": "reference/simulate_simple_data.html#returns",
+    "href": "reference/simulate_simple_data.html#returns",
+    "title": "simulate_simple_data",
+    "section": "",
+    "text": "Name\nType\nDescription\n\n\n\n\n\npolars.DataFrame\nColumns treat and y.",
+    "crumbs": [
+      "Reference",
+      "Simulation",
+      "simulate_simple_data"
+    ]
+  },
+  {
+    "objectID": "reference/load_mpdta.html#returns",
+    "href": "reference/load_mpdta.html#returns",
+    "title": "load_mpdta",
+    "section": "",
+    "text": "Name\nType\nDescription\n\n\n\n\n\npolars.DataFrame\nCounty-year panel of teen employment and minimum wage variables.",
+    "crumbs": [
+      "Reference",
+      "Data",
+      "load_mpdta"
+    ]
+  },
+  {
+    "objectID": "reference/load_engel_with_weights.html",
+    "href": "reference/load_engel_with_weights.html",
+    "title": "load_engel_with_weights",
+    "section": "",
+    "text": "datasets.load_engel_with_weights()\nLoad Engel (1857) food expenditure data with a sampling weights column.\nMainly used to compare weighted and unweighted quantile regression against quantreg::rq in R. The w column is the inverse probability of selection, where the selection probability decreases with income.\n\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\n\n\n\n\n\npolars.DataFrame\nFood expenditure data with an additional w column.",
+    "crumbs": [
+      "Reference",
+      "Data",
+      "load_engel_with_weights"
+    ]
+  },
+  {
+    "objectID": "reference/load_engel_with_weights.html#returns",
+    "href": "reference/load_engel_with_weights.html#returns",
+    "title": "load_engel_with_weights",
+    "section": "",
+    "text": "Name\nType\nDescription\n\n\n\n\n\npolars.DataFrame\nFood expenditure data with an additional w column.",
+    "crumbs": [
+      "Reference",
+      "Data",
+      "load_engel_with_weights"
+    ]
+  },
+  {
+    "objectID": "reference/get_true_quantiles.html",
+    "href": "reference/get_true_quantiles.html",
+    "title": "get_true_quantiles",
+    "section": "",
+    "text": "cross_sectional.simulate.get_true_quantiles(\n    qs: ArrayLike = MEDIAN,\n    *,\n    target: CausalTarget = CausalTarget.QTE,\n    n_oracle: int = 1000000,\n    effect_scale: float = 1.0,\n    error_var: float = 1.0,\n    seed: int = 0,\n)\nSimulation-based potential-outcome quantiles and the quantile effect.\nThe truth is recovered by simulating n_oracle units and taking empirical quantiles. With target=QTT the treated subsample is used.\n\n\n\n\n\nName\nType\nDescription\nDefault\n\n\n\n\nqs\narray_like\nProbabilities in (0, 1).\nMEDIAN\n\n\ntarget\nCausalTarget\nQTE for the population, QTT for the treated.\nCausalTarget.QTE\n\n\nn_oracle\nint\nSize of the simulated population.\n1000000\n\n\neffect_scale\nfloat\nTreatment effect scale used in simulate_covariate_data.\n1.0\n\n\nerror_var\nfloat\nError variance used in simulate_covariate_data.\n1.0\n\n\nseed\nint\nSeed for the simulated population.\n0\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\n\n\n\n\n\npolars.DataFrame\nColumns q, q_t, q_c and effect (q_t - q_c).",
+    "crumbs": [
+      "Reference",
+      "Simulation",
+      "get_true_quantiles"
+    ]
+  },
+  {
+    "objectID": "reference/get_true_quantiles.html#parameters",
+    "href": "reference/get_true_quantiles.html#parameters",
+    "title": "get_true_quantiles",
+    "section": "",
+    "text": "Name\nType\nDescription\nDefault\n\n\n\n\nqs\narray_like\nProbabilities in (0, 1).\nMEDIAN\n\n\ntarget\nCausalTarget\nQTE for the population, QTT for the treated.\nCausalTarget.QTE\n\n\nn_oracle\nint\nSize of the simulated population.\n1000000\n\n\neffect_scale\nfloat\nTreatment effect scale used in simulate_covariate_data.\n1.0\n\n\nerror_var\nfloat\nError variance used in simulate_covariate_data.\n1.0\n\n\nseed\nint\nSeed for the simulated population.\n0",
+    "crumbs": [
+      "Reference",
+      "Simulation",
+      "get_true_quantiles"
+    ]
+  },
+  {
+    "objectID": "reference/get_true_quantiles.html#returns",
+    "href": "reference/get_true_quantiles.html#returns",
+    "title": "get_true_quantiles",
+    "section": "",
+    "text": "Name\nType\nDescription\n\n\n\n\n\npolars.DataFrame\nColumns q, q_t, q_c and effect (q_t - q_c).",
+    "crumbs": [
+      "Reference",
+      "Simulation",
+      "get_true_quantiles"
+    ]
+  },
+  {
+    "objectID": "reference/estimate_unadjusted_effects.html",
+    "href": "reference/estimate_unadjusted_effects.html",
+    "title": "estimate_unadjusted_effects",
+    "section": "",
+    "text": "cross_sectional.estimate_unadjusted_effects(\n    ds: pl.DataFrame,\n    outcome: ColumnName,\n    treatment: ColumnName,\n    qs: ArrayLike = MEDIAN,\n    *,\n    weights: ColumnName | None = None,\n    bootstrap_config: BootstrapConfig | int = 100,\n)\nEstimate a quantile treatment effect by the unadjusted difference in quantiles.\nCompares the treated and control outcome distributions without covariate adjustment and attaches bootstrap standard errors.\n\n\n\n\n\nName\nType\nDescription\nDefault\n\n\n\n\nds\npolars.DataFrame\nInput data.\nrequired\n\n\noutcome\nColumnName\nName of the outcome column.\nrequired\n\n\ntreatment\nColumnName\nName of the binary treatment column (1 treated, 0 control).\nrequired\n\n\nqs\narray_like\nQuantiles in (0, 1) at which to estimate the effect.\n0.5\n\n\nweights\nColumnName\nName of a column with sampling weights.\nNone\n\n\nbootstrap_config\nBootstrapConfig or int\nBootstrap settings, or the number of replications.\n100\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\n\n\n\n\n\nQteResult\nEstimated effects with bootstrap standard errors.\n\n\n\n\n\n\nestimate_ipw_effects, estimate_outcome_regression_effects, estimate_aipw_effects",
+    "crumbs": [
+      "Reference",
+      "Cross-Sectional Estimators",
+      "estimate_unadjusted_effects"
+    ]
+  },
+  {
+    "objectID": "reference/estimate_unadjusted_effects.html#parameters",
+    "href": "reference/estimate_unadjusted_effects.html#parameters",
+    "title": "estimate_unadjusted_effects",
+    "section": "",
+    "text": "Name\nType\nDescription\nDefault\n\n\n\n\nds\npolars.DataFrame\nInput data.\nrequired\n\n\noutcome\nColumnName\nName of the outcome column.\nrequired\n\n\ntreatment\nColumnName\nName of the binary treatment column (1 treated, 0 control).\nrequired\n\n\nqs\narray_like\nQuantiles in (0, 1) at which to estimate the effect.\n0.5\n\n\nweights\nColumnName\nName of a column with sampling weights.\nNone\n\n\nbootstrap_config\nBootstrapConfig or int\nBootstrap settings, or the number of replications.\n100",
+    "crumbs": [
+      "Reference",
+      "Cross-Sectional Estimators",
+      "estimate_unadjusted_effects"
+    ]
+  },
+  {
+    "objectID": "reference/estimate_unadjusted_effects.html#returns",
+    "href": "reference/estimate_unadjusted_effects.html#returns",
+    "title": "estimate_unadjusted_effects",
+    "section": "",
+    "text": "Name\nType\nDescription\n\n\n\n\n\nQteResult\nEstimated effects with bootstrap standard errors.",
+    "crumbs": [
+      "Reference",
+      "Cross-Sectional Estimators",
+      "estimate_unadjusted_effects"
+    ]
+  },
+  {
+    "objectID": "reference/estimate_unadjusted_effects.html#see-also",
+    "href": "reference/estimate_unadjusted_effects.html#see-also",
+    "title": "estimate_unadjusted_effects",
+    "section": "",
+    "text": "estimate_ipw_effects, estimate_outcome_regression_effects, estimate_aipw_effects",
+    "crumbs": [
+      "Reference",
+      "Cross-Sectional Estimators",
+      "estimate_unadjusted_effects"
+    ]
+  },
+  {
+    "objectID": "reference/estimate_nonlinear_did_for_panel.html#parameters",
+    "href": "reference/estimate_nonlinear_did_for_panel.html#parameters",
+    "title": "estimate_nonlinear_did_for_panel",
+    "section": "",
+    "text": "Name\nType\nDescription\nDefault\n\n\n\n\nds\npolars.DataFrame\nPanel data in long format.\nrequired\n\n\noutcome\nColumnName\nName of the outcome column.\nrequired\n\n\ntreatment_group\nColumnName or TrtGroupConfig\nColumn holding the first treatment period of a unit. A plain string treats the column as already coded with inf for never-treated units; a TrtGroupConfig maps a custom never-treated value to inf.\nrequired\n\n\ntime\nColumnName\nName of the time period column.\nrequired\n\n\nunit\nColumnName\nName of the unit identifier column.\nrequired\n\n\nqs\narray_like\nQuantiles in (0, 1) at which to estimate the effects.\n0.5\n\n\nweights\nColumnName\nName of a column with sampling weights.\nNone\n\n\nn_anticipation_periods\nint\nNumber of periods before treatment in which units may anticipate it.\n0\n\n\nbase_period\nBasePeriod\nPre-treatment period used for the comparisons.\nBasePeriod.UNIVERSAL\n\n\ncontrol_group\nControlGroup\nComparison group used for the counterfactual.\nControlGroup.NEVER_TREATED\n\n\ncounterfactual_model\nCounterfactualModel\nModel used to construct the counterfactual distribution.\nCounterfactualModel.CIC\n\n\nbootstrap_config\nBootstrapConfig or int\nBootstrap settings, or the number of replications.\n1000",
+    "crumbs": [
+      "Reference",
+      "Nonlinear Difference-in-Differences",
+      "estimate_nonlinear_did_for_panel"
+    ]
+  },
+  {
+    "objectID": "reference/estimate_nonlinear_did_for_panel.html#returns",
+    "href": "reference/estimate_nonlinear_did_for_panel.html#returns",
+    "title": "estimate_nonlinear_did_for_panel",
+    "section": "",
+    "text": "Name\nType\nDescription\n\n\n\n\n\nNonlinearDidResults\nThe group, event-study, overall and group-time effects.",
+    "crumbs": [
+      "Reference",
+      "Nonlinear Difference-in-Differences",
+      "estimate_nonlinear_did_for_panel"
+    ]
+  },
+  {
+    "objectID": "reference/estimate_aipw_effects.html",
+    "href": "reference/estimate_aipw_effects.html",
+    "title": "estimate_aipw_effects",
+    "section": "",
+    "text": "cross_sectional.estimate_aipw_effects(\n    ds: pl.DataFrame,\n    outcome: ColumnName,\n    treatment: ColumnName,\n    qs: ArrayLike = (0.5,),\n    *,\n    propensity_score_formula: FormulaRhs,\n    outcome_regression_formula: FormulaRhs,\n    target: CausalTarget = CausalTarget.QTE,\n    weights: ColumnName | None = None,\n    bootstrap_config: BootstrapConfig | int = 100,\n)\nEstimate a quantile treatment effect by augmented inverse probability weighting.\nCombines the propensity score and outcome regression into a doubly robust estimator and attaches bootstrap standard errors.\n\n\n\n\n\nName\nType\nDescription\nDefault\n\n\n\n\nds\npolars.DataFrame\nInput data.\nrequired\n\n\noutcome\nColumnName\nName of the outcome column.\nrequired\n\n\ntreatment\nColumnName\nName of the binary treatment column (1 treated, 0 control).\nrequired\n\n\nqs\narray_like\nQuantiles in (0, 1) at which to estimate the effect.\n0.5\n\n\npropensity_score_formula\nFormulaRhs\nRight-hand side of the propensity score formula.\nrequired\n\n\noutcome_regression_formula\nFormulaRhs\nRight-hand side of the outcome regression formula.\nrequired\n\n\ntarget\nCausalTarget\nEstimand to target, QTE (population) or QTT (treated).\nCausalTarget.QTE\n\n\nweights\nColumnName\nName of a column with sampling weights.\nNone\n\n\nbootstrap_config\nBootstrapConfig or int\nBootstrap settings, or the number of replications.\n100\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\n\n\n\n\n\nQteResult\nEstimated effects with bootstrap standard errors.\n\n\n\n\n\n\nestimate_unadjusted_effects, estimate_ipw_effects, estimate_outcome_regression_effects",
+    "crumbs": [
+      "Reference",
+      "Cross-Sectional Estimators",
+      "estimate_aipw_effects"
+    ]
+  },
+  {
+    "objectID": "reference/estimate_aipw_effects.html#parameters",
+    "href": "reference/estimate_aipw_effects.html#parameters",
+    "title": "estimate_aipw_effects",
+    "section": "",
+    "text": "Name\nType\nDescription\nDefault\n\n\n\n\nds\npolars.DataFrame\nInput data.\nrequired\n\n\noutcome\nColumnName\nName of the outcome column.\nrequired\n\n\ntreatment\nColumnName\nName of the binary treatment column (1 treated, 0 control).\nrequired\n\n\nqs\narray_like\nQuantiles in (0, 1) at which to estimate the effect.\n0.5\n\n\npropensity_score_formula\nFormulaRhs\nRight-hand side of the propensity score formula.\nrequired\n\n\noutcome_regression_formula\nFormulaRhs\nRight-hand side of the outcome regression formula.\nrequired\n\n\ntarget\nCausalTarget\nEstimand to target, QTE (population) or QTT (treated).\nCausalTarget.QTE\n\n\nweights\nColumnName\nName of a column with sampling weights.\nNone\n\n\nbootstrap_config\nBootstrapConfig or int\nBootstrap settings, or the number of replications.\n100",
+    "crumbs": [
+      "Reference",
+      "Cross-Sectional Estimators",
+      "estimate_aipw_effects"
+    ]
+  },
+  {
+    "objectID": "reference/estimate_aipw_effects.html#returns",
+    "href": "reference/estimate_aipw_effects.html#returns",
+    "title": "estimate_aipw_effects",
+    "section": "",
+    "text": "Name\nType\nDescription\n\n\n\n\n\nQteResult\nEstimated effects with bootstrap standard errors.",
+    "crumbs": [
+      "Reference",
+      "Cross-Sectional Estimators",
+      "estimate_aipw_effects"
+    ]
+  },
+  {
+    "objectID": "reference/estimate_aipw_effects.html#see-also",
+    "href": "reference/estimate_aipw_effects.html#see-also",
+    "title": "estimate_aipw_effects",
+    "section": "",
+    "text": "estimate_unadjusted_effects, estimate_ipw_effects, estimate_outcome_regression_effects",
+    "crumbs": [
+      "Reference",
+      "Cross-Sectional Estimators",
+      "estimate_aipw_effects"
+    ]
+  },
+  {
+    "objectID": "reference/QteResult.html#attributes",
+    "href": "reference/QteResult.html#attributes",
+    "title": "QteResult",
+    "section": "",
+    "text": "Name\nType\nDescription\n\n\n\n\nqtt\npolars.DataFrame\nQuantile-specific effects, one row per quantile.\n\n\natt\npolars.DataFrame\nAverage treatment effects.\n\n\noutcome\nColumnName\nOutcome variable the effect was estimated for.\n\n\ngroup\ntuple[str, …] or None\nColumns the estimates are grouped by.\n\n\nestimator\nEstimator\nEstimator that produced the result.\n\n\ncausal_target\nCausalTarget\nEstimand that was targeted.\n\n\npropensity_score_formula\n(FormulaRhs, optional)\nPropensity score formula, when applicable.\n\n\noutcome_regression_formula\n(FormulaRhs, optional)\nOutcome regression formula, when applicable.",
+    "crumbs": [
+      "Reference",
+      "Cross-Sectional Estimators",
+      "QteResult"
+    ]
+  },
+  {
+    "objectID": "reference/QteResult.html#methods",
+    "href": "reference/QteResult.html#methods",
+    "title": "QteResult",
+    "section": "",
+    "text": "Name\nDescription\n\n\n\n\nget_as_dataframe\nReturn the quantile effects with confidence interval columns.\n\n\nplot\nPlot the quantile and average effects with confidence intervals.\n\n\nsummarize\nRender a rich text summary of the estimates.\n\n\ntabulate\nBuild a Great Tables table of the estimates.\n\n\n\n\n\ncross_sectional.QteResult.get_as_dataframe(alpha: float = 0.95)\nReturn the quantile effects with confidence interval columns.\n\n\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\nDefault\n\n\n\n\nalpha\nfloat\nConfidence level of the intervals.\n0.95\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\n\n\n\n\n\npolars.DataFrame\nQuantile effects with ci_lb and ci_ub columns.\n\n\n\n\n\n\n\ncross_sectional.QteResult.plot(alpha: float = 0.95)\nPlot the quantile and average effects with confidence intervals.\n\n\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\nDefault\n\n\n\n\nalpha\nfloat\nConfidence level of the intervals.\n0.95\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\n\n\n\n\n\naltair.Chart\nAltair chart of the estimates.\n\n\n\n\n\n\n\ncross_sectional.QteResult.summarize(alpha: float = 0.95)\nRender a rich text summary of the estimates.\n\n\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\nDefault\n\n\n\n\nalpha\nfloat\nConfidence level of the intervals.\n0.95\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\n\n\n\n\n\nrich.console.Group\nRich renderable for terminals and notebooks.\n\n\n\n\n\n\n\ncross_sectional.QteResult.tabulate(alpha: float = 0.95)\nBuild a Great Tables table of the estimates.\n\n\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\nDefault\n\n\n\n\nalpha\nfloat\nConfidence level of the intervals.\n0.95\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\n\n\n\n\n\ngreat_tables.GT\nFormatted table of the estimates.",
+    "crumbs": [
+      "Reference",
+      "Cross-Sectional Estimators",
+      "QteResult"
+    ]
+  },
+  {
+    "objectID": "reference/NonlinearDidResult.html#attributes",
+    "href": "reference/NonlinearDidResult.html#attributes",
+    "title": "NonlinearDidResult",
+    "section": "",
+    "text": "Name\nType\nDescription\n\n\n\n\nqtt\npolars.DataFrame\nQuantile-specific effects.\n\n\natt\npolars.DataFrame\nAverage treatment effects.\n\n\noutcome\nColumnName\nOutcome variable the effect was estimated for.\n\n\ngroup\ntuple[str, …] or None\nColumns the estimates are grouped by.\n\n\nbase_period\nBasePeriod\nBase period used for the comparisons.\n\n\ncontrol_group\nControlGroup\nComparison group used for the counterfactual.\n\n\nsampling_scheme\nSamplingScheme\nSampling scheme of the input data.\n\n\ncounterfactual_model\nCounterfactualModel\nModel used to construct the counterfactual distribution.",
+    "crumbs": [
+      "Reference",
+      "Nonlinear Difference-in-Differences",
+      "NonlinearDidResult"
+    ]
+  },
+  {
+    "objectID": "reference/NonlinearDidResult.html#methods",
+    "href": "reference/NonlinearDidResult.html#methods",
+    "title": "NonlinearDidResult",
+    "section": "",
+    "text": "Name\nDescription\n\n\n\n\nget_as_dataframe\nReturn the quantile effects with confidence interval columns.\n\n\nplot\nPlot the quantile and average effects with confidence intervals.\n\n\nsummarize\nRender a rich text summary of the estimates.\n\n\ntabulate\nBuild a Great Tables table of the estimates.\n\n\n\n\n\nnonlinear_did.NonlinearDidResult.get_as_dataframe(alpha: float = 0.95)\nReturn the quantile effects with confidence interval columns.\n\n\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\nDefault\n\n\n\n\nalpha\nfloat\nConfidence level of the intervals.\n0.95\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\n\n\n\n\n\npolars.DataFrame\nQuantile effects with ci_lb and ci_ub columns.\n\n\n\n\n\n\n\nnonlinear_did.NonlinearDidResult.plot(alpha: float = 0.95)\nPlot the quantile and average effects with confidence intervals.\n\n\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\nDefault\n\n\n\n\nalpha\nfloat\nConfidence level of the intervals.\n0.95\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\n\n\n\n\n\naltair.Chart\nAltair chart of the estimates.\n\n\n\n\n\n\n\nnonlinear_did.NonlinearDidResult.summarize(alpha: float = 0.95)\nRender a rich text summary of the estimates.\n\n\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\nDefault\n\n\n\n\nalpha\nfloat\nConfidence level of the intervals.\n0.95\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\n\n\n\n\n\nrich.console.Group\nRich renderable for terminals and notebooks.\n\n\n\n\n\n\n\nnonlinear_did.NonlinearDidResult.tabulate(alpha: float = 0.95)\nBuild a Great Tables table of the estimates.\n\n\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\nDefault\n\n\n\n\nalpha\nfloat\nConfidence level of the intervals.\n0.95\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\n\n\n\n\n\ngreat_tables.GT\nFormatted table of the estimates.",
+    "crumbs": [
+      "Reference",
+      "Nonlinear Difference-in-Differences",
+      "NonlinearDidResult"
+    ]
+  },
+  {
+    "objectID": "reference/CounterfactualModel.html#attributes",
+    "href": "reference/CounterfactualModel.html#attributes",
+    "title": "CounterfactualModel",
+    "section": "",
+    "text": "Name\nType\nDescription\n\n\n\n\nCIC\n\nChanges-in-changes.\n\n\nQDID\n\nQuantile difference-in-differences.",
+    "crumbs": [
+      "Reference",
+      "Nonlinear Difference-in-Differences",
+      "CounterfactualModel"
+    ]
+  },
+  {
+    "objectID": "reference/CounterfactualModel.html#examples",
+    "href": "reference/CounterfactualModel.html#examples",
+    "title": "CounterfactualModel",
+    "section": "",
+    "text": "Use quantile difference-in-differences instead of changes-in-changes:\n&gt;&gt;&gt; from qte.datasets import load_mpdta\n&gt;&gt;&gt; from qte.nonlinear_did import CounterfactualModel, estimate_nonlinear_did_for_panel\n&gt;&gt;&gt; res = estimate_nonlinear_did_for_panel(\n...     load_mpdta(),\n...     \"lemp\",\n...     \"first.treat\",\n...     \"year\",\n...     \"countyreal\",\n...     counterfactual_model=CounterfactualModel.QDID,\n... )",
+    "crumbs": [
+      "Reference",
+      "Nonlinear Difference-in-Differences",
+      "CounterfactualModel"
+    ]
+  },
+  {
+    "objectID": "reference/CausalTarget.html#attributes",
+    "href": "reference/CausalTarget.html#attributes",
+    "title": "CausalTarget",
+    "section": "",
+    "text": "Name\nType\nDescription\n\n\n\n\nQTE\n\nQuantile treatment effect for the whole population.\n\n\nQTT\n\nQuantile treatment effect on the treated.",
+    "crumbs": [
+      "Reference",
+      "Cross-Sectional Estimators",
+      "CausalTarget"
+    ]
+  },
+  {
+    "objectID": "reference/CausalTarget.html#examples",
+    "href": "reference/CausalTarget.html#examples",
+    "title": "CausalTarget",
+    "section": "",
+    "text": "Target the effect on the treated instead of the whole population:\n&gt;&gt;&gt; from qte.cross_sectional import CausalTarget, estimate_ipw_effects\n&gt;&gt;&gt; from qte.datasets import load_lalonde\n&gt;&gt;&gt; res = estimate_ipw_effects(\n...     load_lalonde(),\n...     \"re78\",\n...     \"treat\",\n...     propensity_score_formula=\"age + education\",\n...     target=CausalTarget.QTT,\n... )",
+    "crumbs": [
+      "Reference",
+      "Cross-Sectional Estimators",
+      "CausalTarget"
+    ]
+  },
+  {
+    "objectID": "reference/BasePeriod.html#attributes",
+    "href": "reference/BasePeriod.html#attributes",
+    "title": "BasePeriod",
+    "section": "",
+    "text": "Name\nType\nDescription\n\n\n\n\nUNIVERSAL\n\nAlways compare to the same, earliest pre-treatment period.\n\n\nVARYING\n\nCompare to the immediately preceding pre-treatment period.",
+    "crumbs": [
+      "Reference",
+      "Nonlinear Difference-in-Differences",
+      "BasePeriod"
+    ]
+  },
+  {
+    "objectID": "reference/BasePeriod.html#examples",
+    "href": "reference/BasePeriod.html#examples",
+    "title": "BasePeriod",
+    "section": "",
+    "text": "Compare each period to the immediately preceding one:\n&gt;&gt;&gt; from qte.datasets import load_mpdta\n&gt;&gt;&gt; from qte.nonlinear_did import BasePeriod, estimate_nonlinear_did_for_panel\n&gt;&gt;&gt; res = estimate_nonlinear_did_for_panel(\n...     load_mpdta(),\n...     \"lemp\",\n...     \"first.treat\",\n...     \"year\",\n...     \"countyreal\",\n...     base_period=BasePeriod.VARYING,\n... )",
+    "crumbs": [
+      "Reference",
+      "Nonlinear Difference-in-Differences",
+      "BasePeriod"
+    ]
+  },
+  {
+    "objectID": "reference/ControlGroup.html#attributes",
+    "href": "reference/ControlGroup.html#attributes",
+    "title": "ControlGroup",
+    "section": "",
+    "text": "Name\nType\nDescription\n\n\n\n\nNOT_YET_TREATED\n\nUnits not yet treated at the time period of interest.\n\n\nNEVER_TREATED\n\nUnits that are never treated.",
+    "crumbs": [
+      "Reference",
+      "Nonlinear Difference-in-Differences",
+      "ControlGroup"
+    ]
+  },
+  {
+    "objectID": "reference/ControlGroup.html#examples",
+    "href": "reference/ControlGroup.html#examples",
+    "title": "ControlGroup",
+    "section": "",
+    "text": "Use not-yet-treated units as the comparison group:\n&gt;&gt;&gt; from qte.datasets import load_mpdta\n&gt;&gt;&gt; from qte.nonlinear_did import ControlGroup, estimate_nonlinear_did_for_panel\n&gt;&gt;&gt; res = estimate_nonlinear_did_for_panel(\n...     load_mpdta(),\n...     \"lemp\",\n...     \"first.treat\",\n...     \"year\",\n...     \"countyreal\",\n...     control_group=ControlGroup.NOT_YET_TREATED,\n... )",
+    "crumbs": [
+      "Reference",
+      "Nonlinear Difference-in-Differences",
+      "ControlGroup"
+    ]
+  },
+  {
+    "objectID": "reference/Estimator.html#attributes",
+    "href": "reference/Estimator.html#attributes",
+    "title": "Estimator",
+    "section": "",
+    "text": "Name\nType\nDescription\n\n\n\n\nUNADJUSTED\n\nDifference in group quantiles without covariate adjustment.\n\n\nIPW\n\nInverse probability weighting.\n\n\nOR\n\nOutcome regression.\n\n\nAIPW\n\nAugmented inverse probability weighting.",
+    "crumbs": [
+      "Reference",
+      "Cross-Sectional Estimators",
+      "Estimator"
+    ]
+  },
+  {
+    "objectID": "reference/Estimator.html#examples",
+    "href": "reference/Estimator.html#examples",
+    "title": "Estimator",
+    "section": "",
+    "text": "Inspect which estimator produced a result:\n&gt;&gt;&gt; from qte.cross_sectional import Estimator, estimate_unadjusted_effects\n&gt;&gt;&gt; from qte.datasets import load_lalonde\n&gt;&gt;&gt; res = estimate_unadjusted_effects(load_lalonde(), \"re78\", \"treat\")\n&gt;&gt;&gt; res.estimator is Estimator.UNADJUSTED\nTrue",
+    "crumbs": [
+      "Reference",
+      "Cross-Sectional Estimators",
+      "Estimator"
+    ]
+  },
+  {
+    "objectID": "reference/NonlinearDidResults.html",
+    "href": "reference/NonlinearDidResults.html",
+    "title": "NonlinearDidResults",
+    "section": "",
+    "text": "nonlinear_did.NonlinearDidResults(\n    group: NonlinearDidResult,\n    event_study: NonlinearDidResult,\n    overall: NonlinearDidResult,\n    group_time: NonlinearDidResult,\n)\nThe four aggregations returned by estimate_nonlinear_did_for_panel.\n\n\n\n\n\nName\nType\nDescription\n\n\n\n\ngroup\nNonlinearDidResult\nEffects aggregated by treatment group.\n\n\nevent_study\nNonlinearDidResult\nEffects by event-study period (time since treatment).\n\n\noverall\nNonlinearDidResult\nSingle overall effect.\n\n\ngroup_time\nNonlinearDidResult\nEffects by treatment group and time period.",
+    "crumbs": [
+      "Reference",
+      "Nonlinear Difference-in-Differences",
+      "NonlinearDidResults"
+    ]
+  },
+  {
+    "objectID": "reference/NonlinearDidResults.html#attributes",
+    "href": "reference/NonlinearDidResults.html#attributes",
+    "title": "NonlinearDidResults",
+    "section": "",
+    "text": "Name\nType\nDescription\n\n\n\n\ngroup\nNonlinearDidResult\nEffects aggregated by treatment group.\n\n\nevent_study\nNonlinearDidResult\nEffects by event-study period (time since treatment).\n\n\noverall\nNonlinearDidResult\nSingle overall effect.\n\n\ngroup_time\nNonlinearDidResult\nEffects by treatment group and time period.",
+    "crumbs": [
+      "Reference",
+      "Nonlinear Difference-in-Differences",
+      "NonlinearDidResults"
+    ]
+  },
+  {
+    "objectID": "reference/TrtGroupConfig.html#parameters",
+    "href": "reference/TrtGroupConfig.html#parameters",
+    "title": "TrtGroupConfig",
+    "section": "",
+    "text": "Name\nType\nDescription\nDefault\n\n\n\n\nname\nstr\nName of the column holding the first treatment period of a unit.\nrequired\n\n\nnever_treated_identifier\nfloat\nValue in name marking never-treated units. It is mapped to inf internally.\ninf",
+    "crumbs": [
+      "Reference",
+      "Nonlinear Difference-in-Differences",
+      "TrtGroupConfig"
+    ]
+  },
+  {
+    "objectID": "reference/estimate_ipw_effects.html",
+    "href": "reference/estimate_ipw_effects.html",
+    "title": "estimate_ipw_effects",
+    "section": "",
+    "text": "cross_sectional.estimate_ipw_effects(\n    ds: pl.DataFrame,\n    outcome: ColumnName,\n    treatment: ColumnName,\n    qs: ArrayLike = MEDIAN,\n    *,\n    propensity_score_formula: FormulaRhs,\n    target: CausalTarget = CausalTarget.QTE,\n    weights: ColumnName | None = None,\n    bootstrap_config: BootstrapConfig | int = 100,\n)\nEstimate a quantile treatment effect by inverse probability weighting.\nReweights the outcome distribution with inverse propensity scores and attaches bootstrap standard errors.\n\n\n\n\n\nName\nType\nDescription\nDefault\n\n\n\n\nds\npolars.DataFrame\nInput data.\nrequired\n\n\noutcome\nColumnName\nName of the outcome column.\nrequired\n\n\ntreatment\nColumnName\nName of the binary treatment column (1 treated, 0 control).\nrequired\n\n\nqs\narray_like\nQuantiles in (0, 1) at which to estimate the effect.\n0.5\n\n\npropensity_score_formula\nFormulaRhs\nRight-hand side of the propensity score formula.\nrequired\n\n\ntarget\nCausalTarget\nEstimand to target, QTE (population) or QTT (treated).\nCausalTarget.QTE\n\n\nweights\nColumnName\nName of a column with sampling weights.\nNone\n\n\nbootstrap_config\nBootstrapConfig or int\nBootstrap settings, or the number of replications.\n100\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\n\n\n\n\n\nQteResult\nEstimated effects with bootstrap standard errors.\n\n\n\n\n\n\nestimate_unadjusted_effects, estimate_outcome_regression_effects, estimate_aipw_effects",
+    "crumbs": [
+      "Reference",
+      "Cross-Sectional Estimators",
+      "estimate_ipw_effects"
+    ]
+  },
+  {
+    "objectID": "reference/estimate_ipw_effects.html#parameters",
+    "href": "reference/estimate_ipw_effects.html#parameters",
+    "title": "estimate_ipw_effects",
+    "section": "",
+    "text": "Name\nType\nDescription\nDefault\n\n\n\n\nds\npolars.DataFrame\nInput data.\nrequired\n\n\noutcome\nColumnName\nName of the outcome column.\nrequired\n\n\ntreatment\nColumnName\nName of the binary treatment column (1 treated, 0 control).\nrequired\n\n\nqs\narray_like\nQuantiles in (0, 1) at which to estimate the effect.\n0.5\n\n\npropensity_score_formula\nFormulaRhs\nRight-hand side of the propensity score formula.\nrequired\n\n\ntarget\nCausalTarget\nEstimand to target, QTE (population) or QTT (treated).\nCausalTarget.QTE\n\n\nweights\nColumnName\nName of a column with sampling weights.\nNone\n\n\nbootstrap_config\nBootstrapConfig or int\nBootstrap settings, or the number of replications.\n100",
+    "crumbs": [
+      "Reference",
+      "Cross-Sectional Estimators",
+      "estimate_ipw_effects"
+    ]
+  },
+  {
+    "objectID": "reference/estimate_ipw_effects.html#returns",
+    "href": "reference/estimate_ipw_effects.html#returns",
+    "title": "estimate_ipw_effects",
+    "section": "",
+    "text": "Name\nType\nDescription\n\n\n\n\n\nQteResult\nEstimated effects with bootstrap standard errors.",
+    "crumbs": [
+      "Reference",
+      "Cross-Sectional Estimators",
+      "estimate_ipw_effects"
+    ]
+  },
+  {
+    "objectID": "reference/estimate_ipw_effects.html#see-also",
+    "href": "reference/estimate_ipw_effects.html#see-also",
+    "title": "estimate_ipw_effects",
+    "section": "",
+    "text": "estimate_unadjusted_effects, estimate_outcome_regression_effects, estimate_aipw_effects",
+    "crumbs": [
+      "Reference",
+      "Cross-Sectional Estimators",
+      "estimate_ipw_effects"
+    ]
+  },
+  {
+    "objectID": "reference/estimate_outcome_regression_effects.html",
+    "href": "reference/estimate_outcome_regression_effects.html",
+    "title": "estimate_outcome_regression_effects",
+    "section": "",
+    "text": "cross_sectional.estimate_outcome_regression_effects(\n    ds: pl.DataFrame,\n    outcome: ColumnName,\n    treatment: ColumnName,\n    qs: ArrayLike = MEDIAN,\n    *,\n    outcome_regression_formula: FormulaRhs,\n    target: CausalTarget = CausalTarget.QTE,\n    weights: ColumnName | None = None,\n    bootstrap_config: BootstrapConfig | int = 100,\n)\nEstimate a quantile treatment effect by outcome regression.\nPredicts the counterfactual outcome distribution from quantile regressions and attaches bootstrap standard errors.\n\n\n\n\n\nName\nType\nDescription\nDefault\n\n\n\n\nds\npolars.DataFrame\nInput data.\nrequired\n\n\noutcome\nColumnName\nName of the outcome column.\nrequired\n\n\ntreatment\nColumnName\nName of the binary treatment column (1 treated, 0 control).\nrequired\n\n\nqs\narray_like\nQuantiles in (0, 1) at which to estimate the effect.\n0.5\n\n\noutcome_regression_formula\nFormulaRhs\nRight-hand side of the outcome regression formula.\nrequired\n\n\ntarget\nCausalTarget\nEstimand to target, QTE (population) or QTT (treated).\nCausalTarget.QTE\n\n\nweights\nColumnName\nName of a column with sampling weights.\nNone\n\n\nbootstrap_config\nBootstrapConfig or int\nBootstrap settings, or the number of replications.\n100\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\n\n\n\n\n\nQteResult\nEstimated effects with bootstrap standard errors.\n\n\n\n\n\n\nestimate_unadjusted_effects, estimate_ipw_effects, estimate_aipw_effects",
+    "crumbs": [
+      "Reference",
+      "Cross-Sectional Estimators",
+      "estimate_outcome_regression_effects"
+    ]
+  },
+  {
+    "objectID": "reference/estimate_outcome_regression_effects.html#parameters",
+    "href": "reference/estimate_outcome_regression_effects.html#parameters",
+    "title": "estimate_outcome_regression_effects",
+    "section": "",
+    "text": "Name\nType\nDescription\nDefault\n\n\n\n\nds\npolars.DataFrame\nInput data.\nrequired\n\n\noutcome\nColumnName\nName of the outcome column.\nrequired\n\n\ntreatment\nColumnName\nName of the binary treatment column (1 treated, 0 control).\nrequired\n\n\nqs\narray_like\nQuantiles in (0, 1) at which to estimate the effect.\n0.5\n\n\noutcome_regression_formula\nFormulaRhs\nRight-hand side of the outcome regression formula.\nrequired\n\n\ntarget\nCausalTarget\nEstimand to target, QTE (population) or QTT (treated).\nCausalTarget.QTE\n\n\nweights\nColumnName\nName of a column with sampling weights.\nNone\n\n\nbootstrap_config\nBootstrapConfig or int\nBootstrap settings, or the number of replications.\n100",
+    "crumbs": [
+      "Reference",
+      "Cross-Sectional Estimators",
+      "estimate_outcome_regression_effects"
+    ]
+  },
+  {
+    "objectID": "reference/estimate_outcome_regression_effects.html#returns",
+    "href": "reference/estimate_outcome_regression_effects.html#returns",
+    "title": "estimate_outcome_regression_effects",
+    "section": "",
+    "text": "Name\nType\nDescription\n\n\n\n\n\nQteResult\nEstimated effects with bootstrap standard errors.",
+    "crumbs": [
+      "Reference",
+      "Cross-Sectional Estimators",
+      "estimate_outcome_regression_effects"
+    ]
+  },
+  {
+    "objectID": "reference/estimate_outcome_regression_effects.html#see-also",
+    "href": "reference/estimate_outcome_regression_effects.html#see-also",
+    "title": "estimate_outcome_regression_effects",
+    "section": "",
+    "text": "estimate_unadjusted_effects, estimate_ipw_effects, estimate_aipw_effects",
+    "crumbs": [
+      "Reference",
+      "Cross-Sectional Estimators",
+      "estimate_outcome_regression_effects"
+    ]
+  },
+  {
+    "objectID": "reference/get_true_means.html",
+    "href": "reference/get_true_means.html",
+    "title": "get_true_means",
+    "section": "",
+    "text": "cross_sectional.simulate.get_true_means(\n    target: CausalTarget = CausalTarget.QTE,\n    n_oracle: int = 1000000,\n    effect_scale: float = 1.0,\n    error_var: float = 1.0,\n    seed: int = 0,\n)\nSimulation-based potential-outcome means and the average effect.\nWith target=QTE the means are over the whole population (effect is the ATE); with target=QTT they are over the treated (effect is the ATT). The truth is recovered by simulating n_oracle units.\n\n\n\n\n\nName\nType\nDescription\nDefault\n\n\n\n\ntarget\nCausalTarget\nEstimand to recover, QTE (population) or QTT (treated).\nCausalTarget.QTE\n\n\nn_oracle\nint\nSize of the simulated population.\n1_000_000\n\n\neffect_scale\nfloat\nTreatment effect scale used in simulate_covariate_data.\n1.0\n\n\nerror_var\nfloat\nError variance used in simulate_covariate_data.\n1.0\n\n\nseed\nint\nSeed for the simulated population.\n0\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\n\n\n\n\n\npolars.DataFrame\nColumns m_c, m_t and effect (m_t - m_c).",
+    "crumbs": [
+      "Reference",
+      "Simulation",
+      "get_true_means"
+    ]
+  },
+  {
+    "objectID": "reference/get_true_means.html#parameters",
+    "href": "reference/get_true_means.html#parameters",
+    "title": "get_true_means",
+    "section": "",
+    "text": "Name\nType\nDescription\nDefault\n\n\n\n\ntarget\nCausalTarget\nEstimand to recover, QTE (population) or QTT (treated).\nCausalTarget.QTE\n\n\nn_oracle\nint\nSize of the simulated population.\n1_000_000\n\n\neffect_scale\nfloat\nTreatment effect scale used in simulate_covariate_data.\n1.0\n\n\nerror_var\nfloat\nError variance used in simulate_covariate_data.\n1.0\n\n\nseed\nint\nSeed for the simulated population.\n0",
+    "crumbs": [
+      "Reference",
+      "Simulation",
+      "get_true_means"
+    ]
+  },
+  {
+    "objectID": "reference/get_true_means.html#returns",
+    "href": "reference/get_true_means.html#returns",
+    "title": "get_true_means",
+    "section": "",
+    "text": "Name\nType\nDescription\n\n\n\n\n\npolars.DataFrame\nColumns m_c, m_t and effect (m_t - m_c).",
+    "crumbs": [
+      "Reference",
+      "Simulation",
+      "get_true_means"
+    ]
+  },
+  {
+    "objectID": "reference/index.html#simulation",
+    "href": "reference/index.html#simulation",
+    "title": "Function reference",
+    "section": "",
+    "text": "Simulation functions for the cross-sectional estimators (qte.cross_sectional.simulate).\n\n\n\nsimulate_simple_data\nSimulate a randomised experiment without covariates.\n\n\nsimulate_covariate_data\nSimulate the fixed observational setting with covariates.\n\n\nget_true_quantiles\nSimulation-based potential-outcome quantiles and the quantile effect.\n\n\nget_true_means\nSimulation-based potential-outcome means and the average effect.",
+    "crumbs": [
+      "Reference",
+      "Function reference"
+    ]
+  },
+  {
+    "objectID": "reference/load_lalonde.html#parameters",
+    "href": "reference/load_lalonde.html#parameters",
+    "title": "load_lalonde",
+    "section": "",
+    "text": "Name\nType\nDescription\nDefault\n\n\n\n\ncontrols_source\n(psid, experiment)\nSource of the control group: the PSID comparison sample or the experimental controls.\n\"psid\"\n\n\nuse_panel_structure\nbool\nReturn the panel version of the data instead of the cross-section.\nFalse",
+    "crumbs": [
+      "Reference",
+      "Data",
+      "load_lalonde"
+    ]
+  },
+  {
+    "objectID": "reference/load_lalonde.html#returns",
+    "href": "reference/load_lalonde.html#returns",
+    "title": "load_lalonde",
+    "section": "",
+    "text": "Name\nType\nDescription\n\n\n\n\n\npolars.DataFrame\nThe requested LaLonde dataset.",
+    "crumbs": [
+      "Reference",
+      "Data",
+      "load_lalonde"
+    ]
+  },
+  {
+    "objectID": "reference/simulate_covariate_data.html",
+    "href": "reference/simulate_covariate_data.html",
+    "title": "simulate_covariate_data",
+    "section": "",
+    "text": "cross_sectional.simulate.simulate_covariate_data(\n    n: int = 1000,\n    *,\n    n_noise_covariates: int = 0,\n    effect_scale: float = 1.0,\n    error_var: float = 1.0,\n    seed: int | None = None,\n)\nSimulate the fixed observational setting with covariates.\n\n\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\nDefault\n\n\n\n\nn\nint\nNumber of units.\n1000\n\n\nn_noise_covariates\nint\nNumber of additional noise covariates. The five covariates that enter the design are always generated, so the frame has 5 + n_noise_covariates covariate columns.\n0\n\n\neffect_scale\nfloat\nMultiplies the treatment effect sizes (the coefficients of d in the location and scale components). 1 is the original design and 0 removes the treatment effect.\n1.0\n\n\nerror_var\nfloat\nMultiplies the conditional variance of both arms.\n1.0\n\n\nseed\nint\nSeed for numpy.random.default_rng.\nNone\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\n\n\n\n\n\npolars.DataFrame\nColumns x0, ..., x{p-1}, treat, y and the potential outcomes y_0 and y_1.",
+    "crumbs": [
+      "Reference",
+      "Simulation",
+      "simulate_covariate_data"
+    ]
+  },
+  {
+    "objectID": "reference/simulate_covariate_data.html#parameters",
+    "href": "reference/simulate_covariate_data.html#parameters",
+    "title": "simulate_covariate_data",
+    "section": "",
+    "text": "Name\nType\nDescription\nDefault\n\n\n\n\nn\nint\nNumber of units.\n1000\n\n\nn_noise_covariates\nint\nNumber of additional noise covariates. The five covariates that enter the design are always generated, so the frame has 5 + n_noise_covariates covariate columns.\n0\n\n\neffect_scale\nfloat\nMultiplies the treatment effect sizes (the coefficients of d in the location and scale components). 1 is the original design and 0 removes the treatment effect.\n1.0\n\n\nerror_var\nfloat\nMultiplies the conditional variance of both arms.\n1.0\n\n\nseed\nint\nSeed for numpy.random.default_rng.\nNone",
+    "crumbs": [
+      "Reference",
+      "Simulation",
+      "simulate_covariate_data"
+    ]
+  },
+  {
+    "objectID": "reference/simulate_covariate_data.html#returns",
+    "href": "reference/simulate_covariate_data.html#returns",
+    "title": "simulate_covariate_data",
+    "section": "",
+    "text": "Name\nType\nDescription\n\n\n\n\n\npolars.DataFrame\nColumns x0, ..., x{p-1}, treat, y and the potential outcomes y_0 and y_1.",
+    "crumbs": [
+      "Reference",
+      "Simulation",
+      "simulate_covariate_data"
+    ]
   }
 ]
