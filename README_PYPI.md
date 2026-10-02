@@ -2,23 +2,20 @@
 
 > **Alpha software:** the API may change without notice between releases.
 
-This is an attempt at a Python implementation of the qte R package by Brantly Callaway from
-[here](https://github.com/bcallaway11/qte).
+This is a Python implementation of some of the estimators in the `qte` R package by Brantly Callaway
+([link](https://github.com/bcallaway11/qte)). See the
+[project website](https://mohelm.github.io/py-qte/) for the API reference and benchmarks.
 
 The main **features** are:
 
-- Availability of **cross-sectional quantile treatment effects** estimators (unadjusted, inverse
-  probability weighted, outcome regression, doubly robust) and **non-linear
-  difference-in-differences** estimator (changes-in-changes and quantile difference-in-differences);
-- **Fast**:
-  - as opposed to the R-package we can use highly optimized Numpy functions for computing weighted
-    quantiles;
-  - quantile regression is magnitudes faster than in other Python packages since we use highly
-    optimized Fortran code directly (falling back to statsmodels where the extension is
-    unavailable);
-  - batching and vectorization in performance critical places;
-  - built natively on [Polars](https://github.com/pola-rs/polars);
-- **Beautiful**: Graphs and tables for the console, the web, and latex powered by
+- **Cross-sectional quantile treatment effects** estimators (unadjusted, inverse probability
+  weighted, outcome regression, doubly robust) and a **nonlinear difference-in-differences**
+  estimator (changes-in-changes and quantile difference-in-differences).
+- **Fast**: `py-qte` uses more efficient algorithms and parallelizes the bootstrap standard errors.
+  On larger datasets it is more than 20× faster than `qte` for the AIPW estimator of the quantile
+  treatment effect (see the
+  [benchmark timings](https://mohelm.github.io/py-qte/benchmark.html#tbl-aipw-timings)).
+- **Beautiful**: Graphs and tables for the console, the web, and LaTeX powered by
   [Altair](https://github.com/vega/altair),
   [Great Tables](https://github.com/posit-dev/great-tables) and
   [Rich](https://github.com/textualize/rich).
@@ -34,7 +31,7 @@ uv add py-qte # or pip install py-qte
 ```
 
 On Linux and macOS the Fortran solver for quantile regression should work and be used in the
-computations. On Windows a fallback (based on the `statsmodels` library will be used).
+computations. On Windows a fallback (based on the `statsmodels` library) will be used.
 
 ---
 
@@ -43,7 +40,7 @@ computations. On Windows a fallback (based on the `statsmodels` library will be 
 ## Cross-Sectional Data
 
 We can estimate quantile treatment (and average) treatment effects using an augmented inverse
-propensity score (AIPW) estimator .
+probability weighting (AIPW) estimator.
 
 ```python
 from qte.cross_sectional import estimate_aipw_effects
@@ -75,7 +72,7 @@ res.tabulate()  # Great Tables output (see below)
   </tr>
 </table>
 
-## Non-Linear Difference-in-Differences
+## Nonlinear Difference-in-Differences
 
 We can estimate quantile treatment (and average) treatment effects with the changes-in-changes
 estimator.
