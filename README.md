@@ -2,22 +2,20 @@
 
 > **Alpha software:** the API may change without notice between releases.
 
-This is an attempt at a Python implementation of the qte R package by Brantly Callaway from
-[here](https://github.com/bcallaway11/qte).
+This is a Python implementation of the qte R package by Brantly Callaway from
+[here](https://github.com/bcallaway11/qte). A webpage including an API reference and benchmarks can
+be found [here](https://mohelm.github.io/py-qte/).
 
 The main **features** are:
 
 - Availability of **cross-sectional quantile treatment effects** estimators (unadjusted, inverse
   probability weighted, outcome regression, doubly robust) and **non-linear
   difference-in-differences** estimator (changes-in-changes and quantile difference-in-differences);
-- **Fast**:
-  - as opposed to the R-package we can use highly optimized Numpy functions for computing weighted
-    quantiles;
-  - quantile regression is magnitudes faster than in other Python packages since we use highly
-    optimized Fortran code directly (falling back to statsmodels where the extension is
-    unavailable);
-  - batching and vectorization in performance critical places;
-  - built natively on [Polars](https://github.com/pola-rs/polars);
+- **Fast**: `py-qte` uses more efficient algorithms in performance critical places and employ an
+  effective parallization strategy for bootstapped standard errors. This means that `py-qte` is
+  currently orders of magnitude faster than `qte` on larger datasets (see
+  [here](https://mohelm.github.io/py-qte/benchmark.html#tbl-aipw-res)) for a cross-sectional AIPW
+  estimator of quantile treatment effectgs.
 - **Beautiful**: Graphs and tables for the console, the web, and latex powered by
   [Altair](https://github.com/vega/altair),
   [Great Tables](https://github.com/posit-dev/great-tables) and
