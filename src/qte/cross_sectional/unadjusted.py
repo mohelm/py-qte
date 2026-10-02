@@ -25,7 +25,6 @@ def compute_unadjusted_effects(
 ) -> _QteIntermediateResult:
     qs = np.array(qs)
 
-    # TODO: look into that
     treated, control = (
         ds.filter(pl.col(treatment) == 1.0),
         ds.filter(pl.col(treatment) == 0.0),

@@ -12,6 +12,8 @@ metadata-files:
 
 website:
   title: "py-qte"
+  repo-url: https://github.com/mohelm/py-qte
+  repo-actions: [source, issue]
   navbar:
     left:
       - text: "Benchmark"
