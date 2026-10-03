@@ -11,9 +11,9 @@ The main **features** are:
 - **Cross-sectional quantile treatment effects** estimators (unadjusted, inverse probability
   weighted, outcome regression, doubly robust) and a **nonlinear difference-in-differences**
   estimator (changes-in-changes and quantile difference-in-differences).
-- **Fast**: `py-qte` uses more efficient algorithms and parallelizes the bootstrap standard errors.
-  On larger datasets it is more than 20× faster than `qte` for the AIPW estimator of the quantile
-  treatment effect (see the
+- **Fast**: `py-qte` uses more efficient algorithms and parallelizes the bootstrap standard errors
+  effectively. On larger datasets it is more than 20× faster than `qte` for the AIPW estimator of
+  the quantile treatment effect (see the
   [benchmark timings](https://mohelm.github.io/py-qte/benchmark.html#tbl-aipw-timings)).
 - **Beautiful**: Graphs and tables for the console, the web, and LaTeX powered by
   [Altair](https://github.com/vega/altair),
@@ -141,3 +141,8 @@ made absolute, since PyPI can't resolve repo-relative assets. Regenerate it afte
 ```sh
 uv run python -m docs.readme --pypi-readme-only
 ```
+
+## Releasing
+
+See [`RELEASING.md`](https://github.com/mohelm/py-qte/blob/main/RELEASING.md) for how to cut a
+release.

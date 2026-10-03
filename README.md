@@ -141,3 +141,7 @@ made absolute, since PyPI can't resolve repo-relative assets. Regenerate it afte
 ```sh
 uv run python -m docs.readme --pypi-readme-only
 ```
+
+## Releasing
+
+See [`RELEASING.md`](RELEASING.md) for how to cut a release.
