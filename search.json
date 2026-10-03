@@ -109,7 +109,7 @@
     "href": "index.html",
     "title": "py-qte",
     "section": "",
-    "text": "Quantile treatment effects in Python — the py-qte package is fast implementation with beautiful result presentations of some of the estimators in the R qte package.\nYou can find some benchmarks comparing the py-qte and the qte package here."
+    "text": "Quantile treatment effects in Python — the py-qte package is a fast implementation with beautiful result presentations of some of the estimators in the R qte package.\nYou can find some benchmarks comparing the py-qte and the qte package here."
   },
   {
     "objectID": "benchmark.html",
