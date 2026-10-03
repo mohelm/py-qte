@@ -4,7 +4,7 @@ build-backend = "mesonpy"
 
 [project]
 name = "py-qte"
-version = "0.1.0a1"
+version = "0.1.0a2"
 description = "Quantile Treatment Effects"
 authors = [{ name = "Moritz Helm", email = "mohelm84@gmail.com" }]
 readme = "README_PYPI.md"
