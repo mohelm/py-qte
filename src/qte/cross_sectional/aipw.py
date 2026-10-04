@@ -34,18 +34,27 @@ def _compute_aipw_quantiles(
     n_qs = or_preds.shape[1]
     prop_score_weights = sampling_weights * treatment_status / propensity_scores
     w = np.repeat((sampling_weights - prop_score_weights) / n_qs, n_qs)
-    or_preds_flat = or_preds.flatten()
-    sorter = np.argsort(or_preds_flat)
-    or_preds_flat_sorted = or_preds_flat[sorter]
-    cdf_or = np.concatenate(([0.0], np.cumsum(w[sorter])))
+
+    # Weighted CDF of the outcome-regression predictions, evaluated on outcome_grid.
+    # Locate each prediction in the grid (searchsorted): it is assigned to a grid
+    # position, and its weight moves there too. There are G + 1 possible positions,
+    # not G, because a prediction may lie to the right of max(outcome_grid); that
+    # extra top bin is the overflow. bincount sums the weights per position, and
+    # minlength=G+1 guarantees the full G + 1 bins exist even when the top ones are
+    # empty. cumsum then gives the CDF at each grid point; we drop the overflow bin
+    # with [:G]. The resulting CDF need not reach 1 at max(outcome_grid), because the
+    # weight of predictions above it sits in the dropped overflow bin. We can drop that bin since
+    # we are only interested in the outcome_grid.
+    pos = np.searchsorted(outcome_grid, or_preds.ravel(), side="left")  # length n_obs * n_qs
+    binned = np.bincount(pos, weights=w, minlength=outcome_grid.size + 1)
+    cdf_or = np.cumsum(binned)[: outcome_grid.size]
 
     sorter = np.argsort(outcomes)
     outcome_sorted = outcomes[sorter]
     cdf_outcome = np.concatenate(([0.0], np.cumsum(prop_score_weights[sorter])))
-
-    idx_or = np.searchsorted(or_preds_flat_sorted, outcome_grid, side="right")
     idx_outcome = np.searchsorted(outcome_sorted, outcome_grid, side="right")
-    f0 = (cdf_or[idx_or] + cdf_outcome[idx_outcome]) / np.sum(sampling_weights)
+
+    f0 = (cdf_or + cdf_outcome[idx_outcome]) / np.sum(sampling_weights)
 
     f0 = np.maximum.accumulate(np.maximum(np.minimum(1, f0), 0))
     u, indices = np.unique(f0, return_index=True)

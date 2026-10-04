@@ -2,6 +2,10 @@
 title: "py-qte"
 ---
 
+[![PyPI version](https://img.shields.io/pypi/v/py-qte?logo=pypi&logoColor=white)](https://pypi.org/project/py-qte/)
+[![Python versions](https://img.shields.io/pypi/pyversions/py-qte?logo=python&logoColor=white)](https://pypi.org/project/py-qte/)
+[![GitHub](https://img.shields.io/github/stars/mohelm/py-qte?logo=github&label=GitHub)](https://github.com/mohelm/py-qte)
+
 Quantile treatment effects in Python — the [py-qte](https://github.com/mohelm/py-qte) package is a
 fast implementation with beautiful result presentations of some of the estimators in the R
 [`qte`](https://github.com/bcallaway11/qte) package.
