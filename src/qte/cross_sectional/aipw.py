@@ -33,20 +33,21 @@ def _compute_aipw_quantiles(
 
     n_qs = or_preds.shape[1]
     prop_score_weights = sampling_weights * treatment_status / propensity_scores
-    w = np.repeat((sampling_weights - prop_score_weights) / n_qs, n_qs)
+    or_weight = (sampling_weights - prop_score_weights) / n_qs
 
     # Weighted CDF of the outcome-regression predictions, evaluated on outcome_grid.
-    # Locate each prediction in the grid (searchsorted): it is assigned to a grid
-    # position, and its weight moves there too. There are G + 1 possible positions,
-    # not G, because a prediction may lie to the right of max(outcome_grid); that
-    # extra top bin is the overflow. bincount sums the weights per position, and
+    # Each prediction is located in the grid (searchsorted) and its weight added to
+    # that grid position. There are G + 1 positions, not G, because a prediction may
+    # lie to the right of max(outcome_grid); that extra top bin is the overflow.
     # minlength=G+1 guarantees the full G + 1 bins exist even when the top ones are
-    # empty. cumsum then gives the CDF at each grid point; we drop the overflow bin
-    # with [:G]. The resulting CDF need not reach 1 at max(outcome_grid), because the
-    # weight of predictions above it sits in the dropped overflow bin. We can drop that bin since
-    # we are only interested in the outcome_grid.
-    pos = np.searchsorted(outcome_grid, or_preds.ravel(), side="left")  # length n_obs * n_qs
-    binned = np.bincount(pos, weights=w, minlength=outcome_grid.size + 1)
+    # empty, and cumsum then gives the CDF at each grid point. We drop the overflow
+    # bin with [:G] since we are only interested in the outcome_grid; the CDF need
+    # not reach 1 at max(outcome_grid). Accumulating one quantile at a time avoids
+    # materialising the n_obs * n_qs weight and position arrays.
+    binned = np.zeros(outcome_grid.size + 1)
+    for k in range(n_qs):
+        pos = np.searchsorted(outcome_grid, or_preds[:, k], side="left")
+        binned += np.bincount(pos, weights=or_weight, minlength=outcome_grid.size + 1)
     cdf_or = np.cumsum(binned)[: outcome_grid.size]
 
     sorter = np.argsort(outcomes)
