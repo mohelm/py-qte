@@ -159,7 +159,7 @@ def main() -> None:
         "re78",
         "treat",
         qs=DECILES,
-        outcome_regression_formula=xf,
+        outcome_regression_config=xf,
         propensity_score_formula=xf,
         bootstrap_config=50,
     )

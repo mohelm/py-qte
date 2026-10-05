@@ -66,6 +66,7 @@ dev-helpers = ["ipython>=9.16.1", "notebook>=7.6.2"]
 line-length = 100
 target-version = "py312"
 extension = { qmd = "markdown" }
+extend-exclude = ["spike_*.py"]
 
 
 [tool.ruff.lint]
@@ -85,7 +86,7 @@ no-build-isolation = true
 python-version = "3.12"
 
 [tool.ty.src]
-exclude = ["tests"]
+exclude = ["tests", "spike_*.py"]
 
 [tool.cibuildwheel]
 build = ["cp312-*", "cp313-*", "cp314-*"]

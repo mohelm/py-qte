@@ -1,6 +1,14 @@
 """Custom types for the cross-sectional estimators."""
 
+from dataclasses import dataclass
 from enum import StrEnum
+
+import numpy as np
+from numpy.typing import ArrayLike, NDArray
+
+from qte.constants import _make_q
+from qte.custom_types import FormulaRhs
+from qte.quantile_regression import QuantileRegressionAlgorithms
 
 
 class CausalTarget(StrEnum):
@@ -67,3 +75,38 @@ class Estimator(StrEnum):
     IPW = "ipw"
     OR = "or"
     AIPW = "aipw"
+
+
+@dataclass(frozen=True)
+class OutcomeRegressionConfig:
+    """Configuration of the outcome (quantile) regression step.
+
+    Parameters
+    ----------
+    formula : FormulaRhs
+        Right-hand side of the outcome regression formula.
+    grid : int or array_like, default=100
+        Quantile grid used to fit the outcome regression. An integer ``k`` is
+        expanded to the ``k - 1`` interior quantiles; an explicit sequence is
+        used as given.
+    algorithm : `QuantileRegressionAlgorithms`, default=`QuantileRegressionAlgorithms.PREPROCESSING`
+        Quantile regression algorithm used to fit the grid.
+    """
+
+    formula: FormulaRhs
+    grid: int | ArrayLike = 100
+    algorithm: QuantileRegressionAlgorithms = QuantileRegressionAlgorithms.PREPROCESSING
+
+
+def make_outcome_regression_config(
+    value: FormulaRhs | OutcomeRegressionConfig,
+) -> OutcomeRegressionConfig:
+    """Coerce a formula shorthand into an `OutcomeRegressionConfig`."""
+    return value if isinstance(value, OutcomeRegressionConfig) else OutcomeRegressionConfig(value)
+
+
+def resolve_grid(grid: int | ArrayLike) -> NDArray[np.float64]:
+    """Expand an integer grid size into quantiles, or pass a sequence through."""
+    if isinstance(grid, (int, np.integer)):
+        return _make_q(int(grid))
+    return np.asarray(grid, dtype=np.float64)

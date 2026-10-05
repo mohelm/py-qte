@@ -8,7 +8,12 @@ from numpy.typing import ArrayLike
 from qte.bootstrap import BootstrapConfig, _make_bootstrap_config, _perform_bootstrap
 from qte.constants import MEDIAN
 from qte.cross_sectional.aipw import compute_aipw_effects
-from qte.cross_sectional.custom_types import CausalTarget, Estimator
+from qte.cross_sectional.custom_types import (
+    CausalTarget,
+    Estimator,
+    OutcomeRegressionConfig,
+    make_outcome_regression_config,
+)
 from qte.cross_sectional.ipw import compute_ipw_effects as compute_ipw_effects
 from qte.cross_sectional.outcome_regression import compute_outcome_regression_effects
 from qte.cross_sectional.results import QteResult
@@ -182,7 +187,7 @@ def estimate_outcome_regression_effects(
     treatment: ColumnName,
     qs: ArrayLike = MEDIAN,
     *,
-    outcome_regression_formula: FormulaRhs,
+    outcome_regression_config: FormulaRhs | OutcomeRegressionConfig,
     target: CausalTarget = CausalTarget.QTE,
     weights: ColumnName | None = None,
     bootstrap_config: BootstrapConfig | int = 100,
@@ -202,8 +207,9 @@ def estimate_outcome_regression_effects(
         Name of the binary treatment column (``1`` treated, ``0`` control).
     qs : array_like, default=0.5
         Quantiles in ``(0, 1)`` at which to estimate the effect.
-    outcome_regression_formula : FormulaRhs
-        Right-hand side of the outcome regression formula.
+    outcome_regression_config : FormulaRhs or `OutcomeRegressionConfig`
+        Outcome regression specification. A string is shorthand for
+        ``OutcomeRegressionConfig(formula=...)``.
     target : `CausalTarget`, default=`CausalTarget.QTE`
         Estimand to target, ``QTE`` (population) or ``QTT`` (treated).
     weights : ColumnName, optional
@@ -221,11 +227,12 @@ def estimate_outcome_regression_effects(
     `estimate_unadjusted_effects`, `estimate_ipw_effects`, `estimate_aipw_effects`
     """
     qs = np.array(qs)
+    or_config = make_outcome_regression_config(outcome_regression_config)
     fcn = partial(
         compute_outcome_regression_effects,
         outcome=outcome,
         treatment=treatment,
-        outcome_regression_formula=outcome_regression_formula,
+        outcome_regression_config=or_config,
         qs=qs,
         weights=weights,
         target=target,
@@ -247,7 +254,7 @@ def estimate_outcome_regression_effects(
         estimator=Estimator.OR,
         outcome=outcome,
         group=None,
-        outcome_regression_formula=outcome_regression_formula,
+        outcome_regression_formula=or_config.formula,
     )
 
 
@@ -258,7 +265,7 @@ def estimate_aipw_effects(
     qs: ArrayLike = (0.5,),
     *,
     propensity_score_formula: FormulaRhs,
-    outcome_regression_formula: FormulaRhs,
+    outcome_regression_config: FormulaRhs | OutcomeRegressionConfig,
     target: CausalTarget = CausalTarget.QTE,
     weights: ColumnName | None = None,
     bootstrap_config: BootstrapConfig | int = 100,
@@ -280,8 +287,9 @@ def estimate_aipw_effects(
         Quantiles in ``(0, 1)`` at which to estimate the effect.
     propensity_score_formula : FormulaRhs
         Right-hand side of the propensity score formula.
-    outcome_regression_formula : FormulaRhs
-        Right-hand side of the outcome regression formula.
+    outcome_regression_config : FormulaRhs or `OutcomeRegressionConfig`
+        Outcome regression specification. A string is shorthand for
+        ``OutcomeRegressionConfig(formula=...)``.
     target : `CausalTarget`, default=`CausalTarget.QTE`
         Estimand to target, ``QTE`` (population) or ``QTT`` (treated).
     weights : ColumnName, optional
@@ -302,11 +310,12 @@ def estimate_aipw_effects(
         weights = "_w"
         ds = ds.with_columns(pl.lit(1).alias(weights))
     qs = np.array(qs)
+    or_config = make_outcome_regression_config(outcome_regression_config)
     fcn = partial(
         compute_aipw_effects,
         outcome=outcome,
         treatment=treatment,
-        outcome_regression_formula=outcome_regression_formula,
+        outcome_regression_config=or_config,
         propensity_score_formula=propensity_score_formula,
         qs=qs,
         weights=weights,
@@ -330,5 +339,5 @@ def estimate_aipw_effects(
         outcome=outcome,
         group=None,
         propensity_score_formula=propensity_score_formula,
-        outcome_regression_formula=outcome_regression_formula,
+        outcome_regression_formula=or_config.formula,
     )

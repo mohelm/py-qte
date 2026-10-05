@@ -81,7 +81,7 @@ def test_covariate_data_is_confounded_but_aipw_recovers_the_truth():
         "treat",
         qs=QS,
         propensity_score_formula="x1 + x3 + I(x0 > 0)",
-        outcome_regression_formula="x3 + x4 + ind1 + ind2 + sq",
+        outcome_regression_config="x3 + x4 + ind1 + ind2 + sq",
         bootstrap_config=CFG,
     )
 

@@ -434,7 +434,7 @@ res_py_seq = estimate_aipw_effects(
     "treat",
     qs=qs,
     propensity_score_formula=r.X_PY,
-    outcome_regression_formula=r.X_PY,
+    outcome_regression_config=r.X_PY,
     bootstrap_config=cfg,
 )
 py_seq_seconds = time.perf_counter() - t0
@@ -452,7 +452,7 @@ res_py_par = estimate_aipw_effects(
     "treat",
     qs=qs,
     propensity_score_formula=r.X_PY,
-    outcome_regression_formula=r.X_PY,
+    outcome_regression_config=r.X_PY,
     bootstrap_config=cfg,
 )
 py_par_seconds = time.perf_counter() - t0
@@ -626,7 +626,7 @@ def run_py_sim_cov(n_workers):
         "treat",
         qs=qs,
         propensity_score_formula="x1 + x3 + I(x0 > 0)",
-        outcome_regression_formula="x3 + x4 + ind1 + ind2 + sq",
+        outcome_regression_config="x3 + x4 + ind1 + ind2 + sq",
         bootstrap_config=cfg,
     )
     return time.perf_counter() - t0, res
@@ -800,8 +800,10 @@ if int(r.N_SIM_PY_QTE_ONLY) > 0:
         "treat",
         qs=qs,
         propensity_score_formula="x1 + x3 + I(x0 > 0)",
-        outcome_regression_formula="x3 + x4 + ind1 + ind2 + sq",
-        bootstrap_config=sim_cfg._replace(n_workers=1),
+        outcome_regression_config="x3 + x4 + ind1 + ind2 + sq",
+        bootstrap_config=BootstrapConfig(
+            n_iter=sim_cfg.n_iter, seed=sim_cfg.seed, n_workers=1
+        ),
     )
     py_only_seq_seconds = time.perf_counter() - t0
     t0 = time.perf_counter()
@@ -811,7 +813,7 @@ if int(r.N_SIM_PY_QTE_ONLY) > 0:
         "treat",
         qs=qs,
         propensity_score_formula="x1 + x3 + I(x0 > 0)",
-        outcome_regression_formula="x3 + x4 + ind1 + ind2 + sq",
+        outcome_regression_config="x3 + x4 + ind1 + ind2 + sq",
         bootstrap_config=sim_cfg,
     )
     py_only_par_seconds = time.perf_counter() - t0

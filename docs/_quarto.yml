@@ -78,6 +78,7 @@ quartodoc:
           include_inherited: true
         - CausalTarget
         - Estimator
+        - OutcomeRegressionConfig
     - title: Simulation
       desc: Simulation functions for the cross-sectional estimators (`qte.cross_sectional.simulate`).
       package: qte.cross_sectional.simulate
@@ -110,3 +111,8 @@ quartodoc:
       package: qte.bootstrap
       contents:
         - BootstrapConfig
+    - title: Quantile Regression
+      desc: Quantile regression solver and algorithm selection (`qte.quantile_regression`).
+      package: qte.quantile_regression
+      contents:
+        - QuantileRegressionAlgorithms

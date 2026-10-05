@@ -2,11 +2,14 @@ import numpy as np
 import polars as pl
 from numpy.typing import NDArray
 
-from qte.constants import PERCENTILES
-from qte.cross_sectional.custom_types import CausalTarget
+from qte.cross_sectional.custom_types import (
+    CausalTarget,
+    OutcomeRegressionConfig,
+    resolve_grid,
+)
 from qte.cross_sectional.or_helpers import make_weights, predict_outcome_model
 from qte.cross_sectional.results import _QteIntermediateResult
-from qte.custom_types import ColumnName, DataFrame, FormulaRhs
+from qte.custom_types import ColumnName, DataFrame
 from qte.names import (
     EFFECT_ID,
     MEAN_CONTROL_ID,
@@ -24,19 +27,24 @@ def compute_outcome_regression_effects(
     treatment: ColumnName,
     qs: NDArray[np.float64] = (0.5,),  # type: ignore
     *,
-    outcome_regression_formula: FormulaRhs,
+    outcome_regression_config: OutcomeRegressionConfig,
     weights: ColumnName | None = None,
     target: CausalTarget = CausalTarget.QTE,
-    outcome_reg_quantiles: NDArray = PERCENTILES,
 ) -> _QteIntermediateResult:
     treated, control = (
         ds.filter(pl.col(treatment) == 1),
         ds.filter(pl.col(treatment) == 0),
     )
+    grid = resolve_grid(outcome_regression_config.grid)
 
     # Estimate the outcome model on the controls
     ors_control = estimate_outcome_model(
-        control, outcome, outcome_regression_formula, outcome_reg_quantiles, weights
+        control,
+        outcome,
+        outcome_regression_config.formula,
+        grid,
+        weights,
+        algorithm=outcome_regression_config.algorithm,
     )
 
     if target == CausalTarget.QTE:
@@ -45,9 +53,7 @@ def compute_outcome_regression_effects(
         # treatment from the outcome model estimated on the controls.
         preds_control = predict_outcome_model(ors_control, ds, flatten=True)
         # Align the sampling weights with this 'distribution'.
-        sample_weights = make_weights(
-            weights, ds, outcome_reg_quantiles.shape[0]
-        )  # TODO: really tile??
+        sample_weights = make_weights(weights, ds, grid.shape[0])  # TODO: really tile??
         # Obtain the statistics of interest from that distribution.
         q_c = get_quantiles(qs, preds_control, sample_weights)
         mean_c = np.average(preds_control, weights=sample_weights)
@@ -56,7 +62,12 @@ def compute_outcome_regression_effects(
         # treated. Then obtain the predictions from that model for all observations, and lastly
         # compute the statistics of interest.
         ors_treated = estimate_outcome_model(
-            treated, outcome, outcome_regression_formula, outcome_reg_quantiles, weights
+            treated,
+            outcome,
+            outcome_regression_config.formula,
+            grid,
+            weights,
+            algorithm=outcome_regression_config.algorithm,
         )
         preds_treated = predict_outcome_model(ors_treated, ds, flatten=True)
         q_t = get_quantiles(qs, preds_treated, sample_weights)
@@ -67,7 +78,7 @@ def compute_outcome_regression_effects(
         # data.
         preds_control = predict_outcome_model(ors_control, treated, flatten=True)
         # Get the corresponding weights.
-        w_c = make_weights(weights, treated, outcome_reg_quantiles.shape[0])
+        w_c = make_weights(weights, treated, grid.shape[0])
         # Compute the statistics of interest from the counterfactual outcomes and the corresponding
         # weights.
         q_c = get_quantiles(qs, preds_control, w_c)

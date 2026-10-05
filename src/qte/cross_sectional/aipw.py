@@ -2,8 +2,11 @@ import numpy as np
 import polars as pl
 from numpy.typing import ArrayLike, NDArray
 
-from qte.constants import PERCENTILES
-from qte.cross_sectional.custom_types import CausalTarget
+from qte.cross_sectional.custom_types import (
+    CausalTarget,
+    OutcomeRegressionConfig,
+    resolve_grid,
+)
 from qte.cross_sectional.or_helpers import make_weights, predict_outcome_model
 from qte.cross_sectional.results import _QteIntermediateResult
 from qte.custom_types import ColumnName, FormulaRhs
@@ -20,7 +23,7 @@ from qte.stats import estimate_outcome_model, estimate_propensity_score, get_qua
 
 def _compute_aipw_quantiles(
     qs: NDArray,
-    grid: NDArray,
+    outcome_grid: NDArray,
     or_preds: NDArray,
     outcomes: NDArray,
     treatment_status: NDArray,
@@ -40,13 +43,13 @@ def _compute_aipw_quantiles(
     outcome_sorted = outcomes[sorter]
     cdf_outcome = np.concatenate(([0.0], np.cumsum(prop_score_weights[sorter])))
 
-    idx_or = np.searchsorted(or_preds_flat_sorted, grid, side="right")
-    idx_outcome = np.searchsorted(outcome_sorted, grid, side="right")
+    idx_or = np.searchsorted(or_preds_flat_sorted, outcome_grid, side="right")
+    idx_outcome = np.searchsorted(outcome_sorted, outcome_grid, side="right")
     f0 = (cdf_or[idx_or] + cdf_outcome[idx_outcome]) / np.sum(sampling_weights)
 
     f0 = np.maximum.accumulate(np.maximum(np.minimum(1, f0), 0))
     u, indices = np.unique(f0, return_index=True)
-    return np.interp(qs, u, grid[indices])
+    return np.interp(qs, u, outcome_grid[indices])
 
 
 def _compute_aipw_mean(
@@ -70,17 +73,22 @@ def compute_aipw_effects(
     qs: ArrayLike = (0.5,),
     *,
     propensity_score_formula: FormulaRhs,
-    outcome_regression_formula: FormulaRhs,
+    outcome_regression_config: OutcomeRegressionConfig,
     weights: ColumnName,
     target: CausalTarget = CausalTarget.QTE,
-    or_quantiles: NDArray = PERCENTILES,
 ) -> _QteIntermediateResult:
 
     qs = np.array(qs)
+    grid = resolve_grid(outcome_regression_config.grid)
     treated, control = (ds.filter(pl.col(treatment) == 1), ds.filter(pl.col(treatment) == 0))
     ps = estimate_propensity_score(ds, treatment, propensity_score_formula, weights).predict()
     ors_control = estimate_outcome_model(
-        control, outcome, outcome_regression_formula, or_quantiles, weights
+        control,
+        outcome,
+        outcome_regression_config.formula,
+        grid,
+        weights,
+        algorithm=outcome_regression_config.algorithm,
     )
     preds = predict_outcome_model(ors_control, ds, flatten=False)
 
@@ -106,7 +114,12 @@ def compute_aipw_effects(
         m_c = _compute_aipw_mean(preds, ds[outcome].to_numpy(), 1 - d, 1 - ps, w_all)
 
         ors_treated = estimate_outcome_model(
-            treated, outcome, outcome_regression_formula, or_quantiles, weights
+            treated,
+            outcome,
+            outcome_regression_config.formula,
+            grid,
+            weights,
+            algorithm=outcome_regression_config.algorithm,
         )
         preds_treated = predict_outcome_model(ors_treated, ds, flatten=False)
         q_t = _compute_aipw_quantiles(

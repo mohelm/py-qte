@@ -6,7 +6,11 @@ from pytest import fixture, mark
 import qte.quantile_regression as qr
 from qte.constants import MEDIAN
 from qte.datasets import load_engel_with_weights
-from qte.quantile_regression import QuantileRegression, QuantileRegressionResult
+from qte.quantile_regression import (
+    QuantileRegression,
+    QuantileRegressionAlgorithms,
+    QuantileRegressionResult,
+)
 
 QS = [0.1, 0.5, 0.9]
 UNWEIGHTED_EXPECTED_COEFFS = np.array(
@@ -112,3 +116,59 @@ def test_quantile_regression_falls_back_to_statsmodels(monkeypatch):
 
     unweighted = QuantileRegression("log_foodexp ~ log_income", ds=ds).fit(QS, weights=None)
     assert np.allclose(unweighted.coefficients, UNWEIGHTED_EXPECTED_COEFFS, atol=5e-5)
+
+
+@mark.skipif(qr.rq_fortran is None, reason="requires the compiled Fortran extension")
+def test_process_preprocessing_matches_independent_solves():
+    rng = np.random.default_rng(0)
+    n = 6_000
+    ds = pl.DataFrame({"x1": rng.normal(size=n), "x2": rng.normal(size=n)}).with_columns(
+        y=1.0 + 2.0 * pl.col("x1") - pl.col("x2") + rng.normal(size=n)
+    )
+    qs = np.linspace(0.05, 0.95, 10)
+
+    independent = QuantileRegression("y ~ x1 + x2", ds).fit(
+        qs, algorithm=QuantileRegressionAlgorithms.FRISCH_NEWTON
+    )
+    processed = QuantileRegression("y ~ x1 + x2", ds).fit(
+        qs, algorithm=QuantileRegressionAlgorithms.PREPROCESSING
+    )
+
+    assert np.allclose(independent.coefficients, processed.coefficients, atol=1e-4)
+
+
+def test_process_preprocessing_falls_back_for_small_samples():
+    rng = np.random.default_rng(0)
+    n = 100
+    ds = pl.DataFrame({"x": rng.normal(size=n)}).with_columns(
+        y=1.0 + 2.0 * pl.col("x") + rng.normal(size=n)
+    )
+    qs = np.array([0.25, 0.5, 0.75])
+
+    independent = QuantileRegression("y ~ x", ds).fit(
+        qs, algorithm=QuantileRegressionAlgorithms.FRISCH_NEWTON
+    )
+    processed = QuantileRegression("y ~ x", ds).fit(
+        qs, algorithm=QuantileRegressionAlgorithms.PREPROCESSING
+    )
+
+    assert np.array_equal(independent.coefficients, processed.coefficients)
+
+
+def test_process_methods_preserve_quantile_order():
+    """Regression test: sorting qs internally must not reorder the output."""
+    rng = np.random.default_rng(0)
+    n = 6_000
+    ds = pl.DataFrame({"x1": rng.normal(size=n), "x2": rng.normal(size=n)}).with_columns(
+        y=1.0 + 2.0 * pl.col("x1") - pl.col("x2") + rng.normal(size=n)
+    )
+    qs = np.array([0.9, 0.25, 0.5, 0.1])
+    order = np.argsort(qs)
+    inverse = np.argsort(order)
+
+    model = QuantileRegression("y ~ x1 + x2", ds)
+    unsorted = model.fit(qs, algorithm=QuantileRegressionAlgorithms.PREPROCESSING).coefficients
+    sorted_ = model.fit(
+        qs[order], algorithm=QuantileRegressionAlgorithms.PREPROCESSING
+    ).coefficients
+    assert np.allclose(unsorted, sorted_[:, inverse], atol=1e-10)

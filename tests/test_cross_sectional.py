@@ -8,14 +8,16 @@ from polars.testing import assert_frame_equal, assert_series_equal
 from qte.bootstrap import BootstrapConfig
 from qte.constants import QUARTILES
 from qte.cross_sectional import (
+    OutcomeRegressionConfig,
     estimate_aipw_effects,
     estimate_ipw_effects,
     estimate_outcome_regression_effects,
     estimate_unadjusted_effects,
 )
-from qte.cross_sectional.custom_types import CausalTarget
+from qte.cross_sectional.custom_types import CausalTarget, resolve_grid
 from qte.cross_sectional.results import QteResult
 from qte.names import EFFECT_ID, QUANTILE_ID
+from qte.quantile_regression import QuantileRegressionAlgorithms
 
 
 def make_data(n_treated: int = 500, n_control: int | None = None) -> pl.DataFrame:
@@ -114,7 +116,7 @@ def test_estimate_outcome_regression_effects_with_lalonde(
 ):
     xf = "age + I(age**2) + education + black + hispanic + married + nodegree"
     res = estimate_outcome_regression_effects(
-        lalonde_psid, "re78", "treat", outcome_regression_formula=xf, **estimate_params
+        lalonde_psid, "re78", "treat", outcome_regression_config=xf, **estimate_params
     )
     assert_series_equal(pl.Series("q", expected_results["q"]), res.get_as_dataframe()["q"])
     assert_series_equal(
@@ -157,7 +159,7 @@ def test_estimate_aipw_effects_with_lalonde(lalonde_psid, estimate_params, expec
         lalonde_psid,
         "re78",
         "treat",
-        outcome_regression_formula=xf,
+        outcome_regression_config=xf,
         propensity_score_formula=xf,
         **estimate_params,
     )
@@ -172,3 +174,24 @@ def test_estimate_aipw_effects_with_lalonde(lalonde_psid, estimate_params, expec
         res.att["effect"],
         rel_tol=0.01,
     )
+
+
+def test_outcome_regression_config_defaults_and_grid():
+    config = OutcomeRegressionConfig("age + education")
+    assert config.grid == 100
+    assert config.algorithm is QuantileRegressionAlgorithms.PREPROCESSING
+
+    assert resolve_grid(100).shape == (99,)
+    assert resolve_grid(10).shape == (9,)
+    np.testing.assert_allclose(resolve_grid([0.1, 0.5, 0.9]), [0.1, 0.5, 0.9])
+
+
+def test_estimate_outcome_regression_accepts_config():
+    ds = make_data(200)
+    config = OutcomeRegressionConfig(
+        "1", grid=10, algorithm=QuantileRegressionAlgorithms.FRISCH_NEWTON
+    )
+    res = estimate_outcome_regression_effects(
+        ds, "outcome", "treated", qs=(0.5,), outcome_regression_config=config, bootstrap_config=3
+    )
+    assert isinstance(res, QteResult)

@@ -6,6 +6,8 @@ platforms without a Fortran toolchain), estimation falls back to
 :class:`statsmodels.regression.quantile_regression.QuantReg`.
 """
 
+from enum import StrEnum
+
 import numpy as np
 import polars as pl
 from formulaic import Formula
@@ -17,6 +19,39 @@ try:
     from qte.quantile_regression import rq_fortran  # type: ignore
 except ImportError:  # pragma: no cover - depends on the build environment
     rq_fortran = None  # type: ignore[assignment]
+
+
+def _solve(
+    X: NDArray[np.float64],
+    y: NDArray[np.float64],
+    q: float,
+) -> NDArray[np.float64]:
+    """Solve one quantile on an already weighted design."""
+    if rq_fortran is None:
+        from statsmodels.regression.quantile_regression import QuantReg
+
+        return np.asarray(QuantReg(y, X).fit(q=q).params, dtype=np.float64)
+
+    n_obs, n_coeffs = X.shape
+
+    a = np.asfortranarray(X.T)
+    y_input = -y
+    rhs = (1 - q) * X.sum(axis=0)
+
+    d = np.ones(n_obs)
+    u = np.ones(n_obs)
+    beta = 0.99995
+    eps = 1e-6
+
+    wn = np.zeros((n_obs, 9), order="F")
+    wn[:, 0] = 1 - q
+
+    wp = np.zeros((n_coeffs, n_coeffs + 3), order="F")
+    nit = np.zeros(3, dtype=np.int32)
+    info = 0
+
+    rq_fortran.rqfnb(a, y_input, rhs, d, u, beta, eps, wn, wp, nit, info)
+    return -wp[:, 0]
 
 
 def _fast_quantreg(
@@ -49,31 +84,152 @@ def _fast_quantreg(
         X = X * w[:, None]
         y = y * w
 
-    if rq_fortran is None:
-        from statsmodels.regression.quantile_regression import QuantReg
+    return _solve(X, y, q)
 
-        return np.asarray(QuantReg(y, X).fit(q=q).params, dtype=np.float64)
+
+def _preprocess_sorted(
+    X: NDArray[np.float64],
+    y: NDArray[np.float64],
+    qs: NDArray[np.float64],
+    weights: NDArray[np.float64] | None = None,
+    *,
+    m_factor: float = 0.8,
+    eps: float = 1e-6,
+) -> NDArray[np.float64]:
+    """Fit a sequence of already sorted quantiles with preprocessing.
+
+    Port of ``quantreg::rq.fit.ppro`` (Chernozhukov, Fernandez-Val and Melly,
+    2020): the coefficient from the previous quantile classifies the
+    observations whose residual sign is already known, so they can be collapsed
+    into two aggregated observations and the interior-point solve runs on a
+    reduced problem. The sign checks keep the estimates numerically equal to a
+    fresh solve.
+
+    Parameters
+    ----------
+    X : NDArray
+        Design matrix, shape ``(n_obs, n_coeffs)``.
+    y : NDArray
+        Response, shape ``(n_obs,)``.
+    qs : NDArray
+        Quantiles in ``(0, 1)``, sorted ascending.
+    weights : NDArray, optional
+        Positive observation weights, shape ``(n_obs,)``.
+    m_factor : float, default=0.8
+        Multiplier for the number of observations kept between the two
+        quantile cut-offs (``Mm.factor`` in ``quantreg``).
+    eps : float, default=1e-6
+        Floor for the estimated residual standard errors.
+
+    Returns
+    -------
+    NDArray
+        Coefficients, shape ``(n_coeffs, n_quantiles)``.
+    """
+    if weights is not None:
+        w = np.asarray(weights, dtype=np.float64)
+        w = w / w.mean()
+        X = X * w[:, None]
+        y = y * w
 
     n_obs, n_coeffs = X.shape
+    coef = np.empty((n_coeffs, qs.shape[0]))
 
-    a = np.asfortranarray(X.T)
-    y_input = -y
-    rhs = (1 - q) * X.sum(axis=0)
+    # If there is just a single quantile the pre-processing algorithm does not help.
+    if qs.shape[0] < 2:
+        return _solve(X, y, qs[0])[:, None]
+    # The reduced problem keeps about n sqrt(k) dtau observations. For small
+    # samples or few coefficients it becomes ill-conditioned (and the overhead
+    # is not worth it), so fall back to independent solves.
+    initial_effective_sample_size = m_factor * n_obs * np.sqrt(n_coeffs) * np.max(np.diff(qs))
 
-    d = np.ones(n_obs)
-    u = np.ones(n_obs)
-    beta = 0.99995
-    eps = 1e-6
+    # TODO: take that out/expose.
+    if n_obs < 5_000 or initial_effective_sample_size < 5 * n_coeffs:
+        return np.column_stack([_solve(X, y, q) for q in qs])
 
-    wn = np.zeros((n_obs, 9), order="F")
-    wn[:, 0] = 1 - q
+    # Get initial b
+    b = _solve(X, y, qs[0])
+    coef[:, 0] = b
 
-    wp = np.zeros((n_coeffs, n_coeffs + 3), order="F")
-    nit = np.zeros(3, dtype=np.int32)
-    info = 0
+    # Conservative estimate of the residual standard errors, see Portnoy and
+    # Koenker (1997). ``chol(X'X)`` is upper triangular in R, so in numpy we
+    # transpose the lower Cholesky factor.
+    try:
+        upper = np.linalg.cholesky(X.T @ X).T
+        x_upper_inv = np.linalg.solve(upper.T, X.T).T
+    except np.linalg.LinAlgError:
+        return np.column_stack([_solve(X, y, q) for q in qs])
 
-    rq_fortran.rqfnb(a, y_input, rhs, d, u, beta, eps, wn, wp, nit, info)
-    return -wp[:, 0]
+    # z_i from the paper.
+    band = np.maximum(eps, np.sqrt((x_upper_inv**2).sum(axis=1)))
+
+    for j, tau in enumerate(qs[1:], start=1):
+        r = y - X @ b
+        not_optimal = True
+        mm = 1.0
+        while not_optimal:
+            effective_sample_size = mm * initial_effective_sample_size
+            lo_q = max(1.0 / n_obs, tau - effective_sample_size / (2 * n_obs))
+            hi_q = min(tau + effective_sample_size / (2 * n_obs), (n_obs - 1) / n_obs)
+
+            # This is relative directly in algorithm 2 it is how the sets J_H and J_L are
+            # calculated.
+            kappa = np.quantile(r / band, [lo_q, hi_q])
+            sl = r < band * kappa[0]
+            su = r > band * kappa[1]
+            while True:
+                effective_sample_identifer = ~su & ~sl
+                xx = X[effective_sample_identifer]
+                yy = y[effective_sample_identifer]
+                if sl.any():
+                    xx = np.vstack([xx, X[sl].sum(axis=0)])
+                    yy = np.append(yy, y[sl].sum())
+                if su.any():
+                    xx = np.vstack([xx, X[su].sum(axis=0)])
+                    yy = np.append(yy, y[su].sum())
+                if xx.shape[0] < n_coeffs or np.linalg.matrix_rank(xx) < n_coeffs:
+                    # The reduced problem is rank deficient (too few kept rows
+                    # or a degenerate design), which the Fortran solver does not
+                    # report. Fall back to a full solve for this quantile.
+                    b = _solve(X, y, tau)
+                    r = y - X @ b
+                    not_optimal = False
+                    break
+                b = _solve(xx, yy, tau)
+                r = y - X @ b
+                su_bad = (r < 0) & su
+                sl_bad = (r > 0) & sl
+                bad_signs = int((su_bad | sl_bad).sum())
+                if bad_signs > 0:
+                    if bad_signs > 0.1 * effective_sample_size:
+                        mm *= 2
+                        break
+                    su = su & ~su_bad
+                    sl = sl & ~sl_bad
+                else:
+                    not_optimal = False
+                    break
+        coef[:, j] = b
+
+    return coef
+
+
+def _solve_qr_with_preprocessing(
+    X: NDArray[np.float64],
+    y: NDArray[np.float64],
+    qs: NDArray[np.float64],
+    weights: NDArray[np.float64] | None = None,
+    *,
+    m_factor: float = 0.8,
+    eps: float = 1e-6,
+) -> NDArray[np.float64]:
+
+    # For the preprocessing algorithm, we need ordered quantiles since quantile order is exploited.
+    # We return the old order exploiting that argsorts sorts and argsort (argsorts) restores.
+    order = np.argsort(qs, kind="stable")
+    return _preprocess_sorted(X, y, qs[order], weights, m_factor=m_factor, eps=eps)[
+        :, np.argsort(order)
+    ]
 
 
 class QuantileRegressionResult:
@@ -121,6 +277,22 @@ class QuantileRegressionResult:
         ) @ self.coefficients
 
 
+class QuantileRegressionAlgorithms(StrEnum):
+    """Algorithm used to fit the quantile regression coefficient process.
+
+    Attributes
+    ----------
+    FRISCH_NEWTON
+        Exact per-quantile Frisch-Newton interior point (the baseline).
+    PREPROCESSING
+        Exact preprocessing of the process (Chernozhukov, Fernandez-Val and
+        Melly, 2020, Algorithm 2); falls back to `FRISCH_NEWTON`.
+    """
+
+    FRISCH_NEWTON = "frisch_newton"
+    PREPROCESSING = "preprocessing"
+
+
 class QuantileRegression:
     """Quantile regression on a formula and a Polars frame.
 
@@ -136,7 +308,13 @@ class QuantileRegression:
         self.formula = formula
         self._ds = ds
 
-    def fit(self, qs: NDArray, *, weights: ColumnName | None = None) -> QuantileRegressionResult:
+    def fit(
+        self,
+        qs: NDArray,
+        *,
+        weights: ColumnName | None = None,
+        algorithm: QuantileRegressionAlgorithms = QuantileRegressionAlgorithms.FRISCH_NEWTON,
+    ) -> QuantileRegressionResult:
         """Fit the model at one or more quantiles.
 
         Parameters
@@ -145,6 +323,11 @@ class QuantileRegression:
             Quantiles to fit, each in ``(0, 1)``.
         weights : ColumnName, optional
             Column of ``ds`` holding positive observation weights.
+        algorithm : `QuantileRegressionAlgorithms`, default=`QuantileRegressionAlgorithms.FRISCH_NEWTON`
+            ``FRISCH_NEWTON`` solves each quantile independently;
+            ``PREPROCESSING`` preprocesses the quantile process using the
+            previous coefficients (Algorithm 2) and falls back to independent
+            solves when the reduced problem is too small or rank deficient.
 
         Returns
         -------
@@ -154,5 +337,9 @@ class QuantileRegression:
         fml = Formula(self.formula)
         y, X = fml.get_model_matrix(self._ds, output="numpy")
         sample_weights = self._ds[weights].to_numpy() if weights is not None else None
-        coeffs = np.column_stack([_fast_quantreg(X, y.ravel(), q, sample_weights) for q in qs])
+        coeffs = (
+            _solve_qr_with_preprocessing(X, y.ravel(), np.asarray(qs, dtype=float), sample_weights)
+            if algorithm == QuantileRegressionAlgorithms.PREPROCESSING
+            else np.column_stack([_fast_quantreg(X, y.ravel(), q, sample_weights) for q in qs])
+        )
         return QuantileRegressionResult(coeffs, x_fit=X, formula=fml)

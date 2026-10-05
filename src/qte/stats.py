@@ -11,7 +11,11 @@ from statsmodels.genmod.generalized_linear_model import GLMResultsWrapper
 
 from qte.custom_types import ColumnName, FormulaRhs, Series
 from qte.names import CI_LB_ID, CI_UB_ID, EFFECT_ID, SE_ID
-from qte.quantile_regression import QuantileRegression, QuantileRegressionResult
+from qte.quantile_regression import (
+    QuantileRegression,
+    QuantileRegressionAlgorithms,
+    QuantileRegressionResult,
+)
 
 
 def get_quantiles(
@@ -50,8 +54,12 @@ def estimate_outcome_model(
     x_formula: FormulaRhs,
     qs: NDArray[np.float64],
     weights: ColumnName | None,
+    *,
+    algorithm: QuantileRegressionAlgorithms = QuantileRegressionAlgorithms.PREPROCESSING,
 ) -> QuantileRegressionResult:
-    return QuantileRegression(f"{outcome}~{x_formula}", ds=ds).fit(qs, weights=weights)
+    return QuantileRegression(f"{outcome}~{x_formula}", ds=ds).fit(
+        qs, weights=weights, algorithm=algorithm
+    )
 
 
 @dataclass

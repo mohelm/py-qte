@@ -52,7 +52,7 @@ res = estimate_aipw_effects(
     ds=ds,
     outcome="re78",
     treatment="treat",
-    outcome_regression_formula="age + education",
+    outcome_regression_config="age + education",
     propensity_score_formula="age + education",
 )
 
