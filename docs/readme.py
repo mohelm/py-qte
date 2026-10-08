@@ -98,7 +98,10 @@ def generate_readme_assets(
 
     html_path = (out / f"{model_id}_table.html").resolve()
     png_path = (out / f"{model_id}_table.png").resolve()
-    html_path.write_text(res.tabulate().as_raw_html())
+    html_path.write_text(
+        "<!DOCTYPE html><html><head><meta charset='utf-8'></head><body>"
+        f"{res.tabulate().as_raw_html()}</body></html>"
+    )
 
     with tempfile.TemporaryDirectory(prefix="qte-readme-firefox-") as profile:
         subprocess.run(

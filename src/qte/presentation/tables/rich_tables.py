@@ -7,6 +7,7 @@ from rich.jupyter import JupyterMixin
 from rich.table import Table
 from rich.text import Text
 
+from qte.presentation.common import DEFAULT_CHART_TITLE
 from qte.presentation.tables.common import (
     ATE_TABLE_SUB_HEADER,
     NICE_NAMES,
@@ -72,7 +73,7 @@ def make_rich_table(
         group = (group,)
 
     header = Text()
-    header.append("Quantile Treatment Effect\n", style="bold")
+    header.append(f"{DEFAULT_CHART_TITLE}\n", style="bold")
     for h in _make_header(hc, " ", "\n"):
         header.append(h)
 

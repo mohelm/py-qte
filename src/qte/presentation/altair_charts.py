@@ -2,6 +2,7 @@ import altair as alt
 import polars as pl
 
 from qte.names import CI_LB_ID, CI_UB_ID, EFFECT_ID, QUANTILE_ID
+from qte.presentation.common import DEFAULT_CHART_TITLE
 
 _ESTIMATE_TYPE_ORDER = ["qte", "att"]
 _ESTIMATE_TYPE_COLOR = alt.Scale(domain=_ESTIMATE_TYPE_ORDER, range=["black", "red"])
@@ -31,7 +32,9 @@ def _plot_against_quantiles(
             titleFontWeight="normal",
             values=tick_values,
             format=".3~f",  # At MOST three decimals
-            titleAnchor="start",
+            # Anchor the shared axis title to the left only when faceting; a single
+            # (ungrouped) chart keeps the default centred title.
+            titleAnchor="start" if x_label_pos is not None else alt.Undefined,
         ),
     )
 
@@ -138,18 +141,44 @@ def make_plot(
     qtes: pl.DataFrame,
     atts: pl.DataFrame,
     group: str | tuple[str] | tuple[str, str] | None = None,
+    subtitle: str | list[str] | None = None,
 ) -> alt.LayerChart | alt.FacetChart:
     if isinstance(group, str):
         group = (group,)
 
     combined = pl.concat(
-        (d.with_columns(pl.lit(k).alias("__kind")) for d, k in [(qtes, "qte"), (atts, "att")]),
+        (
+            d.with_columns(pl.lit(k).alias("__kind"))
+            for d, k in [
+                (
+                    qtes,
+                    "qte",
+                ),
+                (
+                    atts,
+                    "att",
+                ),
+            ]
+        ),
         how="diagonal",
     )
     quantiles = qtes[QUANTILE_ID].unique().sort()
     n_quantiles = quantiles.shape[0]
-    return (
+    chart = (
         _make_plot_with_multiple_quantiles(combined, group, tick_values=quantiles.to_list())
         if n_quantiles > 1
         else _make_plot_for_single_quantile(combined, group, quantile=quantiles.item())
+    )
+    return chart.properties(
+        title=alt.TitleParams(
+            DEFAULT_CHART_TITLE,
+            subtitle=subtitle if subtitle is not None else alt.Undefined,
+            fontSize=12,
+            fontWeight="normal",
+            subtitleFont="monospace",
+            subtitleFontSize=10,
+            subtitleColor="#555555",
+            anchor="start",
+            align="left",
+        )
     )

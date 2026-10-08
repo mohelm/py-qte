@@ -4,6 +4,7 @@ import polars as pl
 from great_tables import GT, loc, md, style
 
 from qte.names import CI_LB_ID, CI_UB_ID, EFFECT_ID, QUANTILE_ID, SE_ID
+from qte.presentation.common import DEFAULT_CHART_TITLE
 from qte.presentation.tables.common import (
     ATE_TABLE_SUB_HEADER,
     NICE_NAMES,
@@ -15,7 +16,7 @@ from qte.presentation.tables.common import (
 def make_great_table(
     qtes: pl.DataFrame,
     atts: pl.DataFrame,
-    group: str | None | tuple[str, ...],
+    group: str | tuple[str, ...] | None,
     header_content: dict[str, Any],
     float_precision: int = 2,
 ) -> GT:
@@ -32,13 +33,13 @@ def make_great_table(
 
     float_cols = [c for c, dtype in combined.schema.items() if dtype.is_float()]
 
-    st_meat = "".join(_make_header(header_content, "&nbsp", "<br>"))
-    subtitle = f"<div style='font-family: monospace;'>{st_meat}</div>"
+    st_meat = "".join(_make_header(header_content, "\u00a0", "<br>"))
+    subtitle = f"<div style='font-family: monospace; text-align: left;'>{st_meat}</div>"
 
     base = (
         GT(combined, groupname_col="__kind")
         .tab_header(
-            title="Quantile & Average Treatment Effects",
+            title=DEFAULT_CHART_TITLE,
             subtitle=md(subtitle),
         )
         .cols_label(**{col: NICE_NAMES.get(col, col) for col in combined.columns})
