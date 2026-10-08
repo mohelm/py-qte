@@ -44,6 +44,37 @@ def mock_qte_result():
 
 
 @pytest.fixture
+def mock_grouped_qte_result():
+    qtt = pl.DataFrame(
+        {
+            "group": ["a", "a", "b", "b"],
+            QUANTILE_ID: [0.25, 0.5, 0.25, 0.5],
+            EFFECT_ID: [-5.0, 0.0, 5.0, 6.0],
+            QUANTILE_TREATED_VAL_ID: [10.0, 15.0, 20.0, 21.0],
+            QUANTILE_CONTROL_VAL_ID: [15.0, 15.0, 15.0, 15.0],
+            SE_ID: [1.0, 1.0, 1.0, 1.0],
+        }
+    )
+    att = pl.DataFrame(
+        {
+            "group": ["a", "b"],
+            MEAN_TREATED_ID: [10.0, 20.0],
+            MEAN_CONTROL_ID: [15.0, 15.0],
+            EFFECT_ID: [-5.0, 5.0],
+            SE_ID: [1.0, 1.0],
+        }
+    )
+    return QteResult(
+        qtt=qtt,
+        att=att,
+        outcome="re78",
+        group="group",
+        estimator=Estimator.UNADJUSTED,
+        causal_target=CausalTarget.QTE,
+    )
+
+
+@pytest.fixture
 def mock_single_quantile_qte_result():
     ds = pl.DataFrame(
         {
@@ -97,6 +128,16 @@ def test_plot_returns_altair_chart_with_multiple_quantile_qte_result(
 
     layers = chart_dict.get("layer", [])
     assert len(layers) == 2  # 2 aggregate layers (qte and att)
+
+
+def test_plot_accepts_string_group(mock_grouped_qte_result):
+    chart = mock_grouped_qte_result.plot()
+
+    assert isinstance(chart, alt.FacetChart)
+
+    chart_dict = chart.to_dict()
+    assert isinstance(chart_dict, dict)
+    assert "facet" in chart_dict
 
 
 def test_summarize_returns_rich_table(mock_qte_result):

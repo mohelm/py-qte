@@ -135,8 +135,12 @@ def _make_plot_for_single_quantile(
 
 
 def make_plot(
-    qtes: pl.DataFrame, atts: pl.DataFrame, group: tuple[str] | tuple[str, str] | None = None
+    qtes: pl.DataFrame,
+    atts: pl.DataFrame,
+    group: str | tuple[str] | tuple[str, str] | None = None,
 ) -> alt.LayerChart | alt.FacetChart:
+    if isinstance(group, str):
+        group = (group,)
 
     combined = pl.concat(
         (d.with_columns(pl.lit(k).alias("__kind")) for d, k in [(qtes, "qte"), (atts, "att")]),
