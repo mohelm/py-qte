@@ -8,7 +8,7 @@ import polars as pl
 import polars.selectors as cs
 from numpy.typing import ArrayLike, NDArray
 
-from qte.bootstrap import BootstrapConfig, _make_bootstrap_config, _perform_block_bootstrap
+from qte.bootstrap import BootstrapConfig, _make_block_bootstrap_run, _make_bootstrap_config
 from qte.constants import MEDIAN
 from qte.names import EFFECT_ID, QUANTILE_ID, SE_ID
 from qte.nonlinear_did.aggregate import (
@@ -435,7 +435,7 @@ def estimate_nonlinear_did_for_panel(
         n_anticipation_periods=n_anticipation_periods,
     )
     estimate: _NonlinearDidAggregations = fcn(ds)
-    bs_iterations = _perform_block_bootstrap(
+    bs_iterations = _make_block_bootstrap_run(
         ds,
         fcn,
         unit,

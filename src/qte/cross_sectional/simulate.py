@@ -42,17 +42,17 @@ from scipy.special import expit
 
 from qte.constants import MEDIAN
 from qte.cross_sectional.custom_types import CausalTarget
+from qte.helpers import _as_iterable_array, _get_quantile_differences
 from qte.names import (
     EFFECT_ID,
     MEAN_CONTROL_ID,
     MEAN_TREATED_ID,
-    QUANTILE_CONTROL_VAL_ID,
-    QUANTILE_ID,
-    QUANTILE_TREATED_VAL_ID,
+    OBSERVED_OUTCOME_ID,
+    POTENTIAL_OUTCOME_CTRL_ID,
+    POTENTIAL_OUTCOME_TREAT_ID,
 )
 
 TREATMENT_COL = "treat"
-OUTCOME_COL = "y"
 N_USED_COVARIATES = 5
 
 
@@ -111,7 +111,7 @@ def simulate_simple_data(
     rng = np.random.default_rng(seed)
     treat = rng.binomial(1, treatment_share, size=n)
     y = treatment_effect * treat + float(np.sqrt(error_var)) * rng.normal(size=n)
-    return pl.DataFrame({TREATMENT_COL: treat, OUTCOME_COL: y})
+    return pl.DataFrame({TREATMENT_COL: treat, OBSERVED_OUTCOME_ID: y})
 
 
 def simulate_covariate_data(
@@ -164,7 +164,14 @@ def simulate_covariate_data(
     )
     y = np.where(treat == 1, y_1, y_0)
     columns: dict[str, NDArray[np.float64]] = {f"x{i}": x[:, i] for i in range(p)}
-    columns.update({TREATMENT_COL: treat, OUTCOME_COL: y, "y_0": y_0, "y_1": y_1})
+    columns.update(
+        {
+            TREATMENT_COL: treat,
+            OBSERVED_OUTCOME_ID: y,
+            POTENTIAL_OUTCOME_CTRL_ID: y_0,
+            POTENTIAL_OUTCOME_TREAT_ID: y_1,
+        }
+    )
     return pl.DataFrame(columns)
 
 
@@ -175,8 +182,8 @@ def _potential_outcomes(
     ds = simulate_covariate_data(
         n_oracle, effect_scale=effect_scale, error_var=error_var, seed=seed
     )
-    y_0 = ds["y_0"].to_numpy()
-    y_1 = ds["y_1"].to_numpy()
+    y_0 = ds[POTENTIAL_OUTCOME_CTRL_ID].to_numpy()
+    y_1 = ds[POTENTIAL_OUTCOME_TREAT_ID].to_numpy()
     if target == CausalTarget.QTT:
         mask = ds[TREATMENT_COL].to_numpy() == 1
         y_0, y_1 = y_0[mask], y_1[mask]
@@ -260,15 +267,7 @@ def get_true_quantiles(
     polars.DataFrame
         Columns ``q``, ``q_t``, ``q_c`` and ``effect`` (``q_t - q_c``).
     """
-    qs = np.atleast_1d(np.asarray(qs, dtype=float))
+    qs = _as_iterable_array(qs)
 
     y_0, y_1 = _potential_outcomes(target, n_oracle, effect_scale, error_var, seed)
-    return pl.DataFrame(
-        {
-            QUANTILE_ID: qs,
-            QUANTILE_TREATED_VAL_ID: np.quantile(y_1, qs),
-            QUANTILE_CONTROL_VAL_ID: np.quantile(y_0, qs),
-        }
-    ).with_columns(
-        (pl.col(QUANTILE_TREATED_VAL_ID) - pl.col(QUANTILE_CONTROL_VAL_ID)).alias(EFFECT_ID)
-    )
+    return _get_quantile_differences(qs, np.quantile(y_1, qs), np.quantile(y_0, qs))

@@ -74,3 +74,53 @@ def load_engel_with_weights() -> pl.DataFrame:
     """
     with importlib.resources.path("qte.datasets", "engel_with_weights.parquet") as path:
         return pl.read_parquet(path)
+
+
+def load_card(treatment_cutoff: int = 16) -> pl.DataFrame:
+    """Load the Card (1995) college-proximity dataset.
+
+    The data cover 3010 men from the 1976 National Longitudinal Survey of Young
+    Men. The classical instrument ``nearc4`` indicates whether a man grew up in
+    a local labour market with a four-year college, and ``educ`` records years
+    of schooling. Because the local quantile treatment effect requires a binary
+    treatment, a column ``college`` equal to ``1{educ >= treatment_cutoff}`` is
+    appended.
+
+    Original source: ``wooldridge::card`` (data used in Card, 1995, "Using
+    Geographic Variation in College Proximity to Estimate the Return to
+    Schooling"). Bundled from the Rdatasets mirror.
+
+    Parameters
+    ----------
+    treatment_cutoff : int, default=16
+        Years of schooling at or above which ``college`` is one. The default
+        treats completed college (16 years) as the treatment.
+
+    Returns
+    -------
+    polars.DataFrame
+        The Card data with an additional binary ``college`` column.
+    """
+    with importlib.resources.path("qte.datasets", "card.parquet") as path:
+        ds = pl.read_parquet(path)
+    return ds.with_columns((pl.col("educ") >= treatment_cutoff).cast(pl.Int8).alias("college"))
+
+
+def load_jtpa() -> pl.DataFrame:
+    """Load the JTPA job-training data used in Abadie, Angrist & Imbens (2002).
+
+    The Job Training Partnership Act (JTPA) study randomly assigned applicants
+    to a treatment group eligible for training or to a control group. The
+    binary instrument ``assignmt`` records assignment, ``training`` records
+    actual enrolment and ``earnings`` is total 30-month earnings. Non-compliance
+    is almost entirely one-sided: only 54 of 3717 controls enrol in training.
+    The data are the 11,204-observation extract distributed with the Stata
+    ``ivqte`` documentation (Froelich & Melly, 2010).
+
+    Returns
+    -------
+    polars.DataFrame
+        Individual-level JTPA data with assignment, training and earnings.
+    """
+    with importlib.resources.path("qte.datasets", "jtpa.parquet") as path:
+        return pl.read_parquet(path)

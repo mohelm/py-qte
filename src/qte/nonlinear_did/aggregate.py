@@ -4,6 +4,7 @@ import numpy as np
 import polars as pl
 from numpy.typing import ArrayLike, NDArray
 
+from qte.helpers import _as_iterable_array, _get_mean_differences, _get_quantile_differences
 from qte.names import (
     EFFECT_ID,
     MEAN_CONTROL_ID,
@@ -76,7 +77,7 @@ def aggregate_group_time_effects_again_by_group(
     dim_name: str,
 ) -> _NonlinearDidAggregation:
 
-    qs = np.array(qs)
+    qs = _as_iterable_array(qs)
     ecdf_on_grid_o, ecdf_on_grid_cf, means_o, means_cf = _merge_group_time_effects_on_grid(
         gtes, weights, y_grid
     )
@@ -119,31 +120,22 @@ def aggregate_group_time_effects(
     ecdf_on_grid_o, ecdf_on_grid_cf, means_o, means_cf = _merge_group_time_effects_on_grid(
         gtes, weights, y_grid
     )
-    qs = np.array(qs)
+    qs = _as_iterable_array(qs)
 
-    qtes = pl.DataFrame(
-        {
-            QUANTILE_ID: qs,
-            QUANTILE_TREATED_VAL_ID: Ecdf(y_grid, ecdf_on_grid_o.sum(axis=0)).evaluate_inverse(qs),
-            QUANTILE_CONTROL_VAL_ID: Ecdf(y_grid, ecdf_on_grid_cf.sum(axis=0)).evaluate_inverse(qs),
-        }
-    ).with_columns(
-        (pl.col(QUANTILE_TREATED_VAL_ID) - pl.col(QUANTILE_CONTROL_VAL_ID)).alias(EFFECT_ID)
+    qtes = _get_quantile_differences(
+        qs,
+        Ecdf(y_grid, ecdf_on_grid_o.sum(axis=0)).evaluate_inverse(qs),
+        Ecdf(y_grid, ecdf_on_grid_cf.sum(axis=0)).evaluate_inverse(qs),
     )
 
-    atts = pl.DataFrame(
-        {
-            MEAN_TREATED_ID: [means_o.sum()],
-            MEAN_CONTROL_ID: [means_cf.sum()],
-        }
-    ).with_columns((pl.col(MEAN_TREATED_ID) - pl.col(MEAN_CONTROL_ID)).alias(EFFECT_ID))
+    atts = _get_mean_differences(means_o.sum(), means_cf.sum())
     return _NonlinearDidAggregation(qtes, atts, None)
 
 
 def get_group_time_treatment_effects(
     qs: ArrayLike, gtes: list[GroupTimeEffect]
 ) -> _NonlinearDidAggregation:
-    qs = np.array(qs)
+    qs = _as_iterable_array(qs)
     qtes = pl.concat(
         pl.DataFrame(
             {

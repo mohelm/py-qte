@@ -18,6 +18,8 @@ website:
     left:
       - text: "Benchmark"
         href: benchmark.qmd
+      - text: "Instrumental Variables"
+        href: iv.qmd
       - text: "Reference"
         href: reference/index.qmd
 
@@ -40,6 +42,8 @@ interlinks:
   # Quarto coerces a bare empty string to `[]`, which would register nothing.
   aliases:
     qte.cross_sectional:
+      - ""
+    qte.iv:
       - ""
     qte.nonlinear_did:
       - ""
@@ -87,6 +91,19 @@ quartodoc:
         - simulate_covariate_data
         - get_true_quantiles
         - get_true_means
+    - title: Instrumental Variables
+      desc: Local quantile treatment effects for compliers (`qte.iv`).
+      package: qte.iv
+      contents:
+        - estimate_local_effects
+        - name: LocalQteResult
+          include_inherited: true
+    - title: IV Simulation
+      desc: Simulation functions for the instrumental-variables estimator (`qte.iv.simulate`).
+      package: qte.iv.simulate
+      contents:
+        - simulate_data
+        - get_true_local_effects
     - title: Nonlinear Difference-in-Differences
       desc: Changes-in-changes and quantile difference-in-differences estimators for panel data (`qte.nonlinear_did`).
       package: qte.nonlinear_did
@@ -106,6 +123,8 @@ quartodoc:
         - load_lalonde
         - load_mpdta
         - load_engel_with_weights
+        - load_card
+        - load_jtpa
     - title: Bootstrap
       desc: Shared bootstrap configuration for the estimators (`qte.bootstrap`).
       package: qte.bootstrap

@@ -10,14 +10,7 @@ from qte.cross_sectional.custom_types import (
 from qte.cross_sectional.or_helpers import make_weights, predict_outcome_model
 from qte.cross_sectional.results import _QteIntermediateResult
 from qte.custom_types import ColumnName, FormulaRhs
-from qte.names import (
-    EFFECT_ID,
-    MEAN_CONTROL_ID,
-    MEAN_TREATED_ID,
-    QUANTILE_CONTROL_VAL_ID,
-    QUANTILE_ID,
-    QUANTILE_TREATED_VAL_ID,
-)
+from qte.helpers import _as_iterable_array, _get_mean_differences, _get_quantile_differences
 from qte.stats import estimate_outcome_model, estimate_propensity_score, get_quantiles
 
 
@@ -87,7 +80,7 @@ def compute_aipw_effects(
     target: CausalTarget = CausalTarget.QTE,
 ) -> _QteIntermediateResult:
 
-    qs = np.array(qs)
+    qs = _as_iterable_array(qs)
     grid = resolve_grid(outcome_regression_config.grid)
     treated, control = (ds.filter(pl.col(treatment) == 1), ds.filter(pl.col(treatment) == 0))
     ps = estimate_propensity_score(ds, treatment, propensity_score_formula, weights).predict()
@@ -157,19 +150,6 @@ def compute_aipw_effects(
         q_t = get_quantiles(qs, treated[outcome].to_numpy(), w=make_weights(weights, treated))
         m_t = np.average(y_t, weights=w_t)
     return _QteIntermediateResult(
-        qtt=pl.DataFrame(
-            {
-                QUANTILE_ID: qs,
-                QUANTILE_TREATED_VAL_ID: q_t,
-                QUANTILE_CONTROL_VAL_ID: q_c,
-            }
-        ).with_columns(
-            (pl.col(QUANTILE_TREATED_VAL_ID) - pl.col(QUANTILE_CONTROL_VAL_ID)).alias(EFFECT_ID)
-        ),
-        att=pl.DataFrame(
-            {
-                MEAN_CONTROL_ID: m_c,
-                MEAN_TREATED_ID: m_t,
-            }
-        ).with_columns((pl.col(MEAN_TREATED_ID) - pl.col(MEAN_CONTROL_ID)).alias(EFFECT_ID)),
+        qtt=_get_quantile_differences(qs, q_t, q_c),
+        att=_get_mean_differences(m_t, m_c),
     )

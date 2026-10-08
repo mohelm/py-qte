@@ -1,11 +1,14 @@
-from collections.abc import Iterable
 from functools import partial
 
-import numpy as np
 import polars as pl
 from numpy.typing import ArrayLike
 
-from qte.bootstrap import BootstrapConfig, _make_bootstrap_config, _perform_bootstrap
+from qte.bootstrap import (
+    BootstrapConfig,
+    _attach_standard_errors,
+    _make_bootstrap_config,
+    _make_bootstrap_runs,
+)
 from qte.constants import MEDIAN
 from qte.cross_sectional.aipw import compute_aipw_effects
 from qte.cross_sectional.custom_types import (
@@ -17,7 +20,6 @@ from qte.cross_sectional.custom_types import (
 from qte.cross_sectional.ipw import compute_ipw_effects as compute_ipw_effects
 from qte.cross_sectional.outcome_regression import compute_outcome_regression_effects
 from qte.cross_sectional.results import QteResult
-from qte.cross_sectional.results import _QteIntermediateResult as _QteIntermediateResult
 from qte.cross_sectional.simulate import (
     simulate_covariate_data as simulate_covariate_data,
 )
@@ -27,17 +29,7 @@ from qte.custom_types import (
     ColumnName,
     FormulaRhs,
 )
-from qte.names import EFFECT_ID, QUANTILE_ID, SE_ID
-
-
-def get_statistics_from_bootstrap(
-    boot_iter: Iterable[_QteIntermediateResult],
-) -> _QteIntermediateResult:
-    runs = list(boot_iter)
-    agg = pl.col(EFFECT_ID).std().alias(SE_ID)
-    qte = pl.concat([r.qtt for r in runs]).group_by(QUANTILE_ID).agg(agg)
-    att = pl.concat([r.att for r in runs]).group_by([]).agg(agg)
-    return _QteIntermediateResult(qte, att)
+from qte.helpers import _as_iterable_array
 
 
 def estimate_unadjusted_effects(
@@ -79,7 +71,7 @@ def estimate_unadjusted_effects(
     `estimate_ipw_effects`, `estimate_outcome_regression_effects`, `estimate_aipw_effects`
     """
     bootstrap_config = _make_bootstrap_config(bootstrap_config)
-    qs = np.array(qs)
+    qs = _as_iterable_array(qs)
     fcn = partial(
         compute_unadjusted_effects,
         outcome=outcome,
@@ -88,17 +80,17 @@ def estimate_unadjusted_effects(
         weights=weights,
     )
     estimate = fcn(ds)
-    bs_it = _perform_bootstrap(
+    bs_it = _make_bootstrap_runs(
         ds,
         fcn=fcn,
         n_iter=bootstrap_config.n_iter,
         seed=bootstrap_config.seed,
         n_workers=bootstrap_config.n_workers,
     )
-    bs_stats = get_statistics_from_bootstrap(bs_it)
+    qtt, att = _attach_standard_errors(estimate, bs_it)
     return QteResult(
-        qtt=estimate.qtt.join(bs_stats.qtt, on=QUANTILE_ID),
-        att=estimate.att.with_columns(bs_stats.att[SE_ID]),
+        qtt=qtt,
+        att=att,
         causal_target=CausalTarget.QTE,
         estimator=Estimator.UNADJUSTED,
         outcome=outcome,
@@ -150,7 +142,7 @@ def estimate_ipw_effects(
     --------
     `estimate_unadjusted_effects`, `estimate_outcome_regression_effects`, `estimate_aipw_effects`
     """
-    qs = np.array(qs)
+    qs = _as_iterable_array(qs)
     bootstrap_config = _make_bootstrap_config(bootstrap_config)
     fcn = partial(
         compute_ipw_effects,
@@ -162,17 +154,17 @@ def estimate_ipw_effects(
         target=target,
     )
     estimate = fcn(ds)
-    bs_it = _perform_bootstrap(
+    bs_it = _make_bootstrap_runs(
         ds,
         fcn=fcn,
         n_iter=bootstrap_config.n_iter,
         seed=bootstrap_config.seed,
         n_workers=bootstrap_config.n_workers,
     )
-    bs_stats = get_statistics_from_bootstrap(bs_it)
+    qtt, att = _attach_standard_errors(estimate, bs_it)
     return QteResult(
-        qtt=estimate.qtt.join(bs_stats.qtt, on=QUANTILE_ID),
-        att=estimate.att.with_columns(bs_stats.att[SE_ID]),
+        qtt=qtt,
+        att=att,
         causal_target=target,
         estimator=Estimator.IPW,
         outcome=outcome,
@@ -226,7 +218,7 @@ def estimate_outcome_regression_effects(
     --------
     `estimate_unadjusted_effects`, `estimate_ipw_effects`, `estimate_aipw_effects`
     """
-    qs = np.array(qs)
+    qs = _as_iterable_array(qs)
     or_config = make_outcome_regression_config(outcome_regression_config)
     fcn = partial(
         compute_outcome_regression_effects,
@@ -239,17 +231,17 @@ def estimate_outcome_regression_effects(
     )
     estimate = fcn(ds)
     bootstrap_config = _make_bootstrap_config(bootstrap_config)
-    bs_it = _perform_bootstrap(
+    bs_it = _make_bootstrap_runs(
         ds,
         fcn=fcn,
         n_iter=bootstrap_config.n_iter,
         seed=bootstrap_config.seed,
         n_workers=bootstrap_config.n_workers,
     )
-    bs_stats = get_statistics_from_bootstrap(bs_it)
+    qtt, att = _attach_standard_errors(estimate, bs_it)
     return QteResult(
-        qtt=estimate.qtt.join(bs_stats.qtt, on=QUANTILE_ID),
-        att=estimate.att.with_columns(bs_stats.att[SE_ID]),
+        qtt=qtt,
+        att=att,
         causal_target=target,
         estimator=Estimator.OR,
         outcome=outcome,
@@ -309,7 +301,7 @@ def estimate_aipw_effects(
     if weights is None:
         weights = "_w"
         ds = ds.with_columns(pl.lit(1).alias(weights))
-    qs = np.array(qs)
+    qs = _as_iterable_array(qs)
     or_config = make_outcome_regression_config(outcome_regression_config)
     fcn = partial(
         compute_aipw_effects,
@@ -323,17 +315,17 @@ def estimate_aipw_effects(
     )
     estimate = fcn(ds)
     bootstrap_config = _make_bootstrap_config(bootstrap_config)
-    bs_it = _perform_bootstrap(
+    bs_it = _make_bootstrap_runs(
         ds,
         fcn=fcn,
         n_iter=bootstrap_config.n_iter,
         seed=bootstrap_config.seed,
         n_workers=bootstrap_config.n_workers,
     )
-    bs_stats = get_statistics_from_bootstrap(bs_it)
+    qtt, att = _attach_standard_errors(estimate, bs_it)
     return QteResult(
-        qtt=estimate.qtt.join(bs_stats.qtt, on=QUANTILE_ID),
-        att=estimate.att.with_columns(bs_stats.att[SE_ID]),
+        qtt=qtt,
+        att=att,
         causal_target=target,
         estimator=Estimator.AIPW,
         outcome=outcome,

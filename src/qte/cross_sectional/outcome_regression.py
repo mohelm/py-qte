@@ -10,14 +10,7 @@ from qte.cross_sectional.custom_types import (
 from qte.cross_sectional.or_helpers import make_weights, predict_outcome_model
 from qte.cross_sectional.results import _QteIntermediateResult
 from qte.custom_types import ColumnName, DataFrame
-from qte.names import (
-    EFFECT_ID,
-    MEAN_CONTROL_ID,
-    MEAN_TREATED_ID,
-    QUANTILE_CONTROL_VAL_ID,
-    QUANTILE_ID,
-    QUANTILE_TREATED_VAL_ID,
-)
+from qte.helpers import _get_mean_differences, _get_quantile_differences
 from qte.stats import estimate_outcome_model, get_quantiles
 
 
@@ -92,19 +85,6 @@ def compute_outcome_regression_effects(
         mean_t = np.average(y_t, weights=w_t)
 
     return _QteIntermediateResult(
-        qtt=pl.DataFrame(
-            {
-                QUANTILE_ID: qs,
-                QUANTILE_TREATED_VAL_ID: q_t,
-                QUANTILE_CONTROL_VAL_ID: q_c,
-            }
-        ).with_columns(
-            (pl.col(QUANTILE_TREATED_VAL_ID) - pl.col(QUANTILE_CONTROL_VAL_ID)).alias(EFFECT_ID)
-        ),
-        att=pl.DataFrame(
-            {
-                MEAN_TREATED_ID: mean_t,
-                MEAN_CONTROL_ID: mean_c,
-            }
-        ).with_columns((pl.col(MEAN_TREATED_ID) - pl.col(MEAN_CONTROL_ID)).alias(EFFECT_ID)),
+        qtt=_get_quantile_differences(qs, q_t, q_c),
+        att=_get_mean_differences(mean_t, mean_c),
     )

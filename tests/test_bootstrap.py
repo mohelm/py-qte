@@ -5,9 +5,9 @@ from pytest import fixture
 
 from qte.bootstrap import (
     BootstrapConfig,
+    _make_block_bootstrap_run,
     _make_bootstrap_config,
-    _perform_block_bootstrap,
-    _perform_bootstrap,
+    _make_bootstrap_runs,
 )
 
 
@@ -38,36 +38,36 @@ def test_make_bootstrap_config_passes_config_through():
     assert _make_bootstrap_config(cfg) is cfg
 
 
-def test_perform_bootstrap_yields_one_resample_per_iteration(panel):
-    runs = list(_perform_bootstrap(panel, get_rows, n_iter=5, seed=1))
+def test_make_bootstrap_runs_yields_one_resample_per_iteration(panel):
+    runs = list(_make_bootstrap_runs(panel, get_rows, n_iter=5, seed=1))
     assert len(runs) == 5
     assert set(runs) == {panel.height}
 
 
-def test_perform_bootstrap_is_seed_reproducible(panel):
-    first = list(_perform_bootstrap(panel, total, n_iter=5, seed=1))
-    assert first == list(_perform_bootstrap(panel, total, n_iter=5, seed=1))
-    assert first != list(_perform_bootstrap(panel, total, n_iter=5, seed=2))
+def test_make_bootstrap_runs_is_seed_reproducible(panel):
+    first = list(_make_bootstrap_runs(panel, total, n_iter=5, seed=1))
+    assert first == list(_make_bootstrap_runs(panel, total, n_iter=5, seed=1))
+    assert first != list(_make_bootstrap_runs(panel, total, n_iter=5, seed=2))
 
 
-def test_perform_block_bootstrap_resamples_whole_blocks(panel):
-    runs = list(_perform_block_bootstrap(panel, block_sizes, "unit", n_iter=5, seed=1))
+def test_make_block_bootstrap_run_resamples_whole_blocks(panel):
+    runs = list(_make_block_bootstrap_run(panel, block_sizes, "unit", n_iter=5, seed=1))
     assert runs == [[2, 2, 2]] * 5  # All block sizes remain of size 2.
 
 
-def test_perform_block_bootstrap_is_seed_reproducible(panel):
-    first = list(_perform_block_bootstrap(panel, pairs, "unit", n_iter=5, seed=1))
-    assert first == list(_perform_block_bootstrap(panel, pairs, "unit", n_iter=5, seed=1))
-    assert first != list(_perform_block_bootstrap(panel, pairs, "unit", n_iter=5, seed=2))
+def test_make_block_bootstrap_run_is_seed_reproducible(panel):
+    first = list(_make_block_bootstrap_run(panel, pairs, "unit", n_iter=5, seed=1))
+    assert first == list(_make_block_bootstrap_run(panel, pairs, "unit", n_iter=5, seed=1))
+    assert first != list(_make_block_bootstrap_run(panel, pairs, "unit", n_iter=5, seed=2))
 
 
-def test_perform_bootstrap_parallel_matches_sequential(panel):
-    serial = list(_perform_bootstrap(panel, total, n_iter=5, seed=1))
-    parallel = list(_perform_bootstrap(panel, total, n_iter=5, seed=1, n_workers=2))
+def test_make_bootstrap_runs_parallel_matches_sequential(panel):
+    serial = list(_make_bootstrap_runs(panel, total, n_iter=5, seed=1))
+    parallel = list(_make_bootstrap_runs(panel, total, n_iter=5, seed=1, n_workers=2))
     assert parallel == serial
 
 
-def test_perform_block_bootstrap_parallel_matches_sequential(panel):
-    serial = list(_perform_block_bootstrap(panel, pairs, "unit", n_iter=5, seed=1))
-    parallel = list(_perform_block_bootstrap(panel, pairs, "unit", n_iter=5, seed=1, n_workers=2))
+def test_make_block_bootstrap_run_parallel_matches_sequential(panel):
+    serial = list(_make_block_bootstrap_run(panel, pairs, "unit", n_iter=5, seed=1))
+    parallel = list(_make_block_bootstrap_run(panel, pairs, "unit", n_iter=5, seed=1, n_workers=2))
     assert parallel == serial

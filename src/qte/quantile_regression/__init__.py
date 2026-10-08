@@ -164,6 +164,7 @@ def _preprocess_sorted(
     band = np.maximum(eps, np.sqrt((x_upper_inv**2).sum(axis=1)))
 
     for j, tau in enumerate(qs[1:], start=1):
+        tau = float(tau)
         r = y - X @ b
         not_optimal = True
         mm = 1.0
@@ -334,7 +335,7 @@ class QuantileRegression:
         QuantileRegressionResult
             The fitted result.
         """
-        fml = Formula(self.formula)
+        fml = Formula.from_spec(self.formula)
         y, X = fml.get_model_matrix(self._ds, output="numpy")
         sample_weights = self._ds[weights].to_numpy() if weights is not None else None
         coeffs = (

@@ -5,10 +5,12 @@ from collections.abc import Callable, Iterable, Iterator
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from functools import partial
-from typing import TypeVar
+from typing import Protocol, TypeVar
 
 import numpy as np
 import polars as pl
+
+from qte.names import EFFECT_ID, QUANTILE_ID, SE_ID
 
 T = TypeVar("T")
 
@@ -30,6 +32,45 @@ class BootstrapConfig:
     n_iter: int = 100
     seed: int | None = None
     n_workers: int = 1
+
+
+class _BootstrapEstimates(Protocol):
+    """Minimal interface of one bootstrap draw's estimates."""
+
+    @property
+    def qtt(self) -> pl.DataFrame: ...
+
+    @property
+    def att(self) -> pl.DataFrame: ...
+
+
+def _bootstrap_standard_errors(
+    runs: Iterable[_BootstrapEstimates],
+) -> tuple[pl.DataFrame, pl.DataFrame]:
+    """Compute the standard error of the effect across bootstrap draws.
+
+    Returns
+    -------
+    tuple of polars.DataFrame
+        Per-quantile standard errors and average standard errors, both keyed by
+        the corresponding point-estimate frame.
+    """
+    run_list = list(runs)
+    standard_error = pl.col(EFFECT_ID).std().alias(SE_ID)
+    qtt = pl.concat([r.qtt for r in run_list]).group_by(QUANTILE_ID).agg(standard_error)
+    att = pl.concat([r.att for r in run_list]).select(standard_error)
+    return qtt, att
+
+
+def _attach_standard_errors(
+    point: _BootstrapEstimates,
+    runs: Iterable[_BootstrapEstimates],
+) -> tuple[pl.DataFrame, pl.DataFrame]:
+    """Attach bootstrap standard errors of the effect to the point estimates."""
+    qtt_se, att_se = _bootstrap_standard_errors(runs)
+    qtt = point.qtt.join(qtt_se, on=QUANTILE_ID, how="left")
+    att = point.att.with_columns(att_se[SE_ID])
+    return qtt, att
 
 
 def _make_bootstrap_config(config: BootstrapConfig | int) -> BootstrapConfig:
@@ -73,7 +114,7 @@ def _bootstrap_once[T](ds: pl.DataFrame, fcn: Callable[[pl.DataFrame], T], seed:
     return fcn(ds.sample(fraction=1.0, with_replacement=True, seed=seed))
 
 
-def _perform_bootstrap[T](
+def _make_bootstrap_runs[T](
     ds: pl.DataFrame,
     fcn: Callable[[pl.DataFrame], T],
     *,
@@ -110,7 +151,7 @@ def _block_bootstrap_once[T](
     return fcn(boot_ds)
 
 
-def _perform_block_bootstrap[T](
+def _make_block_bootstrap_run[T](
     ds: pl.DataFrame,
     fcn: Callable[[pl.DataFrame], T],
     block_id: str,

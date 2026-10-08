@@ -1,0 +1,434 @@
+---
+title: "Quantile Treatment Effects with Instrumental Variables"
+engine: jupyter
+jupyter: python3
+page-layout: full
+format:
+  html:
+    embed-resources: true
+    code-fold: true
+    code-summary: "Show code"
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+## The estimator
+
+When the treatment is endogenous we can still identify **quantile treatment effects for compliers**
+— the subpopulation whose treatment status responds to the instrument. Under the LATE assumptions
+(independence, exclusion, monotonicity and a relevant first stage), Abadie's kappa weighting
+identifies the complier potential-outcome distribution ([Abadie 2003](#ref-abadie-2003);
+[Frölich & Melly 2013](#ref-frolich-melly-2013)):
+
+$$
+\begin{aligned}
+F_{Y(d)\mid c}(y) &= \frac{E\!\left[w_d\,\mathbb{1}\{Y \le y\}\right]}{E[w_d]}, \\[2pt]
+w_1 &= \frac{D\,\bigl(Z - \pi(X)\bigr)}{\pi(X)\,\bigl(1 - \pi(X)\bigr)}, \\[2pt]
+w_0 &= \frac{(1 - D)\,\bigl(\pi(X) - Z\bigr)}{\pi(X)\,\bigl(1 - \pi(X)\bigr)}.
+\end{aligned}
+$$
+
+Here $\pi(X) = P(Z = 1 \mid X)$ is the instrument probability, estimated by a logit. The local
+quantile treatment effect is the difference between the two complier quantiles,
+$\Delta_\tau = Q_\tau(Y(1)\mid c) - Q_\tau(Y(0)\mid c)$, and the average effect is the LATE.
+`estimate_local_effects` inverts the signed weighted empirical CDFs to obtain the quantile effects
+and reports bootstrap standard errors.
+
+```{=html}
+<style>
+.iv-side {
+  display: grid;
+  grid-template-columns: minmax(360px, 1fr) minmax(500px, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+@media (max-width: 1100px) {
+  .iv-side { grid-template-columns: 1fr; }
+}
+.iv-side svg { width: 100%; height: auto; }
+</style>
+```
+
+```{python}
+#| label: setup
+#| code-summary: "Show code (setup, side-by-side, timing and descriptive-stats helpers)"
+import time
+
+import polars as pl
+import vl_convert as vlc
+from great_tables import GT
+from IPython.display import HTML
+
+from qte.bootstrap import BootstrapConfig
+from qte.constants import _make_q
+from qte.datasets import load_card, load_jtpa
+from qte.iv import estimate_local_effects
+
+QS = _make_q(20)  # 0.05, 0.10, ..., 0.95
+REPORT = [0.10, 0.50, 0.90]
+BOOTSTRAP = BootstrapConfig(n_iter=1000, seed=42, n_workers=4)
+
+
+def side_by_side(result, report: list[float] | None = None) -> HTML:
+    """Render a result's QTE plot and summary table side by side.
+
+    The plot shows every estimated quantile; the table reports only ``report``.
+    """
+    svg = vlc.vegalite_to_svg(result.plot().to_dict())
+    table = result.tabulate(quantiles=report).as_raw_html()
+    return HTML('<div class="iv-side">' f"<div>{svg}</div><div>{table}</div></div>")
+
+
+class timer:
+    """Report how long a block took, like the knitr ``time_it`` hook."""
+
+    def __init__(self, label: str) -> None:
+        self.label = label
+
+    def __enter__(self) -> "timer":
+        self._start = time.perf_counter()
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        print(f"[{self.label}] {time.perf_counter() - self._start:.2f}s")
+
+
+def descriptive_statistics(
+    ds: pl.DataFrame,
+    instrument: str,
+    variables: list[str],
+    labels: dict[str, str] | None = None,
+    title: str = "Descriptive statistics by instrument value",
+) -> GT:
+    """Means of ``variables`` for all units and by instrument arm."""
+    labels = labels or {}
+    z1 = pl.col(instrument) == 1
+    stats = pl.DataFrame(
+        [
+            {
+                "Variable": labels.get(v, v),
+                "All": ds[v].mean(),
+                "Z = 1": ds.filter(z1)[v].mean(),
+                "Z = 0": ds.filter(~z1)[v].mean(),
+            }
+            for v in variables
+        ]
+    )
+    observations = pl.DataFrame(
+        {
+            "Variable": ["Observations"],
+            "All": [float(ds.height)],
+            "Z = 1": [float(ds.filter(z1).height)],
+            "Z = 0": [float(ds.filter(~z1).height)],
+        }
+    )
+    stats = pl.concat([observations, stats], how="vertical")
+    value_columns = ["All", "Z = 1", "Z = 0"]
+    return (
+        GT(stats)
+        .cols_label(Variable="")
+        .fmt_number(columns=value_columns, decimals=2, use_seps=True)
+        .fmt_number(columns=value_columns, rows=0, decimals=0, use_seps=True)
+        .tab_header(title=title)
+    )
+```
+
+## Returns to college ([Card, 1995](#ref-card-1995))
+
+The `card` data record log wages (`lwage`), completed college (`college`) and whether the man grew
+up near a four-year college (`nearc4`). We use college proximity as an instrument for college
+completion. The first stage is modest (about 7 percentage points), so we take the instrument
+probability to be constant rather than modelling it on covariates.
+
+```{python}
+#| label: card-data
+#| code-summary: "Show code (Card descriptive statistics)"
+card = load_card()
+descriptive_statistics(
+    card,
+    "nearc4",
+    ["lwage", "college", "exper", "educ", "age", "black", "smsa", "south"],
+    labels={
+        "lwage": "Log wage",
+        "college": "College",
+        "exper": "Experience",
+        "educ": "Years of education",
+        "age": "Age",
+        "black": "Black",
+        "smsa": "SMSA",
+        "south": "South",
+    },
+    title="Table 1. Card data, by college proximity",
+)
+```
+
+```{python}
+#| label: card
+#| code-summary: "Show code (local QTE on the Card data)"
+with timer("card"):
+    card_res = estimate_local_effects(
+        card,
+        "lwage",
+        "college",
+        "nearc4",
+        qs=QS,
+        bootstrap_config=BOOTSTRAP,
+    )
+print(f"First stage (= complier share) = {card_res.first_stage:.3f}")
+side_by_side(card_res, REPORT)
+```
+
+The estimated quantile effects rise with the quantile, and the average effect (red) is positive and
+significant. As usual for a quantile approach, the picture is richer than the single LATE: the
+return to college is much larger at the top of the wage distribution than in the left tail.
+
+## Training and earnings (JTPA)
+
+The `jtpa` data come from the Job Training Partnership Act study, which randomly assigned applicants
+to a treatment group eligible for training. Because only about two thirds of those assigned actually
+enrol, assignment (`assignmt`) is a valid instrument for training (`training`). We use the subsample
+of women, following [Abadie, Angrist & Imbens (2002)](#ref-aai-2002).
+
+```{python}
+#| label: jtpa-data
+#| code-summary: "Show code (JTPA descriptive statistics)"
+jtpa = load_jtpa().filter(pl.col("sex") == 0)
+descriptive_statistics(
+    jtpa,
+    "assignmt",
+    ["earnings", "training", "age", "black", "hispanic", "married", "hsorged", "afdc", "prevearn"],
+    labels={
+        "earnings": "Earnings",
+        "training": "Training",
+        "age": "Age",
+        "black": "Black",
+        "hispanic": "Hispanic",
+        "married": "Married",
+        "hsorged": "HS or GED",
+        "afdc": "AFDC",
+        "prevearn": "Prior earnings",
+    },
+    title="Table 2. JTPA women, by assignment",
+)
+```
+
+```{python}
+#| label: jtpa
+#| code-summary: "Show code (local QTE on the JTPA data)"
+jtpa_covariates = (
+    "black + hispanic + married + hsorged + afdc + f2sms + wkless13 "
+    "+ age2225 + age2629 + age3035 + age3644 + age4554 + class_tr + ojt_jsa + prevearn"
+)
+with timer("jtpa"):
+    jtpa_res = estimate_local_effects(
+        jtpa,
+        "earnings",
+        "training",
+        "assignmt",
+        qs=QS,
+        instrument_probability_formula=jtpa_covariates,
+        bootstrap_config=BOOTSTRAP,
+    )
+print(f"First stage (= complier share) = {jtpa_res.first_stage:.3f}")
+side_by_side(jtpa_res, REPORT)
+```
+
+For women the training effect is positive at every quantile and largest around the median. The
+average effect (red) is positive and clearly different from zero, matching the distributional
+pattern emphasised by [Abadie, Angrist & Imbens (2002)](#ref-aai-2002).
+
+## Simulation check
+
+The two applications above use real data, so the truth is unknown. To check that the estimator
+recovers the target when its assumptions hold, we simulate data where the complier quantile effects
+are known. The design follows the JTPA-based simulation of
+[Kaplan & Sun (2017)](#ref-kaplan-sun-2017): a binary instrument induces one-sided non-compliance,
+and the same unobservable drives take-up and the size of the treatment effect. The effect is
+therefore endogenous and larger at higher quantiles, and a naive comparison of outcomes by treatment
+status should overstate it.
+
+```{python}
+#| label: simulation
+#| code-summary: "Show code (simulated local QTE with known truth)"
+from qte.iv.simulate import get_true_local_effects, simulate_data
+
+sim = simulate_data(n=100_000, seed=0)
+truth, late = get_true_local_effects(QS, n_oracle=1_000_000, seed=0)
+print(f"True LATE = {late:.3f}")
+with timer("simulation"):
+    sim_res = estimate_local_effects(
+        sim, "y", "treatment", "instrument", qs=QS, bootstrap_config=BOOTSTRAP
+    )
+
+
+def naive_quantile_effect(ds: pl.DataFrame, group: str) -> pl.Series:
+    """Quantile difference between the two values of ``group``, ignoring endogeneity."""
+    one = ds.filter(pl.col(group) == 1)["y"]
+    zero = ds.filter(pl.col(group) == 0)["y"]
+    return pl.Series([one.quantile(q) - zero.quantile(q) for q in QS], dtype=pl.Float64)
+
+
+comparison = (
+    sim_res.qtt.select(pl.col("q"), pl.col("effect").alias("IV"), pl.col("se"))
+    .with_columns(truth["effect"].alias("Truth"))
+    .with_columns(naive_quantile_effect(sim, "treatment").alias("Naive (D)"))
+    .with_columns(naive_quantile_effect(sim, "instrument").alias("ITT (Z)"))
+    .filter(pl.col("q").is_in(REPORT))
+)
+(
+    GT(comparison)
+    .fmt_number(["IV", "Truth", "Naive (D)", "ITT (Z)", "se"], decimals=3)
+    .tab_header(title="Table 3. Simulated local QTE, IV vs. naive comparisons")
+)
+```
+
+```{python}
+#| label: simulation-plot
+#| code-summary: "Show code (simulated QTE plot)"
+print(f"First stage (= complier share) = {sim_res.first_stage:.3f}")
+side_by_side(sim_res, REPORT)
+```
+
+The IV estimates track the true complier quantile effects closely. The naive comparison by observed
+treatment status is far too large because it ignores the endogeneity of take-up, and the
+intention-to-treat difference is attenuated by the roughly 62% compliance rate.
+
+Point estimates are only half the story: the reported standard errors should also be well
+calibrated. We repeat the estimation on many independent samples and record how often the 95%
+bootstrap interval contains the truth, alongside the average standard error and the empirical
+standard deviation of the estimates.
+
+```{python}
+#| label: simulation-coverage
+#| code-summary: "Show code (bootstrap coverage over repeated samples)"
+import numpy as np
+
+COVERAGE_REPLICATIONS = 500
+COVERAGE_SAMPLE_SIZE = 2_000
+COVERAGE_BOOTSTRAP = BootstrapConfig(n_iter=50, seed=0, n_workers=4)
+COVERAGE_QUANTILES = [0.10, 0.25, 0.50, 0.75, 0.90]
+
+true_effect = truth["effect"].to_numpy()
+covered = np.zeros((COVERAGE_REPLICATIONS, QS.size))
+standard_errors = np.zeros((COVERAGE_REPLICATIONS, QS.size))
+estimates = np.zeros((COVERAGE_REPLICATIONS, QS.size))
+with timer("coverage"):
+    for replication in range(COVERAGE_REPLICATIONS):
+        sample = simulate_data(n=COVERAGE_SAMPLE_SIZE, seed=250_000 + replication)
+        res = estimate_local_effects(
+            sample,
+            "y",
+            "treatment",
+            "instrument",
+            qs=QS,
+            bootstrap_config=COVERAGE_BOOTSTRAP,
+        )
+        effect = res.qtt["effect"].to_numpy()
+        se = res.qtt["se"].to_numpy()
+        estimates[replication] = effect
+        standard_errors[replication] = se
+        covered[replication] = np.abs(effect - true_effect) <= 1.96 * se
+
+coverage_table = (
+    pl.DataFrame(
+        {
+            "q": QS,
+            "Coverage": covered.mean(axis=0),
+            "Mean SE": standard_errors.mean(axis=0),
+            "Empirical SD": estimates.std(axis=0),
+        }
+    )
+    .filter(pl.col("q").is_in(COVERAGE_QUANTILES))
+)
+(
+    GT(coverage_table)
+    .fmt_number(["Coverage"], decimals=3)
+    .fmt_number(["Mean SE", "Empirical SD"], decimals=3)
+    .tab_header(title="Table 4. Coverage of the 95% bootstrap interval")
+)
+```
+
+At every reported quantile the coverage is close to the nominal 0.95, and the mean standard error
+tracks the empirical standard deviation of the estimates. The bootstrap intervals can therefore be
+trusted in this design, not just the point estimates.
+
+## Instrument probability and covariates
+
+The design above draws the instrument independently of the covariate, so the instrument probability
+is constant and the estimator needs no covariates. In practice the instrument is often valid only
+conditional on covariates, and the probability of receiving it varies with them. The
+`propensity_scale` argument makes the instrument probability
+
+$$
+\pi(x) = \operatorname{logit}^{-1}\!\left(\operatorname{logit}(p_0) + \text{propensity\_scale}\cdot x\right),
+$$
+
+where $p_0$ is `offer_probability`. A constant propensity is then misspecified, and the estimator
+has to condition on `x`.
+
+```{python}
+#| label: simulation-covariates
+#| code-summary: "Show code (covariate-dependent instrument probability)"
+COVARIATE = {"propensity_scale": 1.0}
+COVARIATE_BOOTSTRAP = BootstrapConfig(n_iter=200, seed=0, n_workers=4)
+
+cov = simulate_data(n=100_000, seed=0, **COVARIATE)
+cov_truth, _ = get_true_local_effects(QS, n_oracle=1_000_000, seed=0, **COVARIATE)
+with timer("covariates"):
+    constant_res = estimate_local_effects(
+        cov, "y", "treatment", "instrument", qs=QS, bootstrap_config=COVARIATE_BOOTSTRAP
+    )
+    adjusted_res = estimate_local_effects(
+        cov,
+        "y",
+        "treatment",
+        "instrument",
+        qs=QS,
+        instrument_probability_formula="x",
+        bootstrap_config=COVARIATE_BOOTSTRAP,
+    )
+covariate_table = (
+    cov_truth.select(pl.col("q"), pl.col("effect").alias("Truth"))
+    .with_columns(constant_res.qtt["effect"].alias("Constant p"))
+    .with_columns(adjusted_res.qtt["effect"].alias("Adjusted for x"))
+    .filter(pl.col("q").is_in(REPORT))
+)
+(
+    GT(covariate_table)
+    .fmt_number(["Truth", "Constant p", "Adjusted for x"], decimals=3)
+    .tab_header(title="Table 5. Effects with a covariate-dependent instrument probability")
+)
+```
+
+```{python}
+#| label: simulation-covariates-plot
+#| code-summary: "Show code (covariate-dependent instrument plot)"
+print(f"Adjusted first stage = {adjusted_res.first_stage:.3f}")
+side_by_side(adjusted_res, REPORT)
+```
+
+Taking the instrument probability to be constant leaves the estimates far too large at every
+quantile, while conditioning on `x` tracks the truth. The propensity model is therefore not optional
+when the instrument depends on the covariates.
+
+## References
+
+1. <a id="ref-abadie-2003"></a>Abadie, A. (2003). Semiparametric instrumental variable estimation of
+   treatment response models. _Journal of Econometrics_, 113(2), 231–263.
+   [doi:10.1016/S0304-4076(02)00201-4](<https://doi.org/10.1016/S0304-4076(02)00201-4>)
+2. <a id="ref-aai-2002"></a>Abadie, A., Angrist, J., & Imbens, G. (2002). Instrumental variables
+   estimates of the effect of subsidized training on the quantiles of trainee earnings.
+   _Econometrica_, 70(1), 91–117.
+   [doi:10.1111/1468-0262.00270](https://doi.org/10.1111/1468-0262.00270)
+3. <a id="ref-card-1995"></a>Card, D. (1995). Using geographic variation in college proximity to
+   estimate the return to schooling. In L. N. Christofides, E. K. Grant, & R. Swidinsky (Eds.),
+   _Aspects of labour market behaviour: Essays in honour of John Vanderkamp_ (pp. 201–222).
+   University of Toronto Press.
+4. <a id="ref-frolich-melly-2013"></a>Frölich, M., & Melly, B. (2013). Unconditional quantile
+   treatment effects under endogeneity. _Journal of Business & Economic Statistics_, 31(3), 346–357.
+   [doi:10.1080/07350015.2013.803869](https://doi.org/10.1080/07350015.2013.803869)
+5. <a id="ref-kaplan-sun-2017"></a>Kaplan, D. M., & Sun, Y. (2017). Smoothed estimating equations
+   for instrumental variables quantile regression. _Econometric Theory_, 33(1), 105–157.
+   [doi:10.1017/S0266466615000407](https://doi.org/10.1017/S0266466615000407)

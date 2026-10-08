@@ -7,3 +7,12 @@ QUANTILE_CONTROL_VAL_ID = "q_c"
 MEAN_TREATED_ID = "m_t"
 MEAN_CONTROL_ID = "m_c"
 SE_ID = "se"
+
+# For simulations
+COVARIATE_ID = "x"
+INSTRUMENT_ID = "instrument"
+TREATMENT_ID = "treatment"
+COMPLIER_ID = "complier"
+OBSERVED_OUTCOME_ID = "y"
+POTENTIAL_OUTCOME_TREAT_ID = "y_1"
+POTENTIAL_OUTCOME_CTRL_ID = "y_0"
