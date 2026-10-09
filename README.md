@@ -118,9 +118,8 @@ res = estimate_nonlinear_did_for_panel(
 
 ## Instrumental Variables
 
-When the treatment is endogenous, a valid instrument identifies effects for compliers. Here we use
-college proximity (`nearc4`) as an instrument for college completion (`college`) in the Card data,
-following Abadie's kappa weighting.
+We can also estimate local quantile treatment effects for compliers when the treatment is
+endogenous.
 
 ```python
 from qte.datasets import load_card
@@ -185,6 +184,4 @@ The cross-sectional and nonlinear difference-in-differences estimators reimpleme
 [`qte`](https://github.com/bcallaway11/qte) package by Brantly Callaway. The instrumental-variables
 estimator roughly follows the Stata
 [`ivqte`](https://sites.google.com/site/blaisemelly/home/computer-programs/estimation-of-quantile-treatment-effects-in-stata?authuser=0)
-package by Frölich and Melly. The bundled datasets are the LaLonde (1986), Card (1995), Abadie,
-Angrist & Imbens (2002) and Engel (1857) datasets, together with the county teen-employment data
-used in the `did` and `qte` R packages.
+package by Frölich and Melly.
