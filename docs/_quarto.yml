@@ -98,6 +98,7 @@ quartodoc:
         - estimate_local_effects
         - name: LocalQteResult
           include_inherited: true
+        - Estimator
     - title: IV Simulation
       desc: Simulation functions for the instrumental-variables estimator (`qte.iv.simulate`).
       package: qte.iv.simulate

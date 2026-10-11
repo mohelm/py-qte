@@ -1,7 +1,9 @@
 """Result container for the local quantile treatment effect estimator."""
 
 from dataclasses import dataclass
+from typing import Any
 
+from qte.iv.custom_types import Estimator
 from qte.results import _BasicQteResult
 
 
@@ -28,7 +30,18 @@ class LocalQteResult(_BasicQteResult):
     first_stage : float
         Difference in treatment take-up between instrument arms,
         ``E[D | Z = 1] - E[D | Z = 0]``.
+    estimator : `Estimator`
+        Weighting scheme used to estimate the effects.
     """
 
     complier_share: float
     first_stage: float
+    estimator: Estimator
+
+    def _make_table_header_content(self, alpha: float) -> dict[str, Any]:
+        """Add the weighting scheme to the shared table and chart header."""
+        return {
+            "Outcome": self.outcome,
+            "Estimator": self.estimator.value,
+            "Confidence Lvl": alpha,
+        }

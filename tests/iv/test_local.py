@@ -3,7 +3,7 @@ import pytest
 from polars.testing import assert_series_equal
 
 from qte.datasets import load_card, load_jtpa
-from qte.iv import estimate_local_effects
+from qte.iv import Estimator, estimate_local_effects
 from qte.names import EFFECT_ID, QUANTILE_ID
 
 
@@ -49,10 +49,21 @@ _CARD_IVQTE_FORMULA = (
     "+ reg666 + reg667 + reg668 + reg669"
 )
 _CARD_IVQTE_DECILES = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
-_CARD_IVQTE_EFFECT = [0.7099, 0.7323, 0.7083, 0.6355, 0.6863, 0.7277, 0.5733, 0.6024, 0.6312]
+# Stata ``ivqte ...`` (signed) and ``ivqte ..., positive`` (positive weights).
+_CARD_IVQTE_CASES = [
+    (
+        Estimator.SIGNED,
+        [0.7099, 0.7323, 0.7083, 0.6355, 0.6863, 0.7277, 0.5733, 0.6024, 0.6312],
+    ),
+    (
+        Estimator.POSITIVE,
+        [0.7589, 0.7195, 0.6464, 0.5864, 0.5358, 0.5104, 0.4785, 0.4618, 0.5175],
+    ),
+]
 
 
-def test_estimate_local_effects_matches_ivqte_card(card):
+@pytest.mark.parametrize("estimator,expected", _CARD_IVQTE_CASES)
+def test_estimate_local_effects_matches_ivqte_card(card, estimator, expected):
     res = estimate_local_effects(
         card,
         "lwage",
@@ -60,10 +71,11 @@ def test_estimate_local_effects_matches_ivqte_card(card):
         "nearc4",
         qs=_CARD_IVQTE_DECILES,
         instrument_probability_formula=_CARD_IVQTE_FORMULA,
+        estimator=estimator,
         bootstrap_config=10,
     )
 
     assert_series_equal(pl.Series("q", _CARD_IVQTE_DECILES), res.qtt[QUANTILE_ID])
-    assert_series_equal(pl.Series("effect", _CARD_IVQTE_EFFECT), res.qtt[EFFECT_ID], abs_tol=1e-3)
+    assert_series_equal(pl.Series("effect", expected), res.qtt[EFFECT_ID], abs_tol=1e-3)
     assert res.first_stage == pytest.approx(0.103, abs=1e-3)
     assert res.complier_share == pytest.approx(0.083, abs=1e-3)

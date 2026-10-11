@@ -6,10 +6,12 @@ assumptions. It lives apart from the cross-sectional estimators because the
 estimand is the effect on compliers, not on the whole population.
 """
 
+from qte.iv.custom_types import Estimator
 from qte.iv.local import estimate_local_effects
 from qte.iv.results import LocalQteResult
 
 __all__ = [
+    "Estimator",
     "LocalQteResult",
     "estimate_local_effects",
 ]

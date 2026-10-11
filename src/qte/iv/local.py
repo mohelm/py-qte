@@ -21,7 +21,10 @@ estimate, its bootstrap standard errors, and the simulation helpers used to
 validate it.
 
 The weight algebra is assembled from Polars expressions; NumPy is only used for
-the first-step propensity model and for inverting the signed weighted CDFs.
+the first-step propensity model and for inverting the weighted CDFs. Two
+weighting schemes are available: Abadie's signed weights (`Estimator.SIGNED`)
+and the positive-weight projection of Stata's ``ivqte, positive``
+(`Estimator.POSITIVE`).
 """
 
 from dataclasses import dataclass
@@ -29,6 +32,8 @@ from functools import partial
 
 import numpy as np
 import polars as pl
+import statsmodels.api as sm
+from formulaic import Formula
 from numpy.typing import ArrayLike, NDArray
 
 from qte.bootstrap import (
@@ -40,15 +45,17 @@ from qte.bootstrap import (
 from qte.constants import MEDIAN
 from qte.custom_types import ColumnName, FormulaRhs
 from qte.helpers import _as_iterable_array, _get_mean_differences, _get_quantile_differences
+from qte.iv.custom_types import Estimator
 from qte.iv.results import LocalQteResult
 from qte.stats import estimate_propensity_score
 
 _EPS = 1e-8
 _DEFAULT_TRIM = 0.001
 _PROPENSITY_ID = "_propensity"
-_KAPPA_ID = "_kappa"
+_KAPPA_TREATED_ID = "_kappa_treated"
 _COMPLIER_WEIGHT_TREATED_ID = "_complier_weight_treated"
 _COMPLIER_WEIGHT_CONTROL_ID = "_complier_weight_control"
+_POSITIVE_WEIGHT_ID = "_positive_weight"
 
 
 @dataclass(frozen=True)
@@ -61,8 +68,13 @@ class _LocalQteIntermediateResult:
     first_stage: float
 
 
-def _compute_kappa(instrument: ColumnName, propensity: ColumnName) -> pl.Expr:
-    """Polars expression for the instrument weight ``(Z - p) / (p (1 - p))``."""
+def _compute_kappa_treated(instrument: ColumnName, propensity: ColumnName) -> pl.Expr:
+    """Polars expression for the treated complier weight factor.
+
+    ``(Z - p) / (p (1 - p))`` is Abadie's treated weight ``D (Z - p) / (p (1 - p))``
+    with the ``D`` selection dropped; the control weight is ``(D - 1)`` times the
+    same factor.
+    """
     p = pl.col(propensity)
     return (pl.col(instrument) - p) / (p * (1.0 - p))
 
@@ -95,15 +107,20 @@ def _estimate_instrument_propensity(
 
 
 def _compute_quantiles(
-    y: NDArray[np.float64], w: NDArray[np.float64], qs: NDArray[np.float64]
+    y: NDArray[np.float64],
+    w: NDArray[np.float64],
+    qs: NDArray[np.float64],
+    *,
+    first_crossing: bool = False,
 ) -> NDArray[np.float64]:
-    """Quantiles of the signed-weighted empirical CDF of ``y``.
+    """Quantiles of the weighted empirical CDF of ``y``.
 
-    The complier weights are signed, so the weighted CDF is not guaranteed to be
-    monotone. We use the same inversion as Stata's ``ivqte``: the ``tau``
-    quantile is the value at rank ``#{F(y) <= tau}`` (clamped to at least one). The alternative
-    would be to count values up to the first-crossing, but this is currently not implemented.
-    When the CDF is monotone this is the usual quantile.
+    The complier weights can be signed, so the weighted CDF is not guaranteed to
+    be monotone. By default we use the same inversion as Stata's ``ivqte``: the
+    ``tau`` quantile is the value at rank ``#{F(y) <= tau}`` (clamped to at
+    least one). With ``first_crossing`` we take the first outcome whose CDF
+    reaches ``tau`` instead, which is the usual quantile when the CDF is
+    monotone (used by the positive-weight estimator).
     """
     y = np.asarray(y, dtype=float)
     order = np.argsort(y, kind="mergesort")
@@ -116,8 +133,35 @@ def _compute_quantiles(
             "identify the local quantile treatment effect."
         )
     cdf = np.cumsum(weight_by_value) / total
+    if first_crossing:
+        return values[np.clip(np.searchsorted(cdf, qs, side="left"), 0, len(values) - 1)]
     counts = np.array([(cdf <= tau).sum() for tau in qs])
     return values[np.maximum(counts - 1, 0)]
+
+
+def _project_complier_weights(
+    estimation_data: pl.DataFrame,
+    outcome: ColumnName,
+    treatment: ColumnName,
+    weights: ColumnName,
+) -> pl.Series:
+    """Project ``kappa`` on the treatment and outcome.
+
+    Fits ``WLS(kappa ~ treatment * outcome)`` on the whole sample. The model is
+    saturated in the binary treatment, hence identical to a separate regression
+    per arm. Returns ``weights * fitted``; the caller applies the sign ``2 D - 1``
+    and keeps the positive part, which are the asymptotically positive complier
+    weights of Stata's ``ivqte, positive``.
+    """
+    response, design = Formula.from_spec(
+        f"{_KAPPA_TREATED_ID} ~ {treatment} * {outcome}"
+    ).get_model_matrix(estimation_data, output="numpy")
+    fitted = (
+        sm.WLS(response.ravel(), design, weights=estimation_data[weights].to_numpy())
+        .fit()
+        .fittedvalues
+    )
+    return pl.Series(estimation_data[weights].to_numpy() * fitted)
 
 
 def _conditional_takeup_diff(
@@ -135,6 +179,70 @@ def _conditional_takeup_diff(
     return ds.select((at_one - at_zero).alias("first_stage")).item()
 
 
+def _compute_effects_via_signed_weights(
+    estimation_data: pl.DataFrame,
+    qs: NDArray[np.float64],
+    outcome: ColumnName,
+    treatment: ColumnName,
+    weights: ColumnName,
+) -> tuple[pl.DataFrame, pl.DataFrame]:
+    """Complier quantiles and means from the signed Abadie weights."""
+    # The treated weight is D * kappa_treated; the control factor is -kappa_treated,
+    # so multiplying by (D - 1) gives the control weight and zero for the treated.
+    estimation_data = estimation_data.with_columns(
+        (pl.col(weights) * pl.col(treatment) * pl.col(_KAPPA_TREATED_ID)).alias(
+            _COMPLIER_WEIGHT_TREATED_ID
+        ),
+        (pl.col(weights) * (pl.col(treatment) - 1.0) * pl.col(_KAPPA_TREATED_ID)).alias(
+            _COMPLIER_WEIGHT_CONTROL_ID
+        ),
+    )
+    y = estimation_data[outcome].to_numpy()
+    qtt = _get_quantile_differences(
+        qs,
+        _compute_quantiles(y, estimation_data[_COMPLIER_WEIGHT_TREATED_ID].to_numpy(), qs),
+        _compute_quantiles(y, estimation_data[_COMPLIER_WEIGHT_CONTROL_ID].to_numpy(), qs),
+    )
+    m_t, m_c = estimation_data.select(
+        _weighted_mean(outcome, _COMPLIER_WEIGHT_TREATED_ID),
+        _weighted_mean(outcome, _COMPLIER_WEIGHT_CONTROL_ID),
+    ).row(0)
+    return qtt, _get_mean_differences(m_t, m_c)
+
+
+def _compute_effects_via_positive_weights(
+    estimation_data: pl.DataFrame,
+    qs: NDArray[np.float64],
+    outcome: ColumnName,
+    treatment: ColumnName,
+    weights: ColumnName,
+) -> tuple[pl.DataFrame, pl.DataFrame]:
+    """Complier quantiles and means from the projected positive weights."""
+    projected = _project_complier_weights(estimation_data, outcome, treatment, weights)
+    estimation_data = estimation_data.with_columns(
+        (projected * (2.0 * pl.col(treatment) - 1.0)).alias(_POSITIVE_WEIGHT_ID)
+    ).filter(pl.col(_POSITIVE_WEIGHT_ID) > 0)
+
+    treated = estimation_data.filter(pl.col(treatment) == 1)
+    control = estimation_data.filter(pl.col(treatment) == 0)
+    y_trt = treated[outcome].to_numpy()
+    weights_trt = treated[_POSITIVE_WEIGHT_ID].to_numpy()
+    y_ctrl = control[outcome].to_numpy()
+    weights_ctrl = control[_POSITIVE_WEIGHT_ID].to_numpy()
+
+    return (
+        _get_quantile_differences(
+            qs,
+            _compute_quantiles(y_trt, weights_trt, qs, first_crossing=True),
+            _compute_quantiles(y_ctrl, weights_ctrl, qs, first_crossing=True),
+        ),
+        _get_mean_differences(
+            np.average(y_trt, weights=weights_trt),
+            np.average(y_ctrl, weights=weights_ctrl),
+        ),
+    )
+
+
 def _compute_local_effects(
     ds: pl.DataFrame,
     outcome: ColumnName,
@@ -145,6 +253,7 @@ def _compute_local_effects(
     instrument_probability_formula: FormulaRhs | None = None,
     weights: ColumnName | None = None,
     trim: float = _DEFAULT_TRIM,
+    estimator: Estimator = Estimator.SIGNED,
 ) -> _LocalQteIntermediateResult:
     """Compute complier quantiles and means without bootstrap inference.
 
@@ -169,6 +278,9 @@ def _compute_local_effects(
     trim : float, default=0.001
         Drop observations whose estimated instrument propensity lies outside
         ``[trim, 1 - trim]``. ``0`` keeps every observation.
+    estimator : `Estimator`, default=`Estimator.SIGNED`
+        Weighting scheme. ``SIGNED`` inverts the signed complier CDF;
+        ``POSITIVE`` projects the weights and differences weighted quantiles.
 
     Returns
     -------
@@ -190,39 +302,29 @@ def _compute_local_effects(
             (pl.col(_PROPENSITY_ID) >= trim) & (pl.col(_PROPENSITY_ID) <= 1.0 - trim)
         )
 
-    # Here we compute the Abadie weights ('kappa'). We compute demeaned version as in Stata's
-    # `ivqte`. This implies the demeaned mean in the sample is zero as it is in the pop.
-    # We multiply the centered_kappa by (D-1) since kappa is Z-p(Z=1|X)/C=kappa_treated. To get
-    # kappa_control we have (adding +/- 1) (-1+z + 1-p(z=1|X))=-((1-z) - p(z=0|x))=kappa_untreated
-    # * (-1). This then explains why we multiply by D-1 for the control weight.
-    estimation_data = (
-        estimation_data.with_columns(_compute_kappa(instrument, _PROPENSITY_ID).alias(_KAPPA_ID))
-        .with_columns((pl.col(_KAPPA_ID) - _weighted_mean(_KAPPA_ID, weights)).alias(_KAPPA_ID))
-        .with_columns(
-            (pl.col(weights) * pl.col(treatment) * pl.col(_KAPPA_ID)).alias(
-                _COMPLIER_WEIGHT_TREATED_ID
-            ),
-            (pl.col(weights) * (pl.col(treatment) - 1.0) * pl.col(_KAPPA_ID)).alias(
-                _COMPLIER_WEIGHT_CONTROL_ID
-            ),
+    # Abadie's treated complier weight factor, centered as in Stata's `ivqte` so
+    # that its sample mean is zero, as it is in the population. The treated weight
+    # is `D * kappa_treated` and the control weight is `(D - 1) * kappa_treated`.
+    estimation_data = estimation_data.with_columns(
+        _compute_kappa_treated(instrument, _PROPENSITY_ID).alias(_KAPPA_TREATED_ID)
+    ).with_columns(
+        (pl.col(_KAPPA_TREATED_ID) - _weighted_mean(_KAPPA_TREATED_ID, weights)).alias(
+            _KAPPA_TREATED_ID
         )
     )
 
-    y = estimation_data[outcome].to_numpy()
-
-    qtt = _get_quantile_differences(
-        qs,
-        _compute_quantiles(y, estimation_data[_COMPLIER_WEIGHT_TREATED_ID].to_numpy(), qs),
-        _compute_quantiles(y, estimation_data[_COMPLIER_WEIGHT_CONTROL_ID].to_numpy(), qs),
-    )
-    m_t, m_c = estimation_data.select(
-        _weighted_mean(outcome, _COMPLIER_WEIGHT_TREATED_ID),
-        _weighted_mean(outcome, _COMPLIER_WEIGHT_CONTROL_ID),
-    ).row(0)
-    att = _get_mean_differences(m_t, m_c)
+    if estimator is Estimator.POSITIVE:
+        qtt, att = _compute_effects_via_positive_weights(
+            estimation_data, qs, outcome, treatment, weights
+        )
+    else:
+        qtt, att = _compute_effects_via_signed_weights(
+            estimation_data, qs, outcome, treatment, weights
+        )
 
     complier_share = estimation_data.select(
-        pl.col(_COMPLIER_WEIGHT_TREATED_ID).sum() / pl.col(weights).sum()
+        (pl.col(weights) * pl.col(treatment) * pl.col(_KAPPA_TREATED_ID)).sum()
+        / pl.col(weights).sum()
     ).item()
     first_stage = _conditional_takeup_diff(estimation_data, treatment, instrument, weights)
 
@@ -244,6 +346,7 @@ def estimate_local_effects(
     instrument_probability_formula: FormulaRhs | None = None,
     weights: ColumnName | None = None,
     trim: float = _DEFAULT_TRIM,
+    estimator: Estimator = Estimator.SIGNED,
     bootstrap_config: BootstrapConfig | int = 100,
 ) -> LocalQteResult:
     """Estimate the quantile treatment effect for compliers.
@@ -274,6 +377,8 @@ def estimate_local_effects(
     trim : float, default=0.001
         Drop observations whose estimated instrument propensity lies outside
         ``[trim, 1 - trim]``. ``0`` keeps every observation.
+    estimator : `Estimator`, default=`Estimator.SIGNED`
+        Weighting scheme, see `_compute_local_effects`.
     bootstrap_config : `BootstrapConfig` or int, default=100
         Bootstrap settings, or the number of replications.
 
@@ -297,6 +402,7 @@ def estimate_local_effects(
         instrument_probability_formula=instrument_probability_formula,
         weights=weights,
         trim=trim,
+        estimator=estimator,
     )
     point = fcn(ds)
     runs = _make_bootstrap_runs(
@@ -314,4 +420,5 @@ def estimate_local_effects(
         group=None,
         complier_share=point.complier_share,
         first_stage=point.first_stage,
+        estimator=estimator,
     )
