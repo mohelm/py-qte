@@ -53,7 +53,7 @@ def _make_rule_layer(
     return base.mark_rule(color="red", strokeDash=stroke_dash).encode(y=alt.Y(f"{y}:Q"))  # ty: ignore[unresolved-attribute]
 
 
-def _make_facets(grouped_by: tuple[str] | tuple[str, str]) -> dict:
+def _make_facets(grouped_by: tuple[str, ...]) -> dict:
     # With a single group (tuple[str] case) the associated dimension goes in the column. With two
     # groups, the first goes in the rows and the second in the columns. The caller has to ensure
     # that the group order reflects how the plot should look.
@@ -66,7 +66,7 @@ def _make_facets(grouped_by: tuple[str] | tuple[str, str]) -> dict:
 
 
 def _make_plot_with_multiple_quantiles(
-    combined: pl.DataFrame, group: tuple[str] | tuple[str, str] | None, *, tick_values: list[float]
+    combined: pl.DataFrame, group: tuple[str, ...] | None, *, tick_values: list[float]
 ) -> alt.LayerChart | alt.FacetChart:
     base = alt.Chart(combined)
 
@@ -105,7 +105,7 @@ def _make_plot_with_multiple_quantiles(
 
 
 def _make_plot_for_single_quantile(
-    combined: pl.DataFrame, group: tuple[str] | tuple[str, str] | None, *, quantile: float
+    combined: pl.DataFrame, group: tuple[str, ...] | None, *, quantile: float
 ) -> alt.LayerChart | alt.FacetChart:
     base = alt.Chart(combined)
     x = alt.X("__kind", title=None, sort=_ESTIMATE_TYPE_ORDER)
@@ -140,7 +140,7 @@ def _make_plot_for_single_quantile(
 def make_plot(
     qtes: pl.DataFrame,
     atts: pl.DataFrame,
-    group: str | tuple[str] | tuple[str, str] | None = None,
+    group: str | tuple[str, ...] | None = None,
     subtitle: str | list[str] | None = None,
 ) -> alt.LayerChart | alt.FacetChart:
     if isinstance(group, str):
