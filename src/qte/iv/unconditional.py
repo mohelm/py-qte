@@ -46,7 +46,7 @@ from qte.constants import MEDIAN
 from qte.custom_types import ColumnName, FormulaRhs
 from qte.helpers import _as_iterable_array, _get_mean_differences, _get_quantile_differences
 from qte.iv.custom_types import Estimator
-from qte.iv.results import LocalQteResult
+from qte.iv.results import UnconditionalLocalQteResult
 from qte.stats import estimate_propensity_score
 
 _EPS = 1e-8
@@ -336,7 +336,7 @@ def _compute_local_effects(
     )
 
 
-def estimate_local_effects(
+def estimate_unconditional_local_effects(
     ds: pl.DataFrame,
     outcome: ColumnName,
     treatment: ColumnName,
@@ -348,7 +348,7 @@ def estimate_local_effects(
     trim: float = _DEFAULT_TRIM,
     estimator: Estimator = Estimator.SIGNED,
     bootstrap_config: BootstrapConfig | int = 100,
-) -> LocalQteResult:
+) -> UnconditionalLocalQteResult:
     """Estimate the quantile treatment effect for compliers.
 
     Combines `_compute_local_effects` with bootstrap standard errors. The
@@ -384,7 +384,7 @@ def estimate_local_effects(
 
     Returns
     -------
-    `LocalQteResult`
+    `UnconditionalLocalQteResult`
         Complier quantile effects and the LATE with bootstrap standard errors.
 
     See Also
@@ -413,7 +413,7 @@ def estimate_local_effects(
         n_workers=bootstrap_config.n_workers,
     )
     qtt, att = _attach_standard_errors(point, runs)
-    return LocalQteResult(
+    return UnconditionalLocalQteResult(
         qtt=qtt,
         att=att,
         outcome=outcome,

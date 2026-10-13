@@ -6,7 +6,7 @@ from enum import StrEnum
 class Estimator(StrEnum):
     """Weighting scheme for the complier quantile treatment effect.
 
-    Use a member as the ``estimator`` argument of `qte.iv.estimate_local_effects`.
+    Use a member as the ``estimator`` argument of `qte.iv.estimate_unconditional_local_effects`.
 
     Attributes
     ----------
@@ -23,8 +23,8 @@ class Estimator(StrEnum):
     Estimate the effect with the positive-weight scheme:
 
     >>> from qte.datasets import load_card
-    >>> from qte.iv import Estimator, estimate_local_effects
-    >>> res = estimate_local_effects(
+    >>> from qte.iv import Estimator, estimate_unconditional_local_effects
+    >>> res = estimate_unconditional_local_effects(
     ...     load_card(treatment_cutoff=13),
     ...     "lwage",
     ...     "college",
@@ -35,3 +35,24 @@ class Estimator(StrEnum):
 
     SIGNED = "signed"
     POSITIVE = "positive"
+
+
+class WeightAdjustment(StrEnum):
+    """How the nonnegative complier weights are formed.
+
+    Use a member as the ``weight_adjustment`` argument of
+    `qte.iv.estimate_conditional_local_effects`.
+
+    Attributes
+    ----------
+    PROJECTION
+        Project the Abadie-Angrist-Imbens kappa onto the outcome and covariates
+        separately for the treated and untreated (Stata ``ivqte, aai``).
+    PLUGIN
+        Estimate ``nu(U) = E[Z | Y, D, X]`` and plug it into the exact kappa
+        identity, ``1 - D(1-nu)/(1-p) - (1-D)nu/p`` (Abadie, Angrist & Imbens,
+        2002, eq. 4).
+    """
+
+    PROJECTION = "projection"
+    PLUGIN = "plugin"

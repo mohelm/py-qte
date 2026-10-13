@@ -95,10 +95,14 @@ quartodoc:
       desc: Local quantile treatment effects for compliers (`qte.iv`).
       package: qte.iv
       contents:
-        - estimate_local_effects
-        - name: LocalQteResult
+        - estimate_unconditional_local_effects
+        - name: UnconditionalLocalQteResult
+          include_inherited: true
+        - estimate_conditional_local_effects
+        - name: ConditionalLocalQteResult
           include_inherited: true
         - Estimator
+        - WeightEstimator
     - title: IV Simulation
       desc: Simulation functions for the instrumental-variables estimator (`qte.iv.simulate`).
       package: qte.iv.simulate

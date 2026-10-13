@@ -244,6 +244,8 @@ class QuantileRegressionResult:
         Design matrix used for fitting, shape ``(n_obs, n_coeffs)``.
     formula : Formula
         Formula the model was fit with.
+    regressor_names : list of str
+        Names of the regressors, in coefficient order.
 
     Attributes
     ----------
@@ -251,12 +253,21 @@ class QuantileRegressionResult:
         Fitted coefficients, shape ``(n_coeffs, n_quantiles)``.
     formula : Formula
         Formula the model was fit with.
+    regressor_names : list of str
+        Names of the regressors, in coefficient order.
     """
 
-    def __init__(self, coefficients: NDArray, x_fit: NDArray[np.float64], formula: Formula) -> None:
+    def __init__(
+        self,
+        coefficients: NDArray,
+        x_fit: NDArray[np.float64],
+        formula: Formula,
+        regressor_names: list[str],
+    ) -> None:
         self.coefficients = coefficients
         self._x_fit = x_fit
         self.formula = formula
+        self.regressor_names = regressor_names
 
     def predict(self, ds: pl.DataFrame | None = None) -> NDArray:
         """Predict fitted quantiles.
@@ -343,4 +354,6 @@ class QuantileRegression:
             if algorithm == QuantileRegressionAlgorithms.PREPROCESSING
             else np.column_stack([_fast_quantreg(X, y.ravel(), q, sample_weights) for q in qs])
         )
-        return QuantileRegressionResult(coeffs, x_fit=X, formula=fml)
+        return QuantileRegressionResult(
+            coeffs, x_fit=X, formula=fml, regressor_names=list(X.model_spec.column_names)
+        )

@@ -194,8 +194,8 @@ def get_true_local_effects(
         seed=seed,
     )
     compliers = ds.filter(pl.col(COMPLIER_ID) == 1)
-    y_1 = compliers[POTENTIAL_OUTCOME_TREAT_ID].to_numpy().astype(float)
-    y_0 = compliers[POTENTIAL_OUTCOME_CTRL_ID].to_numpy().astype(float)
+    y_1 = compliers[POTENTIAL_OUTCOME_TREAT_ID].to_numpy()
+    y_0 = compliers[POTENTIAL_OUTCOME_CTRL_ID].to_numpy()
     return (
         _get_quantile_differences(qs, np.quantile(y_1, qs), np.quantile(y_0, qs)),
         float(y_1.mean() - y_0.mean()),

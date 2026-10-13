@@ -123,11 +123,11 @@ endogenous.
 
 ```python
 from qte.datasets import load_card
-from qte.iv import estimate_local_effects
+from qte.iv import estimate_unconditional_local_effects
 
 ds = load_card()
 
-res = estimate_local_effects(
+res = estimate_unconditional_local_effects(
     ds,
     outcome="lwage",
     treatment="college",

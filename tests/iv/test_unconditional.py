@@ -3,13 +3,13 @@ import pytest
 from polars.testing import assert_series_equal
 
 from qte.datasets import load_card, load_jtpa
-from qte.iv import Estimator, estimate_local_effects
+from qte.iv import Estimator, estimate_unconditional_local_effects
 from qte.names import EFFECT_ID, QUANTILE_ID
 
 
 def test_card_dataset_estimation_runs():
     ds = load_card()
-    res = estimate_local_effects(
+    res = estimate_unconditional_local_effects(
         ds,
         "lwage",
         "college",
@@ -27,7 +27,7 @@ def test_jtpa_local_effects_runs():
         "age2225 + age2629 + age3035 + age3644 + age4554 + black + hispanic "
         "+ married + afdc + hsorged + prevearn"
     )
-    res = estimate_local_effects(
+    res = estimate_unconditional_local_effects(
         ds,
         "earnings",
         "training",
@@ -63,8 +63,8 @@ _CARD_IVQTE_CASES = [
 
 
 @pytest.mark.parametrize("estimator,expected", _CARD_IVQTE_CASES)
-def test_estimate_local_effects_matches_ivqte_card(card, estimator, expected):
-    res = estimate_local_effects(
+def test_estimate_unconditional_local_effects_matches_ivqte_card(card, estimator, expected):
+    res = estimate_unconditional_local_effects(
         card,
         "lwage",
         "college",

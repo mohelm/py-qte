@@ -33,8 +33,8 @@ $$
 Here $\pi(X) = P(Z = 1 \mid X)$ is the instrument probability, estimated by a logit. The local
 quantile treatment effect is the difference between the two complier quantiles,
 $\Delta_\tau = Q_\tau(Y(1)\mid c) - Q_\tau(Y(0)\mid c)$, and the average effect is the LATE.
-`estimate_local_effects` inverts the signed weighted empirical CDFs to obtain the quantile effects
-and reports bootstrap standard errors.
+`estimate_unconditional_local_effects` inverts the signed weighted empirical CDFs to obtain the
+quantile effects and reports bootstrap standard errors.
 
 ```{=html}
 <style>
@@ -64,7 +64,7 @@ from IPython.display import HTML
 from qte.bootstrap import BootstrapConfig
 from qte.constants import _make_q
 from qte.datasets import load_card, load_jtpa
-from qte.iv import estimate_local_effects
+from qte.iv import estimate_unconditional_local_effects
 
 QS = _make_q(20)  # 0.05, 0.10, ..., 0.95
 REPORT = [0.10, 0.50, 0.90]
@@ -168,7 +168,7 @@ descriptive_statistics(
 #| label: card
 #| code-summary: "Show code (local QTE on the Card data)"
 with timer("card"):
-    card_res = estimate_local_effects(
+    card_res = estimate_unconditional_local_effects(
         card,
         "lwage",
         "college",
@@ -222,7 +222,7 @@ jtpa_covariates = (
     "+ age2225 + age2629 + age3035 + age3644 + age4554 + class_tr + ojt_jsa + prevearn"
 )
 with timer("jtpa"):
-    jtpa_res = estimate_local_effects(
+    jtpa_res = estimate_unconditional_local_effects(
         jtpa,
         "earnings",
         "training",
@@ -258,7 +258,7 @@ sim = simulate_data(n=100_000, seed=0)
 truth, late = get_true_local_effects(QS, n_oracle=1_000_000, seed=0)
 print(f"True LATE = {late:.3f}")
 with timer("simulation"):
-    sim_res = estimate_local_effects(
+    sim_res = estimate_unconditional_local_effects(
         sim, "y", "treatment", "instrument", qs=QS, bootstrap_config=BOOTSTRAP
     )
 
@@ -317,7 +317,7 @@ estimates = np.zeros((COVERAGE_REPLICATIONS, QS.size))
 with timer("coverage"):
     for replication in range(COVERAGE_REPLICATIONS):
         sample = simulate_data(n=COVERAGE_SAMPLE_SIZE, seed=250_000 + replication)
-        res = estimate_local_effects(
+        res = estimate_unconditional_local_effects(
             sample,
             "y",
             "treatment",
@@ -377,10 +377,10 @@ COVARIATE_BOOTSTRAP = BootstrapConfig(n_iter=200, seed=0, n_workers=4)
 cov = simulate_data(n=100_000, seed=0, **COVARIATE)
 cov_truth, _ = get_true_local_effects(QS, n_oracle=1_000_000, seed=0, **COVARIATE)
 with timer("covariates"):
-    constant_res = estimate_local_effects(
+    constant_res = estimate_unconditional_local_effects(
         cov, "y", "treatment", "instrument", qs=QS, bootstrap_config=COVARIATE_BOOTSTRAP
     )
-    adjusted_res = estimate_local_effects(
+    adjusted_res = estimate_unconditional_local_effects(
         cov,
         "y",
         "treatment",
