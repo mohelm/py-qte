@@ -45,13 +45,16 @@ from qte.bootstrap import (
 from qte.constants import MEDIAN
 from qte.custom_types import ColumnName, FormulaRhs
 from qte.helpers import _as_iterable_array, _get_mean_differences, _get_quantile_differences
+from qte.iv.common import (
+    _DEFAULT_TRIM,
+    _EPS,
+    _PROPENSITY_ID,
+    _conditional_takeup_diff,
+    _estimate_instrument_propensity,
+)
 from qte.iv.custom_types import Estimator
 from qte.iv.results import UnconditionalLocalQteResult
-from qte.stats import estimate_propensity_score
 
-_EPS = 1e-8
-_DEFAULT_TRIM = 0.001
-_PROPENSITY_ID = "_propensity"
 _KAPPA_TREATED_ID = "_kappa_treated"
 _COMPLIER_WEIGHT_TREATED_ID = "_complier_weight_treated"
 _COMPLIER_WEIGHT_CONTROL_ID = "_complier_weight_control"
@@ -82,28 +85,6 @@ def _compute_kappa_treated(instrument: ColumnName, propensity: ColumnName) -> pl
 def _weighted_mean(value: ColumnName, weight: ColumnName) -> pl.Expr:
     """Polars expression for the ``weight``-weighted mean of ``value``."""
     return (pl.col(weight) * pl.col(value)).sum() / pl.col(weight).sum()
-
-
-def _estimate_instrument_propensity(
-    ds: pl.DataFrame,
-    instrument: ColumnName,
-    instrument_probability_formula: FormulaRhs | None,
-    weights: ColumnName,
-) -> NDArray[np.float64]:
-    """Estimate ``p(X) = P(Z = 1 | X)``, constant when no formula is given."""
-    p = (
-        np.full(
-            len(ds),
-            fill_value=np.average(ds[instrument].to_numpy(), weights=ds[weights].to_numpy()),
-        )
-        if instrument_probability_formula is None  # For speed purposes.
-        else estimate_propensity_score(
-            ds, instrument, instrument_probability_formula, weights
-        ).predict()
-    )
-    # Avoid division blow-ups at the boundary; observations this extreme only
-    # arise under (near) deterministic take-up.
-    return np.clip(p, _EPS, 1.0 - _EPS)
 
 
 def _compute_quantiles(
@@ -162,21 +143,6 @@ def _project_complier_weights(
         .fittedvalues
     )
     return pl.Series(estimation_data[weights].to_numpy() * fitted)
-
-
-def _conditional_takeup_diff(
-    ds: pl.DataFrame,
-    treatment: ColumnName,
-    instrument: ColumnName,
-    weight: ColumnName,
-) -> float:
-    """``E[D | Z = 1] - E[D | Z = 0]`` (the first stage), computed in Polars."""
-    d = pl.col(treatment)
-    z = pl.col(instrument)
-    w = pl.col(weight)
-    at_one = (d * w).filter(z == 1).sum() / w.filter(z == 1).sum()
-    at_zero = (d * w).filter(z == 0).sum() / w.filter(z == 0).sum()
-    return ds.select((at_one - at_zero).alias("first_stage")).item()
 
 
 def _compute_effects_via_signed_weights(

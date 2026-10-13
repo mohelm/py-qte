@@ -28,17 +28,16 @@ from qte.bootstrap import (
 from qte.constants import MEDIAN
 from qte.custom_types import ColumnName, FormulaRhs
 from qte.helpers import _as_iterable_array, _get_mean_differences, _get_quantile_differences
-from qte.iv.custom_types import WeightAdjustment
-from qte.iv.results import ConditionalLocalQteResult
-from qte.iv.unconditional import (
+from qte.iv.common import (
+    _DEFAULT_TRIM,
+    _PROPENSITY_ID,
     _conditional_takeup_diff,
     _estimate_instrument_propensity,
 )
+from qte.iv.custom_types import WeightAdjustment
+from qte.iv.results import ConditionalLocalQteResult
 from qte.quantile_regression import QuantileRegression
 
-_EPS = 1e-8
-_DEFAULT_TRIM = 0.001
-_PROPENSITY_ID = "_propensity"
 _KAPPA_ID = "_kappa"
 
 
