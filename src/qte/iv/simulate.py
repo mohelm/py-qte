@@ -4,9 +4,10 @@ The design is a self-contained version of the JTPA-based simulation in Kaplan &
 Sun (2017). A binary instrument ``Z`` is offered with probability
 ``offer_probability`` and induces one-sided non-compliance: units with ``Z = 0``
 are untreated, while units with ``Z = 1`` take up the treatment with probability
-``min(1, u / takeup_scale)``, where ``u`` is a uniform unobservable. The same
-``u`` shifts the outcome and the size of the treatment effect, so the treatment
-is endogenous and the effect is heterogeneous. Because the treatment effect
+``min(1, u / T(x))``, where ``u`` is a uniform unobservable and ``T(x)`` the
+take-up threshold. The same ``u`` shifts the outcome and the size of the
+treatment effect, so the treatment is endogenous and the effect is
+heterogeneous. Because the treatment effect
 increases in ``u`` and compliers are selected towards larger ``u``, the effect
 increases with the quantile and the observed-treatment difference overstates it.
 
@@ -21,13 +22,13 @@ monotonicity restrictions hold by construction and the constant-propensity
 estimator is correctly specified. Two optional channels make the covariate
 matter:
 
-- ``propensity_scale`` makes the instrument probability depend on ``x``,
-  ``P(Z = 1 | x) = logistic(logit(offer_probability) + propensity_scale * x)``,
+- ``instrument_propensity_slope`` makes the instrument probability depend on ``x``,
+  ``P(Z = 1 | x) = logistic(logit(offer_probability) + instrument_propensity_slope * x)``,
   so the constant-propensity estimator is inconsistent and the estimator has to
   condition on ``x``.
-- ``compliance_scale`` makes take-up depend on ``x``,
-  ``P(D(1) = 1 | u, x) = min(1, u / (takeup_scale * exp(compliance_scale * x)))``,
-  so the complier population varies with ``x``.
+- ``takeup_threshold_slope`` makes the take-up threshold depend on ``x``,
+  ``T(x) = base_takeup_threshold * exp(takeup_threshold_slope * x)``, so the
+  complier population varies with ``x``.
 
 In every case the instrument remains valid conditional on ``x`` and the truth is
 recovered from a large simulated population with `get_true_local_effects`.
@@ -58,9 +59,9 @@ def simulate_data(
     effect_scale: float = 2.0,
     covariate_effect: float = 1.0,
     offer_probability: float = 0.67,
-    propensity_scale: float = 0.0,
-    takeup_scale: float = 0.75,
-    compliance_scale: float = 0.0,
+    instrument_propensity_slope: float = 0.0,
+    base_takeup_threshold: float = 0.75,
+    takeup_threshold_slope: float = 0.0,
     seed: int | None = None,
 ) -> pl.DataFrame:
     """Simulate a binary-instrument, binary-treatment design with non-compliance.
@@ -75,16 +76,19 @@ def simulate_data(
     covariate_effect : float
         Coefficient of the covariate in the outcome.
     offer_probability : float
-        Instrument probability when ``propensity_scale`` is zero; also sets the
-        intercept of the instrument propensity model otherwise.
-    propensity_scale : float
+        Baseline propensity of being assigned the instrument (``p_0`` in the
+        logit model); it is the instrument probability when
+        ``instrument_propensity_slope`` is zero.
+    instrument_propensity_slope : float
         Coefficient of ``x`` in the logit model for ``P(Z = 1 | x)``. ``0``
         makes the instrument independent of the covariate.
-    takeup_scale : float
-        Take-up threshold; ``P(D(1) = 1 | u) = min(1, u / takeup_scale)``.
-    compliance_scale : float
-        Coefficient of ``x`` in the take-up threshold. ``0`` makes compliance
-        independent of the covariate.
+    base_takeup_threshold : float
+        Take-up threshold at ``x = 0``; with ``takeup_threshold_slope = 0``,
+        ``P(D(1) = 1 | u) = min(1, u / base_takeup_threshold)``.
+    takeup_threshold_slope : float
+        Coefficient of ``x`` in the take-up threshold
+        ``T(x) = base_takeup_threshold * exp(takeup_threshold_slope * x)``.
+        ``0`` makes compliance independent of the covariate.
     seed : int, optional
         Seed for `numpy.random.default_rng`.
 
@@ -100,15 +104,14 @@ def simulate_data(
 
     # This is p(z|x)
     instrument_probability = expit(
-        np.log(offer_probability / (1.0 - offer_probability)) + propensity_scale * x
+        np.log(offer_probability / (1.0 - offer_probability)) + instrument_propensity_slope * x
     )
     instrument = rng.binomial(1, instrument_probability).astype(int)
 
-    # Generally, we have a design here where there are no always-takers, i.e. only if the treatment is offered one can take it.
-    # Here we comute P(D(1)=1 | u,x)=min(1, u/tau(x)) which is the probability of takeup given
-    # (x,u). From that probability we derive at the individual level whether the user would take up
-    # the treatment (via sampling from a binomial).
-    takeup_threshold = takeup_scale * np.exp(compliance_scale * x)
+    # One-sided non-compliance: no always-takers, so only units offered the
+    # treatment can take it up. P(D(1) = 1 | u, x) = min(1, u / T(x)) is the
+    # take-up probability given (x, u); the individual take-up is drawn from it.
+    takeup_threshold = base_takeup_threshold * np.exp(takeup_threshold_slope * x)
     takeup_probability = np.minimum(1.0, unobserved / takeup_threshold)
     is_complier = rng.binomial(1, takeup_probability).astype(int)
     treatment = instrument * is_complier
@@ -154,9 +157,9 @@ def get_true_local_effects(
     effect_scale: float = 2.0,
     covariate_effect: float = 1.0,
     offer_probability: float = 0.67,
-    propensity_scale: float = 0.0,
-    takeup_scale: float = 0.75,
-    compliance_scale: float = 0.0,
+    instrument_propensity_slope: float = 0.0,
+    base_takeup_threshold: float = 0.75,
+    takeup_threshold_slope: float = 0.0,
     seed: int = 0,
 ) -> tuple[pl.DataFrame, float]:
     """Simulation-based true complier quantile and average effects.
@@ -172,7 +175,7 @@ def get_true_local_effects(
         Quantiles in ``(0, 1)``.
     n_oracle : int
         Size of the simulated population used to recover the truth.
-    effect_scale, covariate_effect, offer_probability, propensity_scale, takeup_scale, compliance_scale : float
+    effect_scale, covariate_effect, offer_probability, instrument_propensity_slope, base_takeup_threshold, takeup_threshold_slope : float
         Passed to `simulate_data`.
     seed : int
         Seed for the oracle simulation.
@@ -188,9 +191,9 @@ def get_true_local_effects(
         effect_scale=effect_scale,
         covariate_effect=covariate_effect,
         offer_probability=offer_probability,
-        propensity_scale=propensity_scale,
-        takeup_scale=takeup_scale,
-        compliance_scale=compliance_scale,
+        instrument_propensity_slope=instrument_propensity_slope,
+        base_takeup_threshold=base_takeup_threshold,
+        takeup_threshold_slope=takeup_threshold_slope,
         seed=seed,
     )
     compliers = ds.filter(pl.col(COMPLIER_ID) == 1)
@@ -209,9 +212,9 @@ def get_true_conditional_effects(
     effect_scale: float = 2.0,
     covariate_effect: float = 1.0,
     offer_probability: float = 0.67,
-    propensity_scale: float = 0.0,
-    takeup_scale: float = 0.75,
-    compliance_scale: float = 0.0,
+    instrument_propensity_slope: float = 0.0,
+    base_takeup_threshold: float = 0.75,
+    takeup_threshold_slope: float = 0.0,
     seed: int = 0,
 ) -> pl.DataFrame:
     """Simulation-based true conditional complier quantile effects.
@@ -226,10 +229,10 @@ def get_true_conditional_effects(
     shift ``covariate_effect * X`` out of the potential outcomes and taking the
     complier quantile difference of what remains.
 
-    With ``compliance_scale = 0`` (the default) the complier unobservable is
+    With ``takeup_threshold_slope = 0`` (the default) the complier unobservable is
     independent of the covariates, so the conditional effect does not itself
     depend on ``X`` and a single vector characterises it. With
-    ``compliance_scale != 0`` the complier population varies with ``X`` and
+    ``takeup_threshold_slope != 0`` the complier population varies with ``X`` and
     this function returns the effect averaged over the complier covariate
     distribution rather than the effect at a particular ``X``.
 
@@ -239,7 +242,7 @@ def get_true_conditional_effects(
         Quantiles in ``(0, 1)``.
     n_oracle : int
         Size of the simulated population used to recover the truth.
-    effect_scale, covariate_effect, offer_probability, propensity_scale, takeup_scale, compliance_scale : float
+    effect_scale, covariate_effect, offer_probability, instrument_propensity_slope, base_takeup_threshold, takeup_threshold_slope : float
         Passed to `simulate_data`.
     seed : int
         Seed for the oracle simulation.
@@ -255,9 +258,9 @@ def get_true_conditional_effects(
         effect_scale=effect_scale,
         covariate_effect=covariate_effect,
         offer_probability=offer_probability,
-        propensity_scale=propensity_scale,
-        takeup_scale=takeup_scale,
-        compliance_scale=compliance_scale,
+        instrument_propensity_slope=instrument_propensity_slope,
+        base_takeup_threshold=base_takeup_threshold,
+        takeup_threshold_slope=takeup_threshold_slope,
         seed=seed,
     )
     compliers = ds.filter(pl.col(COMPLIER_ID) == 1)

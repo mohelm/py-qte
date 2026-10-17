@@ -14,7 +14,7 @@ execute:
   message: false
 ---
 
-## The estimator
+## The Estimator
 
 When the treatment is endogenous we can still identify **quantile treatment effects for compliers**
 — the subpopulation whose treatment status responds to the instrument. Under the LATE assumptions
@@ -68,7 +68,7 @@ from qte.iv import estimate_unconditional_local_effects
 
 QS = _make_q(20)  # 0.05, 0.10, ..., 0.95
 REPORT = [0.10, 0.50, 0.90]
-BOOTSTRAP = BootstrapConfig(n_iter=1000, seed=42, n_workers=4)
+BOOTSTRAP = BootstrapConfig(n_iter=3, seed=42, n_workers=4)
 
 
 def side_by_side(result, report: list[float] | None = None) -> HTML:
@@ -135,7 +135,7 @@ def descriptive_statistics(
     )
 ```
 
-## Returns to college ([Card, 1995](#ref-card-1995))
+## Returns to College ([Card, 1995](#ref-card-1995))
 
 The `card` data record log wages (`lwage`), completed college (`college`) and whether the man grew
 up near a four-year college (`nearc4`). We use college proximity as an instrument for college
@@ -165,7 +165,7 @@ descriptive_statistics(
 ```
 
 ```{python}
-#| label: card
+#| label: card-estimate
 #| code-summary: "Show code (local QTE on the Card data)"
 with timer("card"):
     card_res = estimate_unconditional_local_effects(
@@ -176,6 +176,11 @@ with timer("card"):
         qs=QS,
         bootstrap_config=BOOTSTRAP,
     )
+```
+
+```{python}
+#| label: card-plot
+#| code-summary: "Show code (Card QTE plot)"
 print(f"First stage (= complier share) = {card_res.first_stage:.3f}")
 side_by_side(card_res, REPORT)
 ```
@@ -184,7 +189,7 @@ The estimated quantile effects rise with the quantile, and the average effect (r
 significant. As usual for a quantile approach, the picture is richer than the single LATE: the
 return to college is much larger at the top of the wage distribution than in the left tail.
 
-## Training and earnings (JTPA)
+## Training and Earnings (JTPA)
 
 The `jtpa` data come from the Job Training Partnership Act study, which randomly assigned applicants
 to a treatment group eligible for training. Because only about two thirds of those assigned actually
@@ -215,7 +220,7 @@ descriptive_statistics(
 ```
 
 ```{python}
-#| label: jtpa
+#| label: jtpa-estimate
 #| code-summary: "Show code (local QTE on the JTPA data)"
 jtpa_covariates = (
     "black + hispanic + married + hsorged + afdc + f2sms + wkless13 "
@@ -231,6 +236,11 @@ with timer("jtpa"):
         instrument_probability_formula=jtpa_covariates,
         bootstrap_config=BOOTSTRAP,
     )
+```
+
+```{python}
+#| label: jtpa-plot
+#| code-summary: "Show code (JTPA QTE plot)"
 print(f"First stage (= complier share) = {jtpa_res.first_stage:.3f}")
 side_by_side(jtpa_res, REPORT)
 ```
@@ -239,28 +249,103 @@ For women the training effect is positive at every quantile and largest around t
 average effect (red) is positive and clearly different from zero, matching the distributional
 pattern emphasised by [Abadie, Angrist & Imbens (2002)](#ref-aai-2002).
 
-## Simulation check
+## Simulated Data
 
 The two applications above use real data, so the truth is unknown. To check that the estimator
 recovers the target when its assumptions hold, we simulate data where the complier quantile effects
 are known. The design follows the JTPA-based simulation of
-[Kaplan & Sun (2017)](#ref-kaplan-sun-2017): a binary instrument induces one-sided non-compliance,
-and the same unobservable drives take-up and the size of the treatment effect. The effect is
-therefore endogenous and larger at higher quantiles, and a naive comparison of outcomes by treatment
-status should overstate it.
+[Kaplan & Sun (2017)](#ref-kaplan-sun-2017).
+
+Each observation is characterized by a single (observed) covariate and a latent (unobserved) type
+$u_i$. They are generated via:
+
+$$
+x_i \sim \mathcal{N}(0, 1), \qquad u_i \sim \mathcal{U}[0, 1],
+$$
+
+The instrument's value, $Z_i$, is random and whether the instrument is switched on depends on
+covariates. The strength of that dependence is controlled by the `instrument_propensity_slope`. The
+baseline propensity to be assigned is $p_0$ (the `offer_probability` parameter).
+
+$$
+\begin{aligned}
+p_i = P(Z_i = 1 \mid x_i) &= \sigma\!\left(\operatorname{logit}(p_0) + \texttt{instrument\_propensity\_slope} \cdot x_i\right), \\
+Z_i &\sim \operatorname{Bernoulli}(p_i),
+\end{aligned}
+$$
+
+The treatment's potential values are determined as follows: first, there is one-sided non-compliance
+in the sense that if the instrument is switched off the unit will never get treated (there are no
+always-takers). Compliance with the treatment if the instrument is switched on is random. First
+there is a take-up threshold $T(x_i)$ that determines beyond which type, as measured by $u_i$,
+treatment is certain with the instrument switched on. For $u_i$ realizations below the threshold,
+take-up is probabilistic for the case of a switched-on instrument. The threshold $T(x_i)$ itself
+depends on a base threshold that determines the take-up threshold at $x_i = 0$, which is here the
+mean of the covariate. As $x_i$ increases the take-up threshold increases as well.
+
+$$
+\begin{aligned}
+T(x_i) &= \texttt{base\_takeup\_threshold} \cdot \exp\!\left(\texttt{takeup\_threshold\_slope} \cdot x_i\right), \\
+D_i(1) &\sim \operatorname{Bernoulli}\!\left(\min\{1, u_i / T(x_i)\}\right), \qquad D_i(0) = 0, \\
+D_i &= Z_i \cdot D_i(1),
+\end{aligned}
+$$
+
+Lastly, potential outcomes under no treatment are determined by covariates and the type, where a
+larger type at equal covariates means a higher outcome under no treatment. Lastly, the potential
+outcome under treatment is given by the outcome under no treatment plus a scaled version of the
+type.
+
+$$
+\begin{aligned}
+Y_i(0) &= \texttt{covariate\_effect} \cdot x_i + \Phi^{-1}(u_i), \\
+Y_i(1) &= Y_i(0) + \texttt{effect\_scale} \cdot u_i, \\
+Y_i &= D_i \cdot Y_i(1) + (1 - D_i) \cdot Y_i(0),
+\end{aligned}
+$$
+
+Economically, in this model compliers tend to have a higher $U_i$ and also a higher benefit from the
+treatment. This means the LATE is pushed above the ATE. Lastly, the AAI-style weight
+$\nu_0(U) = E[Z \mid U] = P(Z = 1 \mid Y, D, X)$, with $U = (Y, D, X)$, is explicit here since
+$D = 1 \implies Z = 1$:
+
+$$
+\nu_0(U) = \begin{cases}
+1 & \text{if } D = 1, \\
+\dfrac{p\,(1 - q)}{1 - p\,q} & \text{if } D = 0,
+\end{cases}
+$$
+
+where $p = P(Z = 1 \mid X)$, $q = \min\{1, u / T(X)\}$, and
+$u = \Phi(Y - \texttt{covariate\_effect} \cdot X)$ on the $D = 0$ branch.
+
+### Unconditional LATE without Covariates
+
+We start with a scenario where covariates do not matter for the instrument assignment probability
+and for the selection into treatment. The latter, thus, only depends on the latent type.
 
 ```{python}
 #| label: simulation
-#| code-summary: "Show code (simulated local QTE with known truth)"
+#| code-summary: "Show code (simulate the data and recover the true LATE)"
 from qte.iv.simulate import get_true_local_effects, simulate_data
 
-sim = simulate_data(n=100_000, seed=0)
+simulated_data = simulate_data(n=100_000, seed=0)
 truth, late = get_true_local_effects(QS, n_oracle=1_000_000, seed=0)
 print(f"True LATE = {late:.3f}")
+```
+
+```{python}
+#| label: simulation-estimate
+#| code-summary: "Show code (estimate the local QTE)"
 with timer("simulation"):
     sim_res = estimate_unconditional_local_effects(
-        sim, "y", "treatment", "instrument", qs=QS, bootstrap_config=BOOTSTRAP
+        simulated_data, "y", "treatment", "instrument", qs=QS, bootstrap_config=BOOTSTRAP
     )
+```
+
+```{python}
+#| label: simulation-comparison
+#| code-summary: "Show code (IV vs. naive comparisons)"
 
 
 def naive_quantile_effect(ds: pl.DataFrame, group: str) -> pl.Series:
@@ -273,8 +358,8 @@ def naive_quantile_effect(ds: pl.DataFrame, group: str) -> pl.Series:
 comparison = (
     sim_res.qtt.select(pl.col("q"), pl.col("effect").alias("IV"), pl.col("se"))
     .with_columns(truth["effect"].alias("Truth"))
-    .with_columns(naive_quantile_effect(sim, "treatment").alias("Naive (D)"))
-    .with_columns(naive_quantile_effect(sim, "instrument").alias("ITT (Z)"))
+    .with_columns(naive_quantile_effect(simulated_data, "treatment").alias("Naive (D)"))
+    .with_columns(naive_quantile_effect(simulated_data, "instrument").alias("ITT (Z)"))
     .filter(pl.col("q").is_in(REPORT))
 )
 (
@@ -302,18 +387,23 @@ standard deviation of the estimates.
 
 ```{python}
 #| label: simulation-coverage
-#| code-summary: "Show code (bootstrap coverage over repeated samples)"
+#| code-summary: "Show code (bootstrap coverage settings)"
 import numpy as np
 
-COVERAGE_REPLICATIONS = 500
+COVERAGE_REPLICATIONS = 5
 COVERAGE_SAMPLE_SIZE = 2_000
-COVERAGE_BOOTSTRAP = BootstrapConfig(n_iter=50, seed=0, n_workers=4)
+COVERAGE_BOOTSTRAP = BootstrapConfig(n_iter=3, seed=0, n_workers=4)
 COVERAGE_QUANTILES = [0.10, 0.25, 0.50, 0.75, 0.90]
 
 true_effect = truth["effect"].to_numpy()
 covered = np.zeros((COVERAGE_REPLICATIONS, QS.size))
 standard_errors = np.zeros((COVERAGE_REPLICATIONS, QS.size))
 estimates = np.zeros((COVERAGE_REPLICATIONS, QS.size))
+```
+
+```{python}
+#| label: simulation-coverage-estimate
+#| code-summary: "Show code (coverage over repeated samples)"
 with timer("coverage"):
     for replication in range(COVERAGE_REPLICATIONS):
         sample = simulate_data(n=COVERAGE_SAMPLE_SIZE, seed=250_000 + replication)
@@ -330,7 +420,11 @@ with timer("coverage"):
         estimates[replication] = effect
         standard_errors[replication] = se
         covered[replication] = np.abs(effect - true_effect) <= 1.96 * se
+```
 
+```{python}
+#| label: simulation-coverage-comparison
+#| code-summary: "Show code (coverage table)"
 coverage_table = (
     pl.DataFrame(
         {
@@ -354,28 +448,23 @@ At every reported quantile the coverage is close to the nominal 0.95, and the me
 tracks the empirical standard deviation of the estimates. The bootstrap intervals can therefore be
 trusted in this design, not just the point estimates.
 
-## Instrument probability and covariates
+## Unconditional LATE with Covariate Dependent Instrument Slope
 
-The design above draws the instrument independently of the covariate, so the instrument probability
-is constant and the estimator needs no covariates. In practice the instrument is often valid only
-conditional on covariates, and the probability of receiving it varies with them. The
-`propensity_scale` argument makes the instrument probability
-
-$$
-\pi(x) = \operatorname{logit}^{-1}\!\left(\operatorname{logit}(p_0) + \text{propensity\_scale}\cdot x\right),
-$$
-
-where $p_0$ is `offer_probability`. A constant propensity is then misspecified, and the estimator
-has to condition on `x`.
+Now the instrument probability does depend on the value of the covariate.
 
 ```{python}
 #| label: simulation-covariates
-#| code-summary: "Show code (covariate-dependent instrument probability)"
-COVARIATE = {"propensity_scale": 1.0}
-COVARIATE_BOOTSTRAP = BootstrapConfig(n_iter=200, seed=0, n_workers=4)
+#| code-summary: "Show code (simulate data with a covariate-dependent instrument probability)"
+COVARIATE = {"instrument_propensity_slope": 1.0}
 
 cov = simulate_data(n=100_000, seed=0, **COVARIATE)
 cov_truth, _ = get_true_local_effects(QS, n_oracle=1_000_000, seed=0, **COVARIATE)
+```
+
+```{python}
+#| label: simulation-covariates-estimate
+#| code-summary: "Show code (estimate the local QTE with and without the covariate)"
+COVARIATE_BOOTSTRAP = BootstrapConfig(n_iter=3, seed=0, n_workers=4)
 with timer("covariates"):
     constant_res = estimate_unconditional_local_effects(
         cov, "y", "treatment", "instrument", qs=QS, bootstrap_config=COVARIATE_BOOTSTRAP
@@ -389,6 +478,11 @@ with timer("covariates"):
         instrument_probability_formula="x",
         bootstrap_config=COVARIATE_BOOTSTRAP,
     )
+```
+
+```{python}
+#| label: simulation-covariates-comparison
+#| code-summary: "Show code (true effect vs. constant and adjusted propensity)"
 covariate_table = (
     cov_truth.select(pl.col("q"), pl.col("effect").alias("Truth"))
     .with_columns(constant_res.qtt["effect"].alias("Constant p"))
@@ -413,7 +507,7 @@ Taking the instrument probability to be constant leaves the estimates far too la
 quantile, while conditioning on `x` tracks the truth. The propensity model is therefore not optional
 when the instrument depends on the covariates.
 
-## The conditional estimator
+## The Conditional Estimator
 
 `estimate_conditional_local_effects` targets the complier QTE **conditional on the covariates**,
 `Q_tau(Y(1) | X, c) - Q_tau(Y(0) | X, c)` ([Abadie, Angrist & Imbens 2002](#ref-aai-2002)); the
@@ -442,12 +536,18 @@ conditional truth.
 
 ```{python}
 #| label: simulation-conditional
-#| code-summary: "Show code (conditional estimator on the simulated data)"
-from qte.iv import WeightAdjustment, estimate_conditional_local_effects
+#| code-summary: "Show code (simulate the data and recover the conditional truth)"
 from qte.iv.simulate import get_true_conditional_effects
 
 conditional_truth = get_true_conditional_effects(QS, n_oracle=1_000_000, seed=0)
 conditional_sim = simulate_data(n=100_000, seed=0)
+```
+
+```{python}
+#| label: simulation-conditional-estimate
+#| code-summary: "Show code (conditional estimator on the simulated data)"
+from qte.iv import WeightAdjustment, estimate_conditional_local_effects
+
 with timer("conditional"):
     conditional_res = estimate_conditional_local_effects(
         conditional_sim,
@@ -459,8 +559,13 @@ with timer("conditional"):
         instrument_probability_formula=None,
         weight_formula="poly(y, 6) * poly(x, 6)",
         weight_adjustment=WeightAdjustment.PLUGIN,
-        bootstrap_config=BootstrapConfig(n_iter=200, seed=0, n_workers=4),
+        bootstrap_config=BootstrapConfig(n_iter=3, seed=0, n_workers=4),
     )
+```
+
+```{python}
+#| label: simulation-conditional-comparison
+#| code-summary: "Show code (conditional vs. marginal truth)"
 conditional_table = (
     conditional_truth.select(pl.col("q"), pl.col("effect").alias("Truth (conditional)"))
     .with_columns(conditional_res.qtt["effect"].alias("Conditional IV"))

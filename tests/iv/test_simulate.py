@@ -7,7 +7,7 @@ import pytest
 from qte.iv.simulate import get_true_conditional_effects, get_true_local_effects, simulate_data
 from qte.names import EFFECT_ID
 
-# E[min(1, u / takeup_scale)] for u ~ U(0, 1) with the default takeup_scale of 0.75.
+# E[min(1, u / base_takeup_threshold)] for u ~ U(0, 1) with the default base_takeup_threshold of 0.75.
 COMPLIER_SHARE = 0.625
 
 
