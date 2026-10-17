@@ -111,9 +111,13 @@ def test_jtpa_aai_series_matches_stata():
 
 
 def test_conditional_effects_are_close_to_aai_table_iii():
-    # AAI (2002) Table III, women: the plug-in route should be in the right
-    # neighbourhood (the exact numbers need their propensity cell means).
-    expected = [324, 680, 1742, 1984, 1900]
+    # AAI (2002) Table III, women, reproduced with the specification in their
+    # MATLAB replication code (qeffectsfinal.m): the instrument is randomized, so
+    # the propensity is the constant tau = mean(assignmt); the complier weights
+    # come from nu = E[Z | Y, D, class_tr] modelled as a degree-3 polynomial in
+    # earnings interacted with treatment and class_tr, negative values dropped,
+    # and the effect is a weighted quantile regression with the women covariates.
+    expected = pl.Series(EFFECT_ID, [324, 680, 1742, 1984, 1900], dtype=pl.Float64)
     ds = load_jtpa().filter(pl.col("sex") == 0)
     res = estimate_conditional_local_effects(
         ds,
@@ -122,9 +126,17 @@ def test_conditional_effects_are_close_to_aai_table_iii():
         "assignmt",
         qs=_AAI_QUANTILES,
         covariates=_AAI_WOMEN_COVARIATES,
-        instrument_probability_formula=_AAI_WOMEN_COVARIATES,
+        weight_formula="poly(earnings, 3) * class_tr",
+        instrument_probability_formula=None,  # constant tau = mean(assignmt)
         weight_adjustment=WeightAdjustment.PLUGIN,
-        bootstrap_config=5,
+        bootstrap_config=1,
     )
-    effects = res.qtt[EFFECT_ID].to_numpy()
-    assert (abs(effects - expected) < 800).all()
+    effects = res.qtt[EFFECT_ID]
+
+    # Four quantiles reproduce the reported coefficients. The q = 0.25
+    # coefficient is a quantile linear-program tie-break where AAI's simplex
+    # settles on a different optimal vertex (680 vs our 670), so it is bounded
+    # rather than matched exactly.
+    matched = [0, 2, 3, 4]
+    assert_series_equal(effects.gather(matched), expected.gather(matched), abs_tol=1)
+    assert effects[1] == pytest.approx(expected[1], abs=15)
