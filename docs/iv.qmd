@@ -457,7 +457,7 @@ with timer("conditional"):
         qs=QS,
         covariates="x",
         instrument_probability_formula=None,
-        weight_formula="poly(y, 8) * poly(x, 8)",
+        weight_formula="poly(y, 6) * poly(x, 6)",
         weight_adjustment=WeightAdjustment.PLUGIN,
         bootstrap_config=BootstrapConfig(n_iter=200, seed=0, n_workers=4),
     )
@@ -474,11 +474,11 @@ conditional_table = (
 )
 ```
 
-The conditional estimates track the conditional truth and sit below the marginal truth in the
-tails - the same data, answering a different question. The two truth columns are not
-interchangeable: a marginal counterfactual quantile cannot be built by averaging conditional ones,
-which is exactly why `estimate_unconditional_local_effects` integrates `X` out before inverting the
-CDF.
+The conditional estimates track the conditional truth (within about `0.05` here) and sit well apart
+from the marginal truth in the tails - the same data, answering a different question. The two truth
+columns are not interchangeable: a marginal counterfactual quantile cannot be built by averaging
+conditional ones, which is exactly why `estimate_unconditional_local_effects` integrates `X` out
+before inverting the CDF.
 
 ## References
 
