@@ -200,3 +200,68 @@ def get_true_local_effects(
         _get_quantile_differences(qs, np.quantile(y_1, qs), np.quantile(y_0, qs)),
         float(y_1.mean() - y_0.mean()),
     )
+
+
+def get_true_conditional_effects(
+    qs: ArrayLike = MEDIAN,
+    *,
+    n_oracle: int = 1_000_000,
+    effect_scale: float = 2.0,
+    covariate_effect: float = 1.0,
+    offer_probability: float = 0.67,
+    propensity_scale: float = 0.0,
+    takeup_scale: float = 0.75,
+    compliance_scale: float = 0.0,
+    seed: int = 0,
+) -> pl.DataFrame:
+    """Simulation-based true conditional complier quantile effects.
+
+    The conditional estimator targets the complier quantile effect *given the
+    covariates*, ``Q_tau(Y(1) | X, c) - Q_tau(Y(0) | X, c)``. This differs from
+    the marginal effect returned by `get_true_local_effects` whenever the
+    covariate shifts the outcome, because quantiles do not commute with
+    integrating ``X`` out: ``Q_tau(Y(d) | c)`` is the quantile of the mixture of
+    the conditional distributions, not the average of their quantiles. The
+    conditional effect is recovered from the oracle by netting the covariate
+    shift ``covariate_effect * X`` out of the potential outcomes and taking the
+    complier quantile difference of what remains.
+
+    With ``compliance_scale = 0`` (the default) the complier unobservable is
+    independent of the covariates, so the conditional effect does not itself
+    depend on ``X`` and a single vector characterises it. With
+    ``compliance_scale != 0`` the complier population varies with ``X`` and
+    this function returns the effect averaged over the complier covariate
+    distribution rather than the effect at a particular ``X``.
+
+    Parameters
+    ----------
+    qs : array_like, default=0.5
+        Quantiles in ``(0, 1)``.
+    n_oracle : int
+        Size of the simulated population used to recover the truth.
+    effect_scale, covariate_effect, offer_probability, propensity_scale, takeup_scale, compliance_scale : float
+        Passed to `simulate_data`.
+    seed : int
+        Seed for the oracle simulation.
+
+    Returns
+    -------
+    polars.DataFrame
+        The per-quantile conditional complier effects.
+    """
+    qs = _as_iterable_array(qs)
+    ds = simulate_data(
+        n_oracle,
+        effect_scale=effect_scale,
+        covariate_effect=covariate_effect,
+        offer_probability=offer_probability,
+        propensity_scale=propensity_scale,
+        takeup_scale=takeup_scale,
+        compliance_scale=compliance_scale,
+        seed=seed,
+    )
+    compliers = ds.filter(pl.col(COMPLIER_ID) == 1)
+    covariate = covariate_effect * compliers[COVARIATE_ID]
+    y_1 = (compliers[POTENTIAL_OUTCOME_TREAT_ID] - covariate).to_numpy()
+    y_0 = (compliers[POTENTIAL_OUTCOME_CTRL_ID] - covariate).to_numpy()
+    return _get_quantile_differences(qs, np.quantile(y_1, qs), np.quantile(y_0, qs))

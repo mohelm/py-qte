@@ -415,28 +415,39 @@ when the instrument depends on the covariates.
 
 ## The conditional estimator
 
-`estimate_conditional_local_effects` estimates the local QTE for compliers **conditional on the
-covariates** ([Abadie, Angrist & Imbens 2002](#ref-aai-2002)); the estimator used above targets the
-_marginal_ complier QTE. The two coincide only when the covariates do not shift the outcome, because
-quantiles do not commute with adding the covariate:
+`estimate_conditional_local_effects` targets the complier QTE **conditional on the covariates**,
+`Q_tau(Y(1) | X, c) - Q_tau(Y(0) | X, c)` ([Abadie, Angrist & Imbens 2002](#ref-aai-2002)); the
+estimator used above targets the _marginal_ complier QTE. The two differ whenever the covariates
+shift the outcome, because quantiles do not commute with integrating `X` out:
 
 $$
+Q_\tau(Y(d) \mid c) \;\neq\; E_X\!\left[Q_\tau(Y(d) \mid X, c)\right],
+\qquad
 Q_\tau\!\left(c\,x + h(u)\right) \;\neq\; c\,E[x] + Q_\tau\!\left(h(u)\right).
 $$
 
-To check the conditional estimator against a known truth we therefore simulate a design whose
-covariate is uncorrelated with the outcome, so the conditional and marginal targets coincide. The
-weights follow the plug-in route of [Abadie, Angrist & Imbens (2002)](#ref-aai-2002): estimate
-`nu = E[Z | Y, D, X]` and plug it into the kappa identity, with the outcome series built from a
-degree-8 polynomial.
+`get_true_conditional_effects` nets the covariate shift `c x` out of the potential outcomes in the
+oracle, so the conditional estimator can be checked against _its own_ target rather than the
+marginal one.
+
+The estimator follows the plug-in route of [Abadie, Angrist & Imbens (2002)](#ref-aai-2002): it
+estimates `nu = E[Z | Y, D, X]` by a series and plugs it into the kappa identity. **The series has
+to be flexible in the right direction.** Here `nu` turns out to be a function of `Y - c x`, so a
+basis in `Y` alone (which ignores `x`), or even `poly(y, k) + poly(x, k)` (no interactions, hence no
+`x^2`, `x^2 y`, ...), cannot represent it. The mis-specified fit produces implied weights
+`W+ = E[kappa | Y, D, X]` that dip below zero - whereas the population weights are non-negative -
+and the weighted quantile regression then minimises a non-convex objective and is biased. A generic
+two-dimensional polynomial spans the needed terms, keeps `W+` non-negative, and recovers the
+conditional truth.
 
 ```{python}
 #| label: simulation-conditional
 #| code-summary: "Show code (conditional estimator on the simulated data)"
 from qte.iv import WeightAdjustment, estimate_conditional_local_effects
+from qte.iv.simulate import get_true_conditional_effects
 
-conditional_sim = simulate_data(n=100_000, covariate_effect=0.0, seed=0)
-conditional_truth, _ = get_true_local_effects(QS, n_oracle=1_000_000, covariate_effect=0.0, seed=0)
+conditional_truth = get_true_conditional_effects(QS, n_oracle=1_000_000, seed=0)
+conditional_sim = simulate_data(n=100_000, seed=0)
 with timer("conditional"):
     conditional_res = estimate_conditional_local_effects(
         conditional_sim,
@@ -446,24 +457,28 @@ with timer("conditional"):
         qs=QS,
         covariates="x",
         instrument_probability_formula=None,
-        weight_formula="poly(y, 8)",
+        weight_formula="poly(y, 8) * poly(x, 8)",
         weight_adjustment=WeightAdjustment.PLUGIN,
         bootstrap_config=BootstrapConfig(n_iter=200, seed=0, n_workers=4),
     )
 conditional_table = (
-    conditional_truth.select(pl.col("q"), pl.col("effect").alias("Truth"))
+    conditional_truth.select(pl.col("q"), pl.col("effect").alias("Truth (conditional)"))
     .with_columns(conditional_res.qtt["effect"].alias("Conditional IV"))
+    .join(truth.select(pl.col("q"), pl.col("effect").alias("Truth (marginal)")), on="q")
     .filter(pl.col("q").is_in(REPORT))
 )
 (
     GT(conditional_table)
-    .fmt_number(["Truth", "Conditional IV"], decimals=3)
+    .fmt_number(["Truth (conditional)", "Conditional IV", "Truth (marginal)"], decimals=3)
     .tab_header(title="Table 6. Conditional estimator on the simulated data")
 )
 ```
 
-The conditional estimates track the truth. With a covariate that shifts the outcome the same code
-instead recovers the _conditional_ complier QTE, which is a different — and equally valid — target.
+The conditional estimates track the conditional truth and sit below the marginal truth in the
+tails - the same data, answering a different question. The two truth columns are not
+interchangeable: a marginal counterfactual quantile cannot be built by averaging conditional ones,
+which is exactly why `estimate_unconditional_local_effects` integrates `X` out before inverting the
+CDF.
 
 ## References
 
