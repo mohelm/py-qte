@@ -1,0 +1,68 @@
+---
+title: "JTPA"
+engine: jupyter
+jupyter: python3
+page-layout: full
+---
+
+{{< include _setup-iv.qmd >}}
+
+## Descriptive Statistics
+
+```{python}
+#| label: jtpa-data
+#| code-summary: "Show code (JTPA descriptive statistics)"
+import polars as pl
+
+from qte.datasets import load_jtpa
+from qte.iv.descriptives import make_descriptive_statistics
+
+jtpa = load_jtpa().filter(pl.col("sex") == 0)
+make_descriptive_statistics(
+    jtpa,
+    "earnings",
+    "training",
+    "assignmt",
+    covariates=["age", "black", "hispanic", "married", "hsorged", "afdc", "prevearn"],
+    labels={
+        "earnings": "Earnings",
+        "training": "Training",
+        "age": "Age",
+        "black": "Black",
+        "hispanic": "Hispanic",
+        "married": "Married",
+        "hsorged": "HS or GED",
+        "afdc": "AFDC",
+        "prevearn": "Prior earnings",
+    },
+    title="Table 2. JTPA Women, by Assignment",
+)
+```
+
+## Unconditional Local QTE
+
+```{python}
+#| label: jtpa-estimate
+#| code-summary: "Show code (local QTE on the JTPA data)"
+jtpa_covariates = (
+    "black + hispanic + married + hsorged + afdc + f2sms + wkless13 "
+    "+ age2225 + age2629 + age3035 + age3644 + age4554 + class_tr + ojt_jsa + prevearn"
+)
+with timer("jtpa"):
+    jtpa_res = estimate_unconditional_local_effects(
+        jtpa,
+        "earnings",
+        "training",
+        "assignmt",
+        qs=QS,
+        instrument_probability_formula=jtpa_covariates,
+        bootstrap_config=BOOTSTRAP,
+    )
+```
+
+```{python}
+#| label: jtpa-plot
+#| code-summary: "Show code (JTPA QTE plot)"
+print(f"First stage (= complier share) = {jtpa_res.first_stage:.3f}")
+side_by_side(jtpa_res, [0.10, 0.50, 0.90])
+```

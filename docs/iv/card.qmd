@@ -9,27 +9,28 @@ page-layout: full
 
 ## The Setup
 
-Another classic dataset to illustrate IV concept was introduced in Card (1995).
-There it was used to study the impact of (college) education on wages using whether the
-observation lives close to a college as an instrument for (college) education.
-An important characteristics of the setup is that the instrument is
-unconditionally most likely not randomly assigned.
+Another classic dataset for illustrating the IV concept was introduced by
+[Card (1995)](index.qmd#ref-card-1995). It was used to study the impact of (college) education on
+wages, using whether an individual lives close to a college as an instrument for (college)
+education. An important characteristic of the setup is that the instrument is most likely not
+randomly assigned.
 
-We consider a binarized version of the treatment, i.e. we consider an
-observation as treated if here education in the dataset is recorded as at least
-13 years. The treatment can therefore be viewed as _some college_.
+We consider a binarized version of the treatment, i.e. an individual is treated if their education
+is recorded as at least 13 years. The treatment can therefore be viewed as _some college_.
 
-This is in line with modern takes at the dataset such as Sloczynski (2021) and Tübbicke (2023). 
+This is in line with modern takes on the dataset, such as
+[Słoczyński (2021)](index.qmd#ref-sloczynski-2021) and
+[Tübbicke (2023)](index.qmd#ref-tubbicke-2023). Notice that these papers and the corresponding
+packages do not focus on quantile treatment effects.
 
-The dataset consists of 3010 men
-from the 1976 National Longitudinal Survey of Young
-Men. The instrument `nearc4` indicates whether a man grew up in a local labour
-market with a four-year college, and the outcome `lwage` is the log wage.
+The dataset consists of 3,010 men from the 1976 National Longitudinal Survey of Young Men. The
+instrument `nearc4` indicates whether a man grew up in a local labour market with a four-year
+college, and the outcome `lwage` is the log wage.
 
-In @lst-card-sample, we follow Sloczynski (2021) and Tübbicke (2023) in restricting the sample to
-covariate cells with at least five observations. A  cell is one of the
-observed combinations of `black`, `south66`, `south`, `smsa66` and `smsa`.
-This drops 22 observations and leaves 2988.
+In @lst-card-sample, we follow [Słoczyński (2021)](index.qmd#ref-sloczynski-2021) and
+[Tübbicke (2023)](index.qmd#ref-tubbicke-2023) in restricting the sample to covariate cells with at
+least five observations. A cell is one of the observed combinations of `black`, `south66`, `south`,
+`smsa66` and `smsa`. This drops 22 observations and leaves 2,988.
 
 ```{python}
 #| label: lst-card-sample
@@ -52,7 +53,9 @@ print(f"{sample.height} observations, {sample.height - card.height} dropped, {ca
 
 ## Descriptive Statistics
 
-@lst-card-data shows how to generate descriptive statistics for the dataset by instrument value, treatment status and for the entire dataset using the `make_descriptive_statistics` function from `py-qte`. @tbl-card-data shows th results.
+@lst-card-data shows how to generate descriptive statistics by instrument value, by treatment status
+and for the entire dataset with the `make_descriptive_statistics` function from `py-qte`;
+@tbl-card-data shows the results.
 
 ```{python}
 #| label: lst-card-data
@@ -60,12 +63,12 @@ print(f"{sample.height} observations, {sample.height - card.height} dropped, {ca
 #| code-fold: false
 from qte.iv.descriptives import make_descriptive_statistics
 
-t_desc=make_descriptive_statistics(
+t_desc = make_descriptive_statistics(
     card,
     "lwage",
     "college",
     "nearc4",
-    covariates=["exper", "educ", "age", "black", "smsa", "south"],
+    covariates=["exper", "educ", "age", "black", "smsa66", "south66"],
     labels={
         "lwage": "Log wage",
         "college": "College",
@@ -73,8 +76,8 @@ t_desc=make_descriptive_statistics(
         "educ": "Years of education",
         "age": "Age",
         "black": "Black",
-        "smsa": "SMSA",
-        "south": "South",
+        "smsa66": "SMSA in 1966",
+        "south66": "South in 1966",
     },
     title="Table 1. Card Data, Means and Standard Deviations",
 )
@@ -86,42 +89,45 @@ t_desc=make_descriptive_statistics(
 t_desc
 ```
 
-@tbl-card-data reveals large differences across instrument values in most
-covariates that are also statistically significant. One can, therefore, not
-assume that the instrument is (as good as) randomly assigned and the analysis
-should condition any first stage on covariates.
+@tbl-card-data reveals large differences across instrument values for most covariates, and most of
+these differences are statistically significant. One can, therefore, not assume that the instrument
+is (as good as) randomly assigned, and the analysis should condition any first stage on covariates.
 
 ## Unconditional Local QTE
 
-In @lst-card-estimate, we estimate unconditional local treatment effects using
-the `estimate_unconditional_local_effects` function from `py-qte`. We consider
-a large number of boostrap replication to estimate the standard error. The
-result object returned by `estimate_unconditional_local_effects` carries its
-own presentation methods: `plot` for the figure and `tabulate` for the table,
-both generated in @lst-card-estimate and shown side by side in @fig-card-plot.
+In @lst-card-estimate, we estimate unconditional local treatment effects using the
+`estimate_unconditional_local_effects` function from `py-qte`. We use a large number of bootstrap
+replications to estimate the standard errors. The result object returned by
+`estimate_unconditional_local_effects` carries its own presentation methods: `plot` for the figure
+and `tabulate` for the table, both generated in @lst-card-estimate and shown side by side in
+@fig-card-plot.
+
+Notice that we use `Estimator.SIGNED` as the estimation method here which computes the empirical cdf
+directly from Abadie's kappa weights.
 
 ```{python}
 #| label: lst-card-estimate
 #| code-summary: "Show code (local QTE on the Card data)"
 #| code-fold: false
+QUANTILES = [0.10, 0.50, 0.90]
+
 with timer("card"):
     card_res = estimate_unconditional_local_effects(
         card,
         "lwage",
         "college",
         "nearc4",
-        qs=[0.1, 0.5, 0.9],
+        qs=QUANTILES,
         instrument_probability_formula=CARD_COVARIATES,
         estimator=Estimator.SIGNED,
         bootstrap_config=BootstrapConfig(n_iter=1000, seed=42, n_workers=4),
     )
 
 card_fig = card_res.plot()
-card_tbl = card_res.tabulate(quantiles=REPORT)
+card_tbl = card_res.tabulate(quantiles=QUANTILES)
 ```
 
 @fig-card-plot reports the results.
-
 
 ```{python}
 #| label: fig-card-plot
@@ -137,7 +143,10 @@ publish_display_data(
 )
 ```
 
-For the mean, the results are quite close to the results reported by Tübbicke
-(2023) both in terms of the point estimates and in terms of the standard error.
-Notice that for the mean these results suggest that (some) college education
-increases income by about 35% (for the compliers). This effect is quite imprecisely measured. The point estiamte is much larger than the OLS esimate which is about 20% in Tuebbicke (2023) but a lot smaller than the 2SLS estimate reported in Tuebbicke (2023) which translate into a somewhat difficult beliefe effect of about 80% of some college education on mean income. The results also suggest that there is not much effect heterogeneity in terms of the quantiles
+For the mean, the results are close to those reported by
+[Tübbicke (2023)](index.qmd#ref-tubbicke-2023), both in point estimates and in standard errors. For
+compliers, some college education raises income by about 35% (0.309 log points), and this effect is
+quite imprecisely measured. The point estimate is larger than the OLS estimate of about 0.24 log
+points, but much smaller than the 2SLS estimate of about 0.60 log points that Tübbicke (2023)
+reports; the latter implies a hard-to-believe return of roughly 80%. The results also suggest that
+there is little effect heterogeneity across the quantiles.

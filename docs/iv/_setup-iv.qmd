@@ -1,0 +1,56 @@
+```{=html}
+<style>
+.iv-side {
+  display: grid;
+  grid-template-columns: minmax(360px, 1fr) minmax(500px, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+@media (max-width: 1100px) {
+  .iv-side { grid-template-columns: 1fr; }
+}
+.iv-side svg { width: 100%; height: auto; }
+</style>
+```
+
+```{python}
+#| label: setup
+#| code-summary: "Show code (setup, side-by-side and timing helpers)"
+import time
+
+import polars as pl
+import vl_convert as vlc
+from great_tables import GT
+from IPython.display import HTML
+
+from qte.bootstrap import BootstrapConfig
+from qte.constants import _make_q
+from qte.iv import Estimator, estimate_unconditional_local_effects
+
+QS = _make_q(20)  # 0.05, 0.10, ..., 0.95
+BOOTSTRAP = BootstrapConfig(n_iter=1000, seed=42, n_workers=4)
+
+
+def side_by_side(result, report: list[float] | None = None) -> HTML:
+    """Render a result's QTE plot and summary table side by side.
+
+    The plot shows every estimated quantile; the table reports only ``report``.
+    """
+    svg = vlc.vegalite_to_svg(result.plot().to_dict())
+    table = result.tabulate(quantiles=report).as_raw_html()
+    return HTML('<div class="iv-side">' f"<div>{svg}</div><div>{table}</div></div>")
+
+
+class timer:
+    """Report how long a block took, like the knitr ``time_it`` hook."""
+
+    def __init__(self, label: str) -> None:
+        self.label = label
+
+    def __enter__(self) -> "timer":
+        self._start = time.perf_counter()
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        print(f"[{self.label}] {time.perf_counter() - self._start:.2f}s")
+```

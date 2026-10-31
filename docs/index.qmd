@@ -13,3 +13,9 @@ currently inspired by the R [`qte`](https://github.com/bcallaway11/qte) package 
 package.
 
 You can find some benchmarks comparing the `py-qte` and the `qte` package [here](benchmark.qmd).
+
+## IV
+
+- [Overview](iv/index.qmd)
+- [Card (1995)](iv/card.qmd)
+- [JTPA](iv/jtpa.qmd)
