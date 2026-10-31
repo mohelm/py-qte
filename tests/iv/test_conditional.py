@@ -5,7 +5,11 @@ import pytest
 from polars.testing import assert_series_equal
 
 from qte.datasets import load_jtpa
-from qte.iv import WeightAdjustment, estimate_conditional_local_effects
+from qte.iv import (
+    InstrumentProbabilityResult,
+    WeightAdjustment,
+    estimate_conditional_local_effects,
+)
 from qte.names import EFFECT_ID, QUANTILE_CONTROL_VAL_ID, QUANTILE_ID, QUANTILE_TREATED_VAL_ID
 
 # Covariates of Abadie, Angrist & Imbens (2002), women subsample.
@@ -35,6 +39,7 @@ def test_estimate_conditional_local_effects_runs(weight_adjustment):
     assert res.qtt[EFFECT_ID].is_finite().all()
     assert res.qtt["se"].is_finite().all()
     assert 0.4 < res.first_stage < 0.8
+    assert isinstance(res.instrument_probability, InstrumentProbabilityResult)
     # The average training effect for women is positive and plausible.
     assert 1000 < res.att[EFFECT_ID][0] < 3000
 

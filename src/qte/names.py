@@ -7,6 +7,10 @@ QUANTILE_CONTROL_VAL_ID = "q_c"
 MEAN_TREATED_ID = "m_t"
 MEAN_CONTROL_ID = "m_c"
 SE_ID = "se"
+TERM_ID = "term"
+ESTIMATE_ID = "estimate"
+Z_ID = "z"
+P_VALUE_ID = "p_value"
 
 # For simulations
 COVARIATE_ID = "x"

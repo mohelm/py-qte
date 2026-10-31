@@ -37,6 +37,7 @@ from qte.iv.common import (
 from qte.iv.custom_types import WeightAdjustment
 from qte.iv.results import ConditionalLocalQteResult
 from qte.quantile_regression import QuantileRegression
+from qte.results import InstrumentProbabilityResult
 
 _KAPPA_ID = "_kappa"
 
@@ -49,6 +50,7 @@ class _ConditionalLocalQteIntermediateResult:
     att: pl.DataFrame
     complier_share: float
     first_stage: float
+    instrument_probability: InstrumentProbabilityResult | None = None
 
 
 def _compute_kappa(
@@ -115,6 +117,7 @@ def _compute_conditional_local_effects(
     weight_adjustment: WeightAdjustment = WeightAdjustment.PROJECTION,
     weights: ColumnName | None = None,
     trim: float = _DEFAULT_TRIM,
+    with_instrument_probability: bool = False,
 ) -> _ConditionalLocalQteIntermediateResult:
     """Compute conditional complier quantiles and means without bootstrap inference."""
     qs = _as_iterable_array(qs)
@@ -122,9 +125,14 @@ def _compute_conditional_local_effects(
         weights = "_w"
         ds = ds.with_columns(pl.lit(1.0).alias(weights))
 
-    propensity = _estimate_instrument_propensity(
-        ds, instrument, instrument_probability_formula, weights
+    propensity_fit = _estimate_instrument_propensity(
+        ds,
+        instrument,
+        instrument_probability_formula,
+        weights,
+        with_model=with_instrument_probability,
     )
+    propensity = propensity_fit.values
     estimation_data = ds.with_columns(pl.Series(_PROPENSITY_ID, propensity))
     if trim > 0.0:
         estimation_data = estimation_data.filter(
@@ -166,6 +174,7 @@ def _compute_conditional_local_effects(
         att=att,
         complier_share=float(np.mean(kappa_nu)),
         first_stage=_conditional_takeup_diff(estimation_data, treatment, instrument, weights),
+        instrument_probability=propensity_fit.model_result,
     )
 
 
@@ -250,7 +259,7 @@ def estimate_conditional_local_effects(
         weights=weights,
         trim=trim,
     )
-    point = fcn(ds)
+    point = fcn(ds, with_instrument_probability=True)
     runs = _make_bootstrap_runs(
         ds,
         fcn,
@@ -259,6 +268,7 @@ def estimate_conditional_local_effects(
         n_workers=bootstrap_config.n_workers,
     )
     qtt, att = _attach_standard_errors(point, runs)
+    assert point.instrument_probability is not None
     return ConditionalLocalQteResult(
         qtt=qtt,
         att=att,
@@ -267,4 +277,5 @@ def estimate_conditional_local_effects(
         complier_share=point.complier_share,
         first_stage=point.first_stage,
         weight_adjustment=weight_adjustment,
+        instrument_probability=point.instrument_probability,
     )

@@ -11,10 +11,12 @@ from qte.iv.conditional import estimate_conditional_local_effects
 from qte.iv.custom_types import Estimator, WeightAdjustment
 from qte.iv.results import ConditionalLocalQteResult, UnconditionalLocalQteResult
 from qte.iv.unconditional import estimate_unconditional_local_effects
+from qte.results import InstrumentProbabilityResult
 
 __all__ = [
     "ConditionalLocalQteResult",
     "Estimator",
+    "InstrumentProbabilityResult",
     "UnconditionalLocalQteResult",
     "WeightAdjustment",
     "estimate_conditional_local_effects",

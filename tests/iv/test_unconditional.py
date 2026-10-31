@@ -1,9 +1,11 @@
 import polars as pl
 import pytest
+from great_tables import GT
 from polars.testing import assert_series_equal
+from rich.console import Group
 
 from qte.datasets import load_card, load_jtpa
-from qte.iv import Estimator, estimate_unconditional_local_effects
+from qte.iv import Estimator, InstrumentProbabilityResult, estimate_unconditional_local_effects
 from qte.names import EFFECT_ID, QUANTILE_ID
 
 
@@ -19,6 +21,14 @@ def test_card_dataset_estimation_runs():
     )
     assert res.qtt[EFFECT_ID].is_finite().all()
     assert res.first_stage > 0
+    model = res.instrument_probability
+    assert isinstance(model, InstrumentProbabilityResult)
+    assert model.coefficients.height == 1
+    assert model.n_obs == ds.height
+    assert model.df_model == 0
+    assert model.converged is True
+    assert model.cov_type == "nonrobust"
+    assert model.pseudo_r_squared == pytest.approx(0.0)
 
 
 def test_jtpa_local_effects_runs():
@@ -38,6 +48,17 @@ def test_jtpa_local_effects_runs():
     )
     assert res.first_stage > 0.5
     assert res.qtt[EFFECT_ID].is_finite().all()
+    model = res.instrument_probability
+    assert isinstance(model, InstrumentProbabilityResult)
+    assert model.n_obs == ds.height
+    assert model.df_model > 0
+    assert model.converged is True
+    assert model.cov_type == "nonrobust"
+    assert model.pseudo_r_squared is not None
+    assert model.pseudo_r_squared > 0
+    assert model.llr_p_value is not None
+    assert isinstance(model.tabulate(), GT)
+    assert isinstance(model.summarize(), Group)
 
 
 # Stata ``ivqte`` reference, Frölich & Melly (2007) unconditional endogenous QTE:

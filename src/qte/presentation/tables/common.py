@@ -1,6 +1,17 @@
 from collections.abc import Iterable
+from typing import Any
 
-from qte.names import CI_LB_ID, CI_UB_ID, EFFECT_ID, QUANTILE_ID, SE_ID
+from qte.names import (
+    CI_LB_ID,
+    CI_UB_ID,
+    EFFECT_ID,
+    ESTIMATE_ID,
+    P_VALUE_ID,
+    QUANTILE_ID,
+    SE_ID,
+    TERM_ID,
+    Z_ID,
+)
 
 NICE_NAMES: dict[str, str] = {
     "group": "Group",
@@ -9,10 +20,22 @@ NICE_NAMES: dict[str, str] = {
     SE_ID: "Std. Error",
     CI_LB_ID: "Lower CI",
     CI_UB_ID: "Upper CI",
+    TERM_ID: "Term",
+    ESTIMATE_ID: "Coefficient",
+    Z_ID: "z value",
+    P_VALUE_ID: "p value",
 }
 
 QTE_TABLE_SUB_HEADER = "Quantile Treatment Effects"
 ATE_TABLE_SUB_HEADER = "Average Treatment Effects"
+COEFFICIENT_TABLE_TITLE = "Instrument Probability Model"
+COEFFICIENT_TABLE_SUB_HEADER = "Coefficients"
+
+
+def _make_table_subtitle(header_content: dict[str, Any]) -> str:
+    """Format header content as a monospace HTML subtitle."""
+    st_meat = "".join(_make_header(header_content, "\u00a0", "<br>"))
+    return f"<div style='font-family: monospace; text-align: left;'>{st_meat}</div>"
 
 
 def _make_header(

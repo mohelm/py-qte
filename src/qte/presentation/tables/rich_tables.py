@@ -10,6 +10,8 @@ from rich.text import Text
 from qte.presentation.common import DEFAULT_CHART_TITLE
 from qte.presentation.tables.common import (
     ATE_TABLE_SUB_HEADER,
+    COEFFICIENT_TABLE_SUB_HEADER,
+    COEFFICIENT_TABLE_TITLE,
     NICE_NAMES,
     QTE_TABLE_SUB_HEADER,
     _make_header,
@@ -84,5 +86,24 @@ def make_rich_table(
         ),
         _make_estimates_table(
             atts, title=ATE_TABLE_SUB_HEADER, float_precision=float_precision, group=group
+        ),
+    )
+
+
+def make_rich_table_for_coefficients(
+    coefficients: pl.DataFrame,
+    hc: dict[str, Any],
+    float_precision: int = 3,
+) -> Group:
+    """Dynamically creates a rich summary table of regression coefficients."""
+    header = Text()
+    header.append(f"{COEFFICIENT_TABLE_TITLE}\n", style="bold")
+    for h in _make_header(hc, " ", "\n"):
+        header.append(h)
+
+    return _JupyterGroup(
+        header,
+        _make_estimates_table(
+            coefficients, title=COEFFICIENT_TABLE_SUB_HEADER, float_precision=float_precision
         ),
     )

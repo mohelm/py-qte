@@ -7,9 +7,10 @@ from qte.names import CI_LB_ID, CI_UB_ID, EFFECT_ID, QUANTILE_ID, SE_ID
 from qte.presentation.common import DEFAULT_CHART_TITLE
 from qte.presentation.tables.common import (
     ATE_TABLE_SUB_HEADER,
+    COEFFICIENT_TABLE_TITLE,
     NICE_NAMES,
     QTE_TABLE_SUB_HEADER,
-    _make_header,
+    _make_table_subtitle,
 )
 
 
@@ -33,14 +34,11 @@ def make_great_table(
 
     float_cols = [c for c, dtype in combined.schema.items() if dtype.is_float()]
 
-    st_meat = "".join(_make_header(header_content, "\u00a0", "<br>"))
-    subtitle = f"<div style='font-family: monospace; text-align: left;'>{st_meat}</div>"
-
     base = (
         GT(combined, groupname_col="__kind")
         .tab_header(
             title=DEFAULT_CHART_TITLE,
-            subtitle=md(subtitle),
+            subtitle=md(_make_table_subtitle(header_content)),
         )
         .cols_label(**{col: NICE_NAMES.get(col, col) for col in combined.columns})
         .fmt_number(columns=float_cols, decimals=float_precision)
@@ -58,3 +56,26 @@ def make_great_table(
             locations=loc.body(columns=group[-1]),
         )
     return base
+
+
+def make_great_table_for_coefficients(
+    coefficients: pl.DataFrame,
+    header_content: dict[str, Any],
+    float_precision: int = 3,
+) -> GT:
+    """Build a Great Tables table of regression coefficient estimates."""
+    float_cols = [c for c, dtype in coefficients.schema.items() if dtype.is_float()]
+    return (
+        GT(coefficients)
+        .tab_header(
+            title=COEFFICIENT_TABLE_TITLE,
+            subtitle=md(_make_table_subtitle(header_content)),
+        )
+        .cols_label(**{col: NICE_NAMES.get(col, col) for col in coefficients.columns})
+        .fmt_number(columns=float_cols, decimals=float_precision)
+        .sub_missing(missing_text="-")
+        .tab_options(
+            heading_title_font_size="16px",
+            column_labels_font_weight="bold",
+        )
+    )

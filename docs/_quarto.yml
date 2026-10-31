@@ -101,6 +101,7 @@ quartodoc:
         - estimate_conditional_local_effects
         - name: ConditionalLocalQteResult
           include_inherited: true
+        - InstrumentProbabilityResult
         - Estimator
         - WeightEstimator
     - title: IV Simulation

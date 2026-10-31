@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from qte.iv.custom_types import Estimator, WeightAdjustment
-from qte.results import _BasicQteResult
+from qte.results import InstrumentProbabilityResult, _BasicQteResult
 
 
 @dataclass
@@ -32,11 +32,15 @@ class UnconditionalLocalQteResult(_BasicQteResult):
         ``E[D | Z = 1] - E[D | Z = 0]``.
     estimator : `Estimator`
         Weighting scheme used to estimate the effects.
+    instrument_probability : `InstrumentProbabilityResult`
+        Fitted logit model for the instrument probability. Without an
+        ``instrument_probability_formula`` this is the intercept-only model.
     """
 
     complier_share: float
     first_stage: float
     estimator: Estimator
+    instrument_probability: InstrumentProbabilityResult
 
     def _make_table_header_content(self, alpha: float) -> dict[str, Any]:
         """Add the weighting scheme to the shared table and chart header."""
@@ -75,11 +79,15 @@ class ConditionalLocalQteResult(_BasicQteResult):
         ``E[D | Z = 1] - E[D | Z = 0]``.
     weight_adjustment : `WeightAdjustment`
         How the nonnegative complier weights were formed.
+    instrument_probability : `InstrumentProbabilityResult`
+        Fitted logit model for the instrument probability. Without an
+        ``instrument_probability_formula`` this is the intercept-only model.
     """
 
     complier_share: float
     first_stage: float
     weight_adjustment: WeightAdjustment
+    instrument_probability: InstrumentProbabilityResult
 
     def _make_table_header_content(self, alpha: float) -> dict[str, Any]:
         """Add the weight adjustment to the shared table and chart header."""

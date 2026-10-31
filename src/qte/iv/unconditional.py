@@ -54,6 +54,7 @@ from qte.iv.common import (
 )
 from qte.iv.custom_types import Estimator
 from qte.iv.results import UnconditionalLocalQteResult
+from qte.results import InstrumentProbabilityResult
 
 _KAPPA_TREATED_ID = "_kappa_treated"
 _COMPLIER_WEIGHT_TREATED_ID = "_complier_weight_treated"
@@ -69,6 +70,7 @@ class _LocalQteIntermediateResult:
     att: pl.DataFrame
     complier_share: float
     first_stage: float
+    instrument_probability: InstrumentProbabilityResult | None = None
 
 
 def _compute_kappa_treated(instrument: ColumnName, propensity: ColumnName) -> pl.Expr:
@@ -220,6 +222,7 @@ def _compute_local_effects(
     weights: ColumnName | None = None,
     trim: float = _DEFAULT_TRIM,
     estimator: Estimator = Estimator.SIGNED,
+    with_instrument_probability: bool = False,
 ) -> _LocalQteIntermediateResult:
     """Compute complier quantiles and means without bootstrap inference.
 
@@ -247,6 +250,9 @@ def _compute_local_effects(
     estimator : `Estimator`, default=`Estimator.SIGNED`
         Weighting scheme. ``SIGNED`` inverts the signed complier CDF;
         ``POSITIVE`` projects the weights and differences weighted quantiles.
+    with_instrument_probability : bool, default=False
+        Keep the fitted logit model for the instrument probability in the
+        intermediate result.
 
     Returns
     -------
@@ -258,9 +264,14 @@ def _compute_local_effects(
         weights = "_w"
         ds = ds.with_columns(pl.lit(1.0).alias(weights))
 
-    propensity = _estimate_instrument_propensity(
-        ds, instrument, instrument_probability_formula, weights
+    propensity_fit = _estimate_instrument_propensity(
+        ds,
+        instrument,
+        instrument_probability_formula,
+        weights,
+        with_model=with_instrument_probability,
     )
+    propensity = propensity_fit.values
 
     estimation_data = ds.with_columns(pl.Series(_PROPENSITY_ID, propensity))
     if trim > 0.0:
@@ -299,6 +310,7 @@ def _compute_local_effects(
         att=att,
         complier_share=complier_share,
         first_stage=first_stage,
+        instrument_probability=propensity_fit.model_result,
     )
 
 
@@ -370,7 +382,7 @@ def estimate_unconditional_local_effects(
         trim=trim,
         estimator=estimator,
     )
-    point = fcn(ds)
+    point = fcn(ds, with_instrument_probability=True)
     runs = _make_bootstrap_runs(
         ds,
         fcn,
@@ -379,6 +391,7 @@ def estimate_unconditional_local_effects(
         n_workers=bootstrap_config.n_workers,
     )
     qtt, att = _attach_standard_errors(point, runs)
+    assert point.instrument_probability is not None
     return UnconditionalLocalQteResult(
         qtt=qtt,
         att=att,
@@ -387,4 +400,5 @@ def estimate_unconditional_local_effects(
         complier_share=point.complier_share,
         first_stage=point.first_stage,
         estimator=estimator,
+        instrument_probability=point.instrument_probability,
     )
