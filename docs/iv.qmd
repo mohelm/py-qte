@@ -17,10 +17,13 @@ execute:
 ## The Estimator
 
 When the treatment is endogenous we can still identify **quantile treatment effects for compliers**
-— the subpopulation whose treatment status responds to the instrument. Under the LATE assumptions
-(independence, exclusion, monotonicity and a relevant first stage), Abadie's kappa weighting
-identifies the complier potential-outcome distribution ([Abadie 2003](#ref-abadie-2003);
-[Frölich & Melly 2013](#ref-frolich-melly-2013)):
+using an instrumental variable approach. The corresponding _average_ effect is the local average
+treatment effect (LATE); its quantile counterpart is the local quantile treatment effect (LQTE).
+Under the classical LATE assumptions, Abadie's kappa (compare [Abadie 2003](#ref-abadie-2003)) can
+be used to identify the outcome distribution of the compliers. `py-qte` provides implementations of
+the estimation procedures proposed by [Frölich & Melly (2013)](#ref-frolich-melly-2013), hereafter
+referred to as unconditional quantiles, and by [Abadie, Angrist & Imbens (2002)](#ref-aai-2002),
+hereafter referred to as conditional quantiles.
 
 $$
 \begin{aligned}
@@ -64,11 +67,11 @@ from IPython.display import HTML
 from qte.bootstrap import BootstrapConfig
 from qte.constants import _make_q
 from qte.datasets import load_card, load_jtpa
-from qte.iv import estimate_unconditional_local_effects
+from qte.iv import Estimator, estimate_unconditional_local_effects
 
 QS = _make_q(20)  # 0.05, 0.10, ..., 0.95
 REPORT = [0.10, 0.50, 0.90]
-BOOTSTRAP = BootstrapConfig(n_iter=3, seed=42, n_workers=4)
+BOOTSTRAP = BootstrapConfig(n_iter=1000, seed=42, n_workers=4)
 
 
 def side_by_side(result, report: list[float] | None = None) -> HTML:
@@ -100,7 +103,7 @@ def descriptive_statistics(
     instrument: str,
     variables: list[str],
     labels: dict[str, str] | None = None,
-    title: str = "Descriptive statistics by instrument value",
+    title: str = "Descriptive Statistics by Instrument Value",
 ) -> GT:
     """Means of ``variables`` for all units and by instrument arm."""
     labels = labels or {}
@@ -135,12 +138,7 @@ def descriptive_statistics(
     )
 ```
 
-## Returns to College ([Card, 1995](#ref-card-1995))
-
-The `card` data record log wages (`lwage`), completed college (`college`) and whether the man grew
-up near a four-year college (`nearc4`). We use college proximity as an instrument for college
-completion. The first stage is modest (about 7 percentage points), so we take the instrument
-probability to be constant rather than modelling it on covariates.
+## Unconditional Quantiles for Returns to College ([Card, 1995](#ref-card-1995))
 
 ```{python}
 #| label: card-data
@@ -160,7 +158,7 @@ descriptive_statistics(
         "smsa": "SMSA",
         "south": "South",
     },
-    title="Table 1. Card data, by college proximity",
+    title="Table 1. Card Data, by College Proximity",
 )
 ```
 
@@ -174,6 +172,7 @@ with timer("card"):
         "college",
         "nearc4",
         qs=QS,
+        estimator=Estimator.POSITIVE,
         bootstrap_config=BOOTSTRAP,
     )
 ```
@@ -185,16 +184,7 @@ print(f"First stage (= complier share) = {card_res.first_stage:.3f}")
 side_by_side(card_res, REPORT)
 ```
 
-The estimated quantile effects rise with the quantile, and the average effect (red) is positive and
-significant. As usual for a quantile approach, the picture is richer than the single LATE: the
-return to college is much larger at the top of the wage distribution than in the left tail.
-
-## Training and Earnings (JTPA)
-
-The `jtpa` data come from the Job Training Partnership Act study, which randomly assigned applicants
-to a treatment group eligible for training. Because only about two thirds of those assigned actually
-enrol, assignment (`assignmt`) is a valid instrument for training (`training`). We use the subsample
-of women, following [Abadie, Angrist & Imbens (2002)](#ref-aai-2002).
+## Unconditional Quantiles for the Training and Earnings Data (JTPA)
 
 ```{python}
 #| label: jtpa-data
@@ -215,7 +205,7 @@ descriptive_statistics(
         "afdc": "AFDC",
         "prevearn": "Prior earnings",
     },
-    title="Table 2. JTPA women, by assignment",
+    title="Table 2. JTPA Women, by Assignment",
 )
 ```
 
@@ -245,15 +235,10 @@ print(f"First stage (= complier share) = {jtpa_res.first_stage:.3f}")
 side_by_side(jtpa_res, REPORT)
 ```
 
-For women the training effect is positive at every quantile and largest around the median. The
-average effect (red) is positive and clearly different from zero, matching the distributional
-pattern emphasised by [Abadie, Angrist & Imbens (2002)](#ref-aai-2002).
-
 ## Simulated Data
 
-The two applications above use real data, so the truth is unknown. To check that the estimator
-recovers the target when its assumptions hold, we simulate data where the complier quantile effects
-are known. The design follows the JTPA-based simulation of
+To check that the estimator recovers the target when its assumptions hold, we simulate data where
+the complier quantile effects are known. The design follows the JTPA-based simulation of
 [Kaplan & Sun (2017)](#ref-kaplan-sun-2017).
 
 Each observation is characterized by a single (observed) covariate and a latent (unobserved) type
@@ -276,12 +261,12 @@ $$
 
 The treatment's potential values are determined as follows: first, there is one-sided non-compliance
 in the sense that if the instrument is switched off the unit will never get treated (there are no
-always-takers). Compliance with the treatment if the instrument is switched on is random. First
+always-takers). Compliance with the treatment when the instrument is switched on is random. First
 there is a take-up threshold $T(x_i)$ that determines beyond which type, as measured by $u_i$,
 treatment is certain with the instrument switched on. For $u_i$ realizations below the threshold,
-take-up is probabilistic for the case of a switched-on instrument. The threshold $T(x_i)$ itself
-depends on a base threshold that determines the take-up threshold at $x_i = 0$, which is here the
-mean of the covariate. As $x_i$ increases the take-up threshold increases as well.
+take-up is probabilistic. The threshold $T(x_i)$ itself depends on a base threshold that determines
+the take-up threshold at $x_i = 0$, which is here the mean of the covariate. As $x_i$ increases the
+take-up threshold increases as well.
 
 $$
 \begin{aligned}
@@ -321,8 +306,8 @@ $u = \Phi(Y - \texttt{covariate\_effect} \cdot X)$ on the $D = 0$ branch.
 
 ### Unconditional LATE without Covariates
 
-We start with a scenario where covariates do not matter for the instrument assignment probability
-and for the selection into treatment. The latter, thus, only depends on the latent type.
+We start with a scenario where covariates do not matter for the instrument assignment probability or
+for selection into treatment. The latter thus depends only on the latent type.
 
 ```{python}
 #| label: simulation
@@ -365,7 +350,7 @@ comparison = (
 (
     GT(comparison)
     .fmt_number(["IV", "Truth", "Naive (D)", "ITT (Z)", "se"], decimals=3)
-    .tab_header(title="Table 3. Simulated local QTE, IV vs. naive comparisons")
+    .tab_header(title="Table 3. Simulated Local QTE, IV vs. Naive Comparisons")
 )
 ```
 
@@ -390,9 +375,9 @@ standard deviation of the estimates.
 #| code-summary: "Show code (bootstrap coverage settings)"
 import numpy as np
 
-COVERAGE_REPLICATIONS = 5
+COVERAGE_REPLICATIONS = 500
 COVERAGE_SAMPLE_SIZE = 2_000
-COVERAGE_BOOTSTRAP = BootstrapConfig(n_iter=3, seed=0, n_workers=4)
+COVERAGE_BOOTSTRAP = BootstrapConfig(n_iter=50, seed=0, n_workers=4)
 COVERAGE_QUANTILES = [0.10, 0.25, 0.50, 0.75, 0.90]
 
 true_effect = truth["effect"].to_numpy()
@@ -440,7 +425,7 @@ coverage_table = (
     GT(coverage_table)
     .fmt_number(["Coverage"], decimals=3)
     .fmt_number(["Mean SE", "Empirical SD"], decimals=3)
-    .tab_header(title="Table 4. Coverage of the 95% bootstrap interval")
+    .tab_header(title="Table 4. Coverage of the 95% Bootstrap Interval")
 )
 ```
 
@@ -448,7 +433,7 @@ At every reported quantile the coverage is close to the nominal 0.95, and the me
 tracks the empirical standard deviation of the estimates. The bootstrap intervals can therefore be
 trusted in this design, not just the point estimates.
 
-## Unconditional LATE with Covariate Dependent Instrument Slope
+## Unconditional LATE with Covariate-Dependent Instrument Slope
 
 Now the instrument probability does depend on the value of the covariate.
 
@@ -464,7 +449,7 @@ cov_truth, _ = get_true_local_effects(QS, n_oracle=1_000_000, seed=0, **COVARIAT
 ```{python}
 #| label: simulation-covariates-estimate
 #| code-summary: "Show code (estimate the local QTE with and without the covariate)"
-COVARIATE_BOOTSTRAP = BootstrapConfig(n_iter=3, seed=0, n_workers=4)
+COVARIATE_BOOTSTRAP = BootstrapConfig(n_iter=200, seed=0, n_workers=4)
 with timer("covariates"):
     constant_res = estimate_unconditional_local_effects(
         cov, "y", "treatment", "instrument", qs=QS, bootstrap_config=COVARIATE_BOOTSTRAP
@@ -492,7 +477,7 @@ covariate_table = (
 (
     GT(covariate_table)
     .fmt_number(["Truth", "Constant p", "Adjusted for x"], decimals=3)
-    .tab_header(title="Table 5. Effects with a covariate-dependent instrument probability")
+    .tab_header(title="Table 5. Effects with a Covariate-Dependent Instrument Probability")
 )
 ```
 
@@ -508,31 +493,6 @@ quantile, while conditioning on `x` tracks the truth. The propensity model is th
 when the instrument depends on the covariates.
 
 ## The Conditional Estimator
-
-`estimate_conditional_local_effects` targets the complier QTE **conditional on the covariates**,
-`Q_tau(Y(1) | X, c) - Q_tau(Y(0) | X, c)` ([Abadie, Angrist & Imbens 2002](#ref-aai-2002)); the
-estimator used above targets the _marginal_ complier QTE. The two differ whenever the covariates
-shift the outcome, because quantiles do not commute with integrating `X` out:
-
-$$
-Q_\tau(Y(d) \mid c) \;\neq\; E_X\!\left[Q_\tau(Y(d) \mid X, c)\right],
-\qquad
-Q_\tau\!\left(c\,x + h(u)\right) \;\neq\; c\,E[x] + Q_\tau\!\left(h(u)\right).
-$$
-
-`get_true_conditional_effects` nets the covariate shift `c x` out of the potential outcomes in the
-oracle, so the conditional estimator can be checked against _its own_ target rather than the
-marginal one.
-
-The estimator follows the plug-in route of [Abadie, Angrist & Imbens (2002)](#ref-aai-2002): it
-estimates `nu = E[Z | Y, D, X]` by a series and plugs it into the kappa identity. **The series has
-to be flexible in the right direction.** Here `nu` turns out to be a function of `Y - c x`, so a
-basis in `Y` alone (which ignores `x`), or even `poly(y, k) + poly(x, k)` (no interactions, hence no
-`x^2`, `x^2 y`, ...), cannot represent it. The mis-specified fit produces implied weights
-`W+ = E[kappa | Y, D, X]` that dip below zero - whereas the population weights are non-negative -
-and the weighted quantile regression then minimises a non-convex objective and is biased. A generic
-two-dimensional polynomial spans the needed terms, keeps `W+` non-negative, and recovers the
-conditional truth.
 
 ```{python}
 #| label: simulation-conditional
@@ -559,7 +519,7 @@ with timer("conditional"):
         instrument_probability_formula=None,
         weight_formula="poly(y, 6) * poly(x, 6)",
         weight_adjustment=WeightAdjustment.PLUGIN,
-        bootstrap_config=BootstrapConfig(n_iter=3, seed=0, n_workers=4),
+        bootstrap_config=BootstrapConfig(n_iter=200, seed=0, n_workers=4),
     )
 ```
 
@@ -575,15 +535,9 @@ conditional_table = (
 (
     GT(conditional_table)
     .fmt_number(["Truth (conditional)", "Conditional IV", "Truth (marginal)"], decimals=3)
-    .tab_header(title="Table 6. Conditional estimator on the simulated data")
+    .tab_header(title="Table 6. Conditional Estimator on the Simulated Data")
 )
 ```
-
-The conditional estimates track the conditional truth (within about `0.05` here) and sit well apart
-from the marginal truth in the tails - the same data, answering a different question. The two truth
-columns are not interchangeable: a marginal counterfactual quantile cannot be built by averaging
-conditional ones, which is exactly why `estimate_unconditional_local_effects` integrates `X` out
-before inverting the CDF.
 
 ## References
 
