@@ -7,18 +7,53 @@ page-layout: full
 
 {{< include _setup-iv.qmd >}}
 
-## Descriptive Statistics
+## The Setup
+
+Here we take a look at the Job Training Partnership Act (JTPA) data. The data come from a large
+randomized evaluation of a job-training program in the United States. Access to job training was
+_randomly assigned_, but not everybody assigned to training actually enrolled. Assignment to
+training is therefore an instrument for actual training. Because only 35 of the 2,014 women in the
+control group received training, there are almost no always-takers. The resulting first stage—the
+difference in training rates between the assigned and control groups—is about 64%. Moreover, since
+the instrument is randomly assigned, covariates are not required for identification in this setting.
+
+The extract contains 11,204 applicants. In the context of quantile treatment effects, the data were
+studied by [Abadie, Angrist & Imbens (2002)](index.qmd#ref-aai-2002), hereafter AAI, who also
+introduced the conditional quantile treatment effect estimator implemented in `py-qte`. Following
+AAI, we focus on the 6,102 women.
+
+In @lst-jtpa-sample, we load the data and select the women.
 
 ```{python}
-#| label: jtpa-data
-#| code-summary: "Show code (JTPA descriptive statistics)"
+#| label: lst-jtpa-sample
+#| code-summary: "Show code (estimation sample)"
+#| code-fold: false
 import polars as pl
 
 from qte.datasets import load_jtpa
+
+JTPA_COVARIATES = (
+    "black + hispanic + married + hsorged + afdc + f2sms + wkless13 "
+    "+ age2225 + age2629 + age3035 + age3644 + age4554 + class_tr + ojt_jsa + prevearn"
+)
+
+sample = load_jtpa()
+jtpa = sample.filter(pl.col("sex") == 0)
+```
+
+## Descriptive Statistics
+
+@lst-jtpa-data shows how to generate descriptive statistics by instrument value, by treatment status
+and for the entire dataset with the `make_descriptive_statistics` function from `py-qte`;
+@tbl-jtpa-data shows the results.
+
+```{python}
+#| label: lst-jtpa-data
+#| code-summary: "Show code (Generation of descriptive statistics)"
+#| code-fold: false
 from qte.iv.descriptives import make_descriptive_statistics
 
-jtpa = load_jtpa().filter(pl.col("sex") == 0)
-make_descriptive_statistics(
+jtpa_desc = make_descriptive_statistics(
     jtpa,
     "earnings",
     "training",
@@ -39,30 +74,147 @@ make_descriptive_statistics(
 )
 ```
 
+```{python}
+#| label: tbl-jtpa-data
+#| code-summary: "Show code (JTPA descriptive statistics)"
+jtpa_desc
+```
+
+@tbl-jtpa-data shows that the baseline covariates are well balanced across assignment, as expected
+under randomization: the differences are small and the largest t-statistic, for high-school
+completion, is about 2. Earnings and training, by contrast, differ sharply by assignment, reflecting
+the offer of training and selective take-up among assigned women.
+
 ## Unconditional Local QTE
 
+In @lst-jtpa-estimate, we estimate unconditional local treatment effects using the
+`estimate_unconditional_local_effects` function from `py-qte`. Although assignment is randomized, we
+condition the instrument probability on a rich set of baseline covariates similar to those used by
+AAI to account for chance imbalances and to improve precision. We use a large number of bootstrap
+replications to estimate the standard errors. The result object returned by
+`estimate_unconditional_local_effects` carries its own presentation methods: `plot` for the figure
+and `tabulate` for the table, both generated in @lst-jtpa-estimate and shown side by side in
+@fig-jtpa-plot.
+
+Notice that we use `Estimator.SIGNED` as the estimation method here, which computes the empirical
+cdf directly from Abadie's kappa weights.
+
 ```{python}
-#| label: jtpa-estimate
+#| label: lst-jtpa-estimate
 #| code-summary: "Show code (local QTE on the JTPA data)"
-jtpa_covariates = (
-    "black + hispanic + married + hsorged + afdc + f2sms + wkless13 "
-    "+ age2225 + age2629 + age3035 + age3644 + age4554 + class_tr + ojt_jsa + prevearn"
-)
+#| code-fold: false
+QUANTILES = [0.15, 0.25, 0.50, 0.75, 0.85]
+
 with timer("jtpa"):
     jtpa_res = estimate_unconditional_local_effects(
         jtpa,
         "earnings",
         "training",
         "assignmt",
-        qs=QS,
-        instrument_probability_formula=jtpa_covariates,
-        bootstrap_config=BOOTSTRAP,
+        qs=QUANTILES,
+        instrument_probability_formula=JTPA_COVARIATES,
+        estimator=Estimator.SIGNED,
+        bootstrap_config=BootstrapConfig(n_iter=1000, seed=42, n_workers=4),
     )
+
+jtpa_fig = jtpa_res.plot()
+jtpa_tbl = jtpa_res.tabulate(quantiles=QUANTILES)
 ```
 
+@fig-jtpa-plot reports the results.
+
 ```{python}
-#| label: jtpa-plot
-#| code-summary: "Show code (JTPA QTE plot)"
-print(f"First stage (= complier share) = {jtpa_res.first_stage:.3f}")
-side_by_side(jtpa_res, [0.10, 0.50, 0.90])
+#| label: fig-jtpa-plot
+#| code-summary: "Show code (plot and table side by side)"
+#| fig-cap: "Local quantile treatment effects on the JTPA data."
+import vl_convert as vlc
+from IPython.display import publish_display_data
+
+plot_svg = vlc.vegalite_to_svg(jtpa_fig.to_dict())
+table_html = jtpa_tbl.as_raw_html()
+publish_display_data(
+    {"text/html": f'<div class="iv-side"><div>{plot_svg}</div><div>{table_html}</div></div>'}
+)
 ```
+
+At the 15th percentile the effect is positive but modest, about $304 (SE $151). It rises to about
+$1,200 at the 25th percentile, peaks at about $2,440 at the median, and remains positive at about
+$2,110 and $1,830 at the 75th and 85th percentiles. The average effect for compliers is $1,861 (SE
+$535). Taken together, the estimates suggest that training helps, but the gain is concentrated in
+the middle and upper-middle of the earnings distribution rather than at its bottom.
+
+In the next section, we estimate conditional effects and compare them with AAI's published
+estimates.
+
+## Conditional Local QTE
+
+The unconditional estimator inverts the complier CDFs separately for the treated and control
+potential outcomes. The conditional estimator of
+[Abadie, Angrist & Imbens (2002)](index.qmd#ref-aai-2002) instead estimates a kappa-weighted
+quantile regression of earnings on training and covariates. Abadie's kappa identifies compliers, but
+it is negative whenever treatment and assignment differ; AAI replace it by its conditional mean
+given $U = (Y, D, X)$, which is the nonnegative complier probability given $U$, and identify the
+effect from the coefficient on training. With no covariates, the conditional estimand reduces to the
+unconditional local QTE.
+
+In @lst-jtpa-conditional, we follow AAI's empirical specification: we use a constant instrument
+probability (assignment is randomized), the covariates in AAI's Table III, complier weights based on
+a degree-3 polynomial in earnings interacted with the classroom-training indicator `class_tr`, and
+`WeightAdjustment.PLUGIN`. We use the same five quantiles as in the unconditional analysis, which
+are the quantiles reported in AAI's table.
+
+```{python}
+#| label: lst-jtpa-conditional
+#| code-summary: "Show code (conditional local QTE on the JTPA data)"
+#| code-fold: false
+from qte.iv import WeightAdjustment, estimate_conditional_local_effects
+
+JTPA_CONDITIONAL_COVARIATES = (
+    "black + hispanic + married + hsorged + afdc + f2sms + wkless13 + class_tr "
+    "+ ojt_jsa + age2225 + age2629 + age3035 + age3644 + age4554"
+)
+
+with timer("jtpa-conditional"):
+    jtpa_conditional_res = estimate_conditional_local_effects(
+        jtpa,
+        "earnings",
+        "training",
+        "assignmt",
+        qs=QUANTILES,
+        covariates=JTPA_CONDITIONAL_COVARIATES,
+        instrument_probability_formula=None,
+        weight_formula="poly(earnings, 3) * class_tr",
+        weight_adjustment=WeightAdjustment.PLUGIN,
+        bootstrap_config=BootstrapConfig(n_iter=1000, seed=42, n_workers=4),
+    )
+
+jtpa_conditional_fig = jtpa_conditional_res.plot()
+jtpa_conditional_tbl = jtpa_conditional_res.tabulate(quantiles=QUANTILES)
+```
+
+@fig-jtpa-conditional-plot reports the results.
+
+```{python}
+#| label: fig-jtpa-conditional-plot
+#| code-summary: "Show code (conditional plot and table side by side)"
+#| fig-cap: "Conditional local quantile treatment effects on the JTPA data."
+plot_svg = vlc.vegalite_to_svg(jtpa_conditional_fig.to_dict())
+table_html = jtpa_conditional_tbl.as_raw_html()
+publish_display_data(
+    {"text/html": f'<div class="iv-side"><div>{plot_svg}</div><div>{table_html}</div></div>'}
+)
+```
+
+The conditional estimates line up closely with AAI's Table III: $324 at the 15th percentile, $670 at
+the 25th (AAI report $680; the small difference is a quantile-regression tie-break), $1,742 at the
+median, $1,984 at the 75th percentile, and $1,900 at the 85th. The average effect for compliers is
+$1,911 (SE $566). The five quantile effects are all positive, with standard errors between $120 and
+$942 and t-statistics between about 2.0 and 3.1.
+
+Using the same quantiles, the conditional and unconditional estimates agree closely at the 15th,
+75th, and 85th percentiles: $324 versus $304, $1,984 versus $2,106, and $1,900 versus $1,830. They
+diverge most at the 25th percentile and the median, where the unconditional estimates are $1,200 and
+$2,436 and the conditional estimates are $670 and $1,742. This is not a contradiction. The
+unconditional estimator reports differences between unconditional complier quantiles, while the
+conditional estimator is a coefficient from a kappa-weighted quantile regression that imposes a
+linear-in-covariates specification and uses AAI's weighting scheme.
