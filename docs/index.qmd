@@ -19,3 +19,4 @@ You can find some benchmarks comparing the `py-qte` and the `qte` package [here]
 - [Overview](iv/index.qmd)
 - [Card (1995)](iv/card.qmd)
 - [JTPA](iv/jtpa.qmd)
+- [IVQR](iv/ivqr.qmd)

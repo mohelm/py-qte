@@ -7,6 +7,7 @@ from qte.datasets import (
     load_jtpa,
     load_lalonde,
     load_mpdta,
+    load_pension,
 )
 
 
@@ -80,3 +81,22 @@ def test_load_jtpa():
     # Almost one-sided non-compliance: very few controls enrol in training.
     controls = ds.filter(pl.col("assignmt") == 0)
     assert controls["training"].mean() < 0.02
+
+
+def test_load_pension():
+    ds = load_pension()
+    assert isinstance(ds, pl.DataFrame)
+    assert ds.shape == (9_915, 44)
+    assert {
+        "net_tfa",
+        "p401",
+        "e401",
+        "icat",
+        "ecat",
+        "a1",
+        "marr",
+        "pira",
+        "hown",
+    } <= set(ds.columns)
+    assert set(ds["p401"].unique().to_list()) == {0, 1}
+    assert set(ds["e401"].unique().to_list()) == {0, 1}

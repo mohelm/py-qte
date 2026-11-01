@@ -1,8 +1,12 @@
 """Result container for the local quantile treatment effect estimator."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
+import polars as pl
+from scipy.stats import norm
+
+from qte.custom_types import ColumnName, FormulaRhs
 from qte.iv.custom_types import Estimator, WeightAdjustment
 from qte.results import InstrumentProbabilityResult, _BasicQteResult
 
@@ -94,5 +98,61 @@ class ConditionalLocalQteResult(_BasicQteResult):
         return {
             "Outcome": self.outcome,
             "Weights": self.weight_adjustment.value,
+            "Confidence Lvl": alpha,
+        }
+
+
+@dataclass
+class IvqrResult(_BasicQteResult):
+    """Result of an instrumental-variable quantile regression.
+
+    Use `plot`, `tabulate`, `summarize` or `get_as_dataframe` to present the
+    estimates. Instances are returned by `estimate_ivqr_effects`; the
+    constructor is not part of the public API.
+
+    Attributes
+    ----------
+    qtt : polars.DataFrame
+        Quantile-specific structural treatment effects, one row per quantile.
+    att : polars.DataFrame
+        Average of the IVQR quantile effects over the requested quantiles, with
+        its analytical standard error.
+    outcome : ColumnName
+        Outcome variable the model was estimated for.
+    group : tuple[str, ...] or None
+        Columns the estimates are grouped by. Always ``None`` for IVQR.
+    covariate_coefficients : polars.DataFrame
+        Intercept and covariate coefficients, one row per term and quantile.
+    treatment : ColumnName
+        Endogenous treatment variable the model was estimated for.
+    instruments : tuple of str
+        Instrument names.
+    covariates : FormulaRhs
+        Right-hand side of the covariate formula.
+    n_obs : int
+        Number of observations used to fit the model.
+    two_sls : tuple of float
+        Separate 2SLS average IV effect and its standard error, reported as
+        ``(estimate, standard_error)``.
+    """
+
+    covariate_coefficients: pl.DataFrame = field(repr=False)
+    treatment: ColumnName
+    instruments: tuple[str, ...]
+    covariates: FormulaRhs
+    n_obs: int
+    two_sls: tuple[float, float]
+
+    def _make_table_header_content(self, alpha: float) -> dict[str, Any]:
+        """Build the header shared by the table and chart."""
+        alpha_half = (1.0 - alpha) / 2.0
+        two_sls_lower = self.two_sls[0] + norm.ppf(alpha_half) * self.two_sls[1]
+        two_sls_upper = self.two_sls[0] + norm.ppf(1.0 - alpha_half) * self.two_sls[1]
+        return {
+            "Outcome": self.outcome,
+            "Treatment": self.treatment,
+            "Instruments": ", ".join(self.instruments),
+            "Observations": self.n_obs,
+            "2SLS": f"{self.two_sls[0]:.3f} [{two_sls_lower:.3f}, {two_sls_upper:.3f}]",
             "Confidence Lvl": alpha,
         }

@@ -62,13 +62,14 @@ def make_great_table_for_coefficients(
     coefficients: pl.DataFrame,
     header_content: dict[str, Any],
     float_precision: int = 3,
+    title: str = COEFFICIENT_TABLE_TITLE,
 ) -> GT:
     """Build a Great Tables table of regression coefficient estimates."""
     float_cols = [c for c, dtype in coefficients.schema.items() if dtype.is_float()]
     return (
         GT(coefficients)
         .tab_header(
-            title=COEFFICIENT_TABLE_TITLE,
+            title=title,
             subtitle=md(_make_table_subtitle(header_content)),
         )
         .cols_label(**{col: NICE_NAMES.get(col, col) for col in coefficients.columns})

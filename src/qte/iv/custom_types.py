@@ -1,6 +1,13 @@
 """Custom types for the instrumental-variables estimators."""
 
+from collections.abc import Sequence
+from dataclasses import dataclass
 from enum import StrEnum
+
+import numpy as np
+from numpy.typing import NDArray
+
+from qte.custom_types import ColumnName
 
 
 class Estimator(StrEnum):
@@ -56,3 +63,19 @@ class WeightAdjustment(StrEnum):
 
     PROJECTION = "projection"
     PLUGIN = "plugin"
+
+
+@dataclass(frozen=True)
+class IvqrTreatment:
+    """An endogenous treatment and the grid for its structural coefficient.
+
+    Parameters
+    ----------
+    name : ColumnName
+        Name of the endogenous treatment column.
+    grid : sequence of float or NDArray
+        Candidate values for the treatment coefficient ``alpha(tau)``.
+    """
+
+    name: ColumnName
+    grid: Sequence[float] | NDArray[np.float64]

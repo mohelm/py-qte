@@ -372,3 +372,11 @@ conditional_table = (
    regression in instrumental variable estimation? Evidence from college proximity and returns to
    college. _Empirical Economics_, 65(6), 2979–2999.
    [doi:10.1007/s00181-023-02441-7](https://doi.org/10.1007/s00181-023-02441-7)
+8. <a id="ref-chernozhukov-2004"></a>Chernozhukov, V., & Hansen, C. (2004). The effects of 401(k)
+   participation on the wealth distribution: An instrumental quantile regression analysis. _The
+   Review of Economics and Statistics_, 86(3), 735–751.
+9. <a id="ref-chernozhukov-2005"></a>Chernozhukov, V., & Hansen, C. (2005). An IV model of quantile
+   treatment effects. _Econometrica_, 73(1), 245–261.
+10. <a id="ref-chernozhukov-2006"></a>Chernozhukov, V., & Hansen, C. (2006). Instrumental quantile
+    regression inference for structural and treatment effect models. _Journal of Econometrics_,
+    132(2), 491–525.

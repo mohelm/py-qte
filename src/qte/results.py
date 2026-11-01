@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any, ClassVar
 
@@ -317,7 +318,12 @@ class _BasicQteResult:
             return frame
         return frame.filter(pl.col(QUANTILE_ID).is_in(np.array(quantiles)))
 
-    def plot(self, alpha: float = 0.95, quantiles: ArrayLike | None = None) -> AltairChart:
+    def plot(
+        self,
+        alpha: float = 0.95,
+        quantiles: ArrayLike | None = None,
+        highlight_quantiles: Sequence[float] | None = None,
+    ) -> AltairChart:
         """Plot the quantile and average effects with confidence intervals.
 
         Parameters
@@ -326,6 +332,9 @@ class _BasicQteResult:
             Confidence level of the intervals.
         quantiles : array_like, optional
             Quantiles to display. ``None`` shows all of them.
+        highlight_quantiles : array_like, optional
+            Quantiles at which to draw point markers on the full quantile line.
+            ``None`` draws markers at every displayed quantile.
 
         Returns
         -------
@@ -337,6 +346,7 @@ class _BasicQteResult:
             self.att.with_columns(get_ci(alpha)),
             group=self.group,
             subtitle=self._make_chart_subtitle(alpha),
+            highlight_quantiles=highlight_quantiles,
         )
 
     def tabulate(self, alpha: float = 0.95, quantiles: ArrayLike | None = None) -> GT:
@@ -356,9 +366,9 @@ class _BasicQteResult:
         """
         return make_great_table(
             self._subset_quantiles(self.qtt, quantiles)
-            .drop(self._exclude_from_qtt_tables)
+            .drop(self._exclude_from_qtt_tables, strict=False)
             .with_columns(get_ci(alpha)),
-            self.att.drop(self._exclude_from_att_tables).with_columns(get_ci(alpha)),
+            self.att.drop(self._exclude_from_att_tables, strict=False).with_columns(get_ci(alpha)),
             self.group,
             self._make_table_header_content(alpha),
         )
@@ -395,9 +405,9 @@ class _BasicQteResult:
         """
         return make_rich_table(
             self._subset_quantiles(self.qtt, quantiles)
-            .drop(self._exclude_from_qtt_tables)
+            .drop(self._exclude_from_qtt_tables, strict=False)
             .with_columns(get_ci(alpha)),
-            self.att.drop(self._exclude_from_att_tables).with_columns(get_ci(alpha)),
+            self.att.drop(self._exclude_from_att_tables, strict=False).with_columns(get_ci(alpha)),
             self._make_table_header_content(alpha),
             float_precision=2,
             group=self.group,

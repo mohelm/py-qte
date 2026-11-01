@@ -29,6 +29,8 @@ website:
             href: iv/card.qmd
           - text: "JTPA"
             href: iv/jtpa.qmd
+          - text: "IVQR"
+            href: iv/ivqr.qmd
       - text: "Reference"
         href: reference/index.qmd
 
@@ -110,9 +112,13 @@ quartodoc:
         - estimate_conditional_local_effects
         - name: ConditionalLocalQteResult
           include_inherited: true
+        - estimate_ivqr_effects
+        - IvqrTreatment
+        - name: IvqrResult
+          include_inherited: true
         - InstrumentProbabilityResult
         - Estimator
-        - WeightEstimator
+        - WeightAdjustment
     - title: IV Simulation
       desc: Simulation functions for the instrumental-variables estimator (`qte.iv.simulate`).
       package: qte.iv.simulate
@@ -140,6 +146,7 @@ quartodoc:
         - load_engel_with_weights
         - load_card
         - load_jtpa
+        - load_pension
     - title: Bootstrap
       desc: Shared bootstrap configuration for the estimators (`qte.bootstrap`).
       package: qte.bootstrap

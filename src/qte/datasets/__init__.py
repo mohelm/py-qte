@@ -60,6 +60,24 @@ def load_mpdta() -> pl.DataFrame:
         return pl.read_parquet(path)
 
 
+def load_pension() -> pl.DataFrame:
+    """Load the 401(k) pension data of Chernozhukov and Hansen (2004).
+
+    The data are the 1991 Survey of Income and Program Participation extract used
+    by Chernozhukov and Hansen (2004) to study the effect of 401(k) participation
+    on net financial assets. They are distributed as ``hdm::pension`` (the
+    paper's ``CH04.dta``); ``icat`` and ``ecat`` are the income and education
+    categories that enter the example as factors.
+
+    Returns
+    -------
+    polars.DataFrame
+        Individual-level wealth, 401(k) participation, eligibility and controls.
+    """
+    with importlib.resources.path("qte.datasets", "pension.parquet") as path:
+        return pl.read_parquet(path)
+
+
 def load_engel_with_weights() -> pl.DataFrame:
     """Load Engel (1857) food expenditure data with a sampling weights column.
 

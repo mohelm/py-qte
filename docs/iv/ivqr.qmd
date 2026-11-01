@@ -1,0 +1,131 @@
+---
+title: "IVQR"
+engine: jupyter
+jupyter: python3
+page-layout: full
+---
+
+{{< include _setup-iv.qmd >}}
+
+## The Estimator
+
+The instrumental-variable quantile regression (IVQR) estimator of
+[Chernozhukov & Hansen (2004)](index.qmd#ref-chernozhukov-2004),
+[Chernozhukov & Hansen (2005)](index.qmd#ref-chernozhukov-2005) and
+[Chernozhukov & Hansen (2006)](index.qmd#ref-chernozhukov-2006) estimates the structural quantile
+function
+
+$$
+q_\tau(Y \mid D = d, X = x) = d'\alpha(\tau) + x'\beta(\tau).
+$$
+
+Here $\alpha(\tau)$ is the coefficient on the endogenous treatment at quantile $\tau$. Unlike the
+local-QTE estimators on the other IV pages, IVQR does not target compliers. It is a structural
+quantile regression model, and its coefficient process is population-level.
+
+The estimator uses _inverse quantile regression_. For each $\tau$, it searches over a grid of
+candidate values for $\alpha$, shifts the outcome to $Y - D\alpha$, and runs a conventional quantile
+regression on the projected treatment and the covariates. The selected value is the one whose
+projected-instrument coefficients are closest to zero in the Wald metric.
+
+The `att` result is the average of the estimated IVQR quantile effects over the requested quantiles.
+For comparison with the average effects reported by the local-QTE estimators, `py-qte` also reports
+a separate 2SLS average IV effect as the `two_sls` tuple. These answer different questions: `att` is
+a model-based average of the structural quantile effects, while `two_sls` is an average IV/LATE
+effect.
+
+## The Data
+
+We use the 401(k) pension data of Chernozhukov & Hansen (2004). The outcome is net financial assets
+(`net_tfa`), the endogenous treatment is 401(k) participation (`p401`), and the instrument is 401(k)
+eligibility (`e401`). The controls are the income and education categories plus the demographic and
+pension variables used in the paper.
+
+```{python}
+#| label: lst-ivqr-data
+#| code-summary: "Show code (load the 401(k) data)"
+#| code-fold: false
+from qte.datasets import load_pension
+
+pension = load_pension()
+print(pension.shape)
+```
+
+## Estimation
+
+We set up the treatment coefficient grid and estimate the quantile process. The grid runs from 0 to
+25,000 in steps of 100, matching the search grid used in the R `IVQR` example.
+
+```{python}
+#| label: lst-ivqr-estimate
+#| code-summary: "Show code (IVQR estimation)"
+#| code-fold: false
+import numpy as np
+
+from qte.iv import IvqrTreatment, estimate_ivqr_effects
+
+PENSION_COVARIATES = (
+    "C(icat) + C(ecat) + a1 + a2 + a3 + a4 "
+    "+ marr + fsize + twoearn + db + pira + hown"
+)
+IVQR_QUANTILES = np.arange(0.01, 1.0, 0.01)
+IVQR_REPORT = np.arange(0.1, 1.0, 0.1)
+IVQR_GRID = np.arange(0, 25_001, 100)
+
+with timer("ivqr"):
+    ivqr_res = estimate_ivqr_effects(
+        pension,
+        "net_tfa",
+        treatment=IvqrTreatment("p401", IVQR_GRID),
+        instruments="e401",
+        qs=IVQR_QUANTILES,
+        covariates=PENSION_COVARIATES,
+        n_workers=6,
+    )
+```
+
+@fig-ivqr-plot reports the estimated quantile effects and the average IVQR effect.
+
+```{python}
+#| label: fig-ivqr-plot
+#| code-summary: "Show code (plot and table side by side)"
+#| fig-cap: "IVQR quantile effects on the 401(k) pension data."
+side_by_side(ivqr_res, IVQR_REPORT, highlight_quantiles=IVQR_REPORT)
+```
+
+The average-effect summary separates the two objects: `att` is the average of the IVQR quantile
+effects displayed in the figure, while `two_sls` is the separate 2SLS companion estimate.
+
+```{python}
+#| label: tbl-ivqr-averages
+#| code-summary: "Show code (average-effect comparison)"
+from qte.names import EFFECT_ID, SE_ID
+
+att = ivqr_res.att.row(0, named=True)
+two_sls = ivqr_res.two_sls
+averages = pl.DataFrame({
+    "Quantity": ["Mean IVQR QTE", "2SLS average effect"],
+    "Estimate": [att[EFFECT_ID], two_sls[0]],
+    "Std. Error": [att[SE_ID], two_sls[1]],
+})
+(
+    GT(averages)
+    .fmt_number(["Estimate", "Std. Error"], decimals=0)
+    .tab_header(title="Table 1. IVQR Quantile and Average Effects")
+)
+```
+
+The median IVQR effect is close to the 5,700 reported in the R example. The 2SLS average effect is
+usually different and is not an average of the quantile effects. That gap is expected: IVQR averages
+structural quantile effects across the selected quantiles, whereas 2SLS averages treatment effects
+across instrument-induced compliers.
+
+## Caveats
+
+The IVQR coefficients are well defined only under its structural assumptions, including the
+linear-in-treatment quantile specification and rank-invariance-type conditions. The `att` average is
+therefore a model-based summary, not a generic ATE. For a robust average-effect companion, use the
+`two_sls` estimate or the Abadie kappa mean from the local-QTE estimators.
+
+The standard errors reported for the IVQR coefficients in `qtt` are pointwise. The standard error
+for `att` uses the joint cross-quantile covariance of the estimated quantile process.

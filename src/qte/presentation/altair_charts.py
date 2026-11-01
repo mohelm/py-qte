@@ -1,3 +1,5 @@
+from collections.abc import Sequence
+
 import altair as alt
 import polars as pl
 
@@ -23,6 +25,7 @@ def _plot_against_quantiles(
     tick_values: list[float],
     stroke_dash: tuple[int, int],
     x_label_pos: str | None,
+    highlight_quantiles: Sequence[float] | None,
 ) -> alt.LayerChart | alt.FacetChart:
     x = alt.X(
         f"{QUANTILE_ID}:Q",
@@ -41,7 +44,12 @@ def _plot_against_quantiles(
     line_chart = base.mark_line(color="black", strokeDash=list(stroke_dash)).encode(  # ty: ignore[unresolved-attribute]
         x=x, y=alt.Y(y, title="")
     )
-    point_chart = base.mark_point(color="black", fill="black").encode(  # ty: ignore[unresolved-attribute]
+    point_base = base
+    if highlight_quantiles is not None:
+        point_base = base.transform_filter(
+            alt.FieldOneOfPredicate(field=QUANTILE_ID, oneOf=list(highlight_quantiles))
+        )
+    point_chart = point_base.mark_point(color="black", fill="black").encode(  # ty: ignore[unresolved-attribute]
         x=x, y=alt.Y(y, title="")
     )
     return alt.layer(line_chart, point_chart)
@@ -66,7 +74,11 @@ def _make_facets(grouped_by: tuple[str, ...]) -> dict:
 
 
 def _make_plot_with_multiple_quantiles(
-    combined: pl.DataFrame, group: tuple[str, ...] | None, *, tick_values: list[float]
+    combined: pl.DataFrame,
+    group: tuple[str, ...] | None,
+    *,
+    tick_values: list[float],
+    highlight_quantiles: Sequence[float] | None,
 ) -> alt.LayerChart | alt.FacetChart:
     base = alt.Chart(combined)
 
@@ -87,6 +99,7 @@ def _make_plot_with_multiple_quantiles(
                 tick_values=tick_values,
                 stroke_dash=sd,
                 x_label_pos=x_label_position_query,
+                highlight_quantiles=highlight_quantiles,
             )
             for (y, sd) in _LINE_CONFIG_IN_PLOT_WITH_MULTIPLE_QUANTILES
         ]
@@ -142,6 +155,7 @@ def make_plot(
     atts: pl.DataFrame,
     group: str | tuple[str, ...] | None = None,
     subtitle: str | list[str] | None = None,
+    highlight_quantiles: Sequence[float] | None = None,
 ) -> alt.LayerChart | alt.FacetChart:
     if isinstance(group, str):
         group = (group,)
@@ -164,8 +178,16 @@ def make_plot(
     )
     quantiles = qtes[QUANTILE_ID].unique().sort()
     n_quantiles = quantiles.shape[0]
+    tick_values = (
+        list(highlight_quantiles) if highlight_quantiles is not None else quantiles.to_list()
+    )
     chart = (
-        _make_plot_with_multiple_quantiles(combined, group, tick_values=quantiles.to_list())
+        _make_plot_with_multiple_quantiles(
+            combined,
+            group,
+            tick_values=tick_values,
+            highlight_quantiles=highlight_quantiles,
+        )
         if n_quantiles > 1
         else _make_plot_for_single_quantile(combined, group, quantile=quantiles.item())
     )
