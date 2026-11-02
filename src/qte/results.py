@@ -310,7 +310,9 @@ class _BasicQteResult:
         """Build the header lines shown under the chart title, like the table subtitle."""
         content = self._make_table_header_content(alpha)
         width = max(len(key) for key in content)
-        return [f"{key}{' ' * (width - len(key) + 2)}: {value}" for key, value in content.items()]
+        return [
+            f"{key}{'\u00a0' * (width - len(key) + 2)}: {value}" for key, value in content.items()
+        ]
 
     def _subset_quantiles(self, frame: pl.DataFrame, quantiles: ArrayLike | None) -> pl.DataFrame:
         """Keep only the requested quantiles (all of them when ``None``)."""

@@ -152,7 +152,7 @@ class IvqrResult(_BasicQteResult):
             "Outcome": self.outcome,
             "Treatment": self.treatment,
             "Instruments": ", ".join(self.instruments),
-            "Observations": self.n_obs,
+            "Observations": f"{self.n_obs:,}",
             "2SLS": f"{self.tsls[0]:.3f} [{tsls_lower:.3f}, {tsls_upper:.3f}]",
             "Confidence Lvl": alpha,
         }
