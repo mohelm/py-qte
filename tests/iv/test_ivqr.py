@@ -4,7 +4,7 @@ import numpy as np
 import polars as pl
 import pytest
 from great_tables import GT
-from polars.testing import assert_frame_equal
+from polars.testing import assert_frame_equal, assert_series_equal
 from rich.console import Group
 
 from qte.datasets import load_pension
@@ -49,6 +49,23 @@ def test_estimate_ivqr_effects_matches_chen_pension_example():
     assert isinstance(res.get_as_dataframe(), pl.DataFrame)
     assert isinstance(res.tabulate(), GT)
     assert isinstance(res.summarize(), Group)
+
+
+def test_estimate_ivqr_effects_matches_r_pension_quartiles():
+    """Compare additional quantiles against R IVQR on the full pension grid."""
+    res = estimate_ivqr_effects(
+        load_pension(),
+        "net_tfa",
+        treatment=IvqrTreatment("p401", np.arange(0, 25_001, 100)),
+        instruments="e401",
+        qs=[0.25, 0.75],
+        covariates=_PENSION_COVARIATES,
+    )
+
+    expected_effects = pl.Series(EFFECT_ID, [3_700.0, 13_200.0])
+    expected_standard_errors = pl.Series(SE_ID, [528.619703298070, 1_209.065740145327])
+    assert_series_equal(res.qtt[EFFECT_ID], expected_effects, abs_tol=1.0)
+    assert_series_equal(res.qtt[SE_ID], expected_standard_errors, abs_tol=0.1)
 
 
 def test_estimate_ivqr_effects_allows_overidentification():
