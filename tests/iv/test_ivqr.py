@@ -47,8 +47,8 @@ def test_estimate_ivqr_effects_matches_chen_pension_example():
     assert res.att[SE_ID][0] == pytest.approx(res.qtt[SE_ID][0], rel=1e-10)
 
     # Third: Check that our two-stage least square number does not change.
-    assert res.two_sls[0] == pytest.approx(13_086.849, abs=1.0)
-    assert res.two_sls[1] > 0
+    assert res.tsls[0] == pytest.approx(13_086.849, abs=1.0)
+    assert res.tsls[1] > 0
     assert res.covariate_coefficients[ESTIMATE_ID].is_finite().all()
     assert res.covariate_coefficients[SE_ID].is_finite().all()
     assert res.n_obs == load_pension().height
@@ -91,8 +91,8 @@ def test_estimate_ivqr_effects_allows_overidentification():
     assert res.att[EFFECT_ID][0] == pytest.approx(res.qtt[EFFECT_ID].mean())
     assert np.isfinite(res.att[SE_ID][0])
     assert res.att[SE_ID][0] > 0
-    assert np.isfinite(res.two_sls[0])
-    assert np.isfinite(res.two_sls[1])
+    assert np.isfinite(res.tsls[0])
+    assert np.isfinite(res.tsls[1])
 
 
 def test_ivqr_parallel_grid_matches_serial():
@@ -109,4 +109,4 @@ def test_ivqr_parallel_grid_matches_serial():
 
     assert_frame_equal(serial.qtt, parallel.qtt)
     assert_frame_equal(serial.att, parallel.att)
-    assert serial.two_sls == pytest.approx(parallel.two_sls)
+    assert serial.tsls == pytest.approx(parallel.tsls)

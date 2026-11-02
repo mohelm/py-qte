@@ -328,7 +328,7 @@ def _compute_ivqr(
         instruments=instruments,
         covariates=covariates,
         n_obs=ds.height,
-        two_sls=(mean_from_tsls, standard_error_form_mean_from_tsls),
+        tsls=(mean_from_tsls, standard_error_form_mean_from_tsls),
     )
 
 

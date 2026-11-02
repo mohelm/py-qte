@@ -30,9 +30,8 @@ projected-instrument coefficients are closest to zero in the Wald metric.
 
 The `att` result is the average of the estimated IVQR quantile effects over the requested quantiles.
 For comparison with the average effects reported by the local-QTE estimators, `py-qte` also reports
-a separate 2SLS average IV effect as the `two_sls` tuple. These answer different questions: `att` is
-a model-based average of the structural quantile effects, while `two_sls` is an average IV/LATE
-effect.
+a separate 2SLS average IV effect as the `tsls` tuple. These answer different questions: `att` is a
+model-based average of the structural quantile effects, while `tsls` is an average IV/LATE effect.
 
 ## The Data
 
@@ -94,7 +93,7 @@ side_by_side(ivqr_res, IVQR_REPORT, highlight_quantiles=IVQR_REPORT)
 ```
 
 The average-effect summary separates the two objects: `att` is the average of the IVQR quantile
-effects displayed in the figure, while `two_sls` is the separate 2SLS companion estimate.
+effects displayed in the figure, while `tsls` is the separate 2SLS companion estimate.
 
 ```{python}
 #| label: tbl-ivqr-averages
@@ -102,11 +101,11 @@ effects displayed in the figure, while `two_sls` is the separate 2SLS companion 
 from qte.names import EFFECT_ID, SE_ID
 
 att = ivqr_res.att.row(0, named=True)
-two_sls = ivqr_res.two_sls
+tsls = ivqr_res.tsls
 averages = pl.DataFrame({
     "Quantity": ["Mean IVQR QTE", "2SLS average effect"],
-    "Estimate": [att[EFFECT_ID], two_sls[0]],
-    "Std. Error": [att[SE_ID], two_sls[1]],
+    "Estimate": [att[EFFECT_ID], tsls[0]],
+    "Std. Error": [att[SE_ID], tsls[1]],
 })
 (
     GT(averages)
@@ -125,7 +124,7 @@ across instrument-induced compliers.
 The IVQR coefficients are well defined only under its structural assumptions, including the
 linear-in-treatment quantile specification and rank-invariance-type conditions. The `att` average is
 therefore a model-based summary, not a generic ATE. For a robust average-effect companion, use the
-`two_sls` estimate or the Abadie kappa mean from the local-QTE estimators.
+`tsls` estimate or the Abadie kappa mean from the local-QTE estimators.
 
 The standard errors reported for the IVQR coefficients in `qtt` are pointwise. The standard error
 for `att` uses the joint cross-quantile covariance of the estimated quantile process.

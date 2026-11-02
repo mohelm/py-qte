@@ -131,7 +131,7 @@ class IvqrResult(_BasicQteResult):
         Right-hand side of the covariate formula.
     n_obs : int
         Number of observations used to fit the model.
-    two_sls : tuple of float
+    tsls : tuple of float
         Separate 2SLS average IV effect and its standard error, reported as
         ``(estimate, standard_error)``.
     """
@@ -141,18 +141,18 @@ class IvqrResult(_BasicQteResult):
     instruments: tuple[str, ...]
     covariates: FormulaRhs
     n_obs: int
-    two_sls: tuple[float, float]
+    tsls: tuple[float, float]
 
     def _make_table_header_content(self, alpha: float) -> dict[str, Any]:
         """Build the header shared by the table and chart."""
         alpha_half = (1.0 - alpha) / 2.0
-        two_sls_lower = self.two_sls[0] + norm.ppf(alpha_half) * self.two_sls[1]
-        two_sls_upper = self.two_sls[0] + norm.ppf(1.0 - alpha_half) * self.two_sls[1]
+        tsls_lower = self.tsls[0] + norm.ppf(alpha_half) * self.tsls[1]
+        tsls_upper = self.tsls[0] + norm.ppf(1.0 - alpha_half) * self.tsls[1]
         return {
             "Outcome": self.outcome,
             "Treatment": self.treatment,
             "Instruments": ", ".join(self.instruments),
             "Observations": self.n_obs,
-            "2SLS": f"{self.two_sls[0]:.3f} [{two_sls_lower:.3f}, {two_sls_upper:.3f}]",
+            "2SLS": f"{self.tsls[0]:.3f} [{tsls_lower:.3f}, {tsls_upper:.3f}]",
             "Confidence Lvl": alpha,
         }
