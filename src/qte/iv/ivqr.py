@@ -342,12 +342,37 @@ def estimate_ivqr_effects(
     covariates: FormulaRhs = "1",
     n_workers: int = 1,
 ) -> IvqrResult:
-    """Estimate an instrumental-variable quantile regression.
+    r"""Estimate an instrumental-variable quantile regression.
 
-    The structural quantile function is ``q(tau, d, x) = d' alpha(tau) +
-    x' beta(tau)``. ``alpha(tau)`` is the coefficient on the endogenous
-    treatment and is the quantile treatment effect in the IVQR model;
-    ``beta(tau)`` collects the intercept and covariate coefficients.
+    We estimate the structural quantile function
+
+    $$
+    q(\tau, d, x) = d' \alpha(\tau) + x' \beta(\tau).
+    $$
+
+    For a unit with covariates $x$ and treatment $d$, this describes the
+    $\tau$-quantile of the potential outcome $Y(d)$. It is assumed that $d$ is
+    endogenous, which is why it needs to be instrumented.
+
+    The estimation procedure requires an `IvqrTreatment`, which supplies the
+    treatment column and the grid for $\alpha$ at which the objective function
+    is evaluated. Notice that we only allow for a single treatment as multiple $d$ would make the
+    procedure prohibitively slow.
+
+    Standard errors are computed _analytically_. The procedure is still
+    _computationally demanding_: for each $\tau$, a quantile regression must be
+    run for every value in the treatment grid. Again, for this reason we do not allow multiple treatments.
+
+    The mean effect reported in ``att`` is the average of the estimated
+    quantile treatment effects. For this to be interpretable as a full-distribution
+    average, the $\tau$ grid should be dense. A standard two-stage least squares
+    estimate is also reported in ``tsls``. There is no reason for the
+    mean of the quantiles and the two-stage least squares estimate to coincide,
+    since they refer to different causal targets.
+
+    Finally, the estimator targets the quantile treatment effect. This is a population-level structural
+    effect, not a local complier effect.
+
 
     Parameters
     ----------
