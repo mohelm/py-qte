@@ -36,11 +36,17 @@ def test_estimate_ivqr_effects_matches_chen_pension_example():
         covariates=_PENSION_COVARIATES,
     )
 
+    # First: look at the quantile treatment effect
     effect = res.qtt.filter(pl.col(QUANTILE_ID) == 0.5)
     assert effect[EFFECT_ID][0] == pytest.approx(_CHEN_MEDIAN_EFFECT, abs=1.0)
     assert effect[SE_ID][0] == pytest.approx(_CHEN_MEDIAN_SE, abs=0.1)
+
+    # Second: in that setup the mean effect with a single quantile is identical to the median
+    # effect since it is an average over the quantiles.
     assert res.att[EFFECT_ID][0] == pytest.approx(_CHEN_MEDIAN_EFFECT, abs=1.0)
     assert res.att[SE_ID][0] == pytest.approx(res.qtt[SE_ID][0], rel=1e-10)
+
+    # Third: Check that our two-stage least square number does not change.
     assert res.two_sls[0] == pytest.approx(13_086.849, abs=1.0)
     assert res.two_sls[1] > 0
     assert res.covariate_coefficients[ESTIMATE_ID].is_finite().all()
@@ -52,7 +58,6 @@ def test_estimate_ivqr_effects_matches_chen_pension_example():
 
 
 def test_estimate_ivqr_effects_matches_r_pension_quartiles():
-    """Compare additional quantiles against R IVQR on the full pension grid."""
     res = estimate_ivqr_effects(
         load_pension(),
         "net_tfa",
