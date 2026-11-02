@@ -239,7 +239,7 @@ def _compute_local_effects(
     qs : ndarray
         Quantiles in ``(0, 1)`` at which to estimate the effect.
     instrument_probability_formula : FormulaRhs, optional
-        Right-hand side of the logit model for ``P(Z = 1 | X)``. When omitted
+        Right-hand side of the logit model for ``P(Z = 1 | X)``. When omitted,
         the instrument probability is taken to be constant.
     weights : ColumnName, optional
         Name of a column with sampling weights. When omitted, a column of ones
@@ -327,13 +327,37 @@ def estimate_unconditional_local_effects(
     estimator: Estimator = Estimator.SIGNED,
     bootstrap_config: BootstrapConfig | int = 100,
 ) -> UnconditionalLocalQteResult:
-    """Estimate the quantile treatment effect for compliers.
+    r"""Estimate the local quantile treatment effect for compliers.
 
-    Combines `_compute_local_effects` with bootstrap standard errors. The
-    estimand is the difference between the complier quantiles of the treated and
-    untreated potential outcomes; the average effect is the local average
-    treatment effect (LATE). Identification requires independence and exclusion
-    of the instrument, monotonicity and a relevant first stage.
+    The causal target is the difference between the complier quantiles of the treated
+    and untreated potential outcomes. It is a local effect analogous to the local
+    average treatment effect (LATE), but for quantiles rather than means. Notice further, that the
+    effect is _unconditional_ in the sense that it is not conditional on covariate values but
+    rather applies to the population (of compliers) as a whole.
+
+    The effect is obtained using Abadie's kappa weights:
+
+    $$
+    \begin{aligned}
+    w_1 &= \frac{D Z}{p(X)} - \frac{D (1 - Z)}{1 - p(X)}, \\
+    w_0 &= \frac{(1 - D)(1 - Z)}{1 - p(X)} - \frac{(1 - D) Z}{p(X)}.
+    \end{aligned}
+    $$
+
+    Here $p(X) = P(Z = 1 \mid X)$, so a formula for the _instrument propensity_
+    should be supplied.
+
+    The weights are not necessarily positive. The ``estimator`` argument controls
+    how negative weights are handled. With ``Estimator.SIGNED``, negative weights
+    are retained, which can lead to non-monotone inverse cumulative distribution
+    functions. In that case, inversion uses all values below the relevant quantile
+    rather than, for instance, the value at the first crossing. With ``Estimator.POSITIVE``, the
+    weights are projected on the outcome and treatment, which makes them
+    nonnegative.
+
+    The framework requires a binary treatment and a binary instrument.
+
+    Standard errors are computed via the case bootstrap.
 
     Parameters
     ----------
@@ -348,7 +372,7 @@ def estimate_unconditional_local_effects(
     qs : array_like, default=0.5
         Quantiles in ``(0, 1)`` at which to estimate the effect.
     instrument_probability_formula : FormulaRhs, optional
-        Right-hand side of the logit model for ``P(Z = 1 | X)``. When omitted
+        Right-hand side of the logit model for ``P(Z = 1 | X)``. When omitted,
         the instrument probability is taken to be constant.
     weights : ColumnName, optional
         Name of a column with sampling weights.
@@ -356,7 +380,7 @@ def estimate_unconditional_local_effects(
         Drop observations whose estimated instrument propensity lies outside
         ``[trim, 1 - trim]``. ``0`` keeps every observation.
     estimator : `Estimator`, default=`Estimator.SIGNED`
-        Weighting scheme, see `_compute_local_effects`.
+        Weighting scheme used to form the complier weights.
     bootstrap_config : `BootstrapConfig` or int, default=100
         Bootstrap settings, or the number of replications.
 
