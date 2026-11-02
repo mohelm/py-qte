@@ -14,6 +14,7 @@ from qte.presentation.tables.common import (
     COEFFICIENT_TABLE_TITLE,
     NICE_NAMES,
     QTE_TABLE_SUB_HEADER,
+    VALIDITY_TABLE_TITLE,
     _make_header,
 )
 
@@ -107,4 +108,21 @@ def make_rich_table_for_coefficients(
         _make_estimates_table(
             coefficients, title=COEFFICIENT_TABLE_SUB_HEADER, float_precision=float_precision
         ),
+    )
+
+
+def make_rich_table_for_validity_test(
+    summary: pl.DataFrame,
+    hc: dict[str, Any],
+    float_precision: int = 3,
+) -> Group:
+    """Dynamically creates a rich summary table of an instrument-validity test."""
+    header = Text()
+    header.append(f"{VALIDITY_TABLE_TITLE}\n", style="bold")
+    for h in _make_header(hc, " ", "\n"):
+        header.append(h)
+
+    return _JupyterGroup(
+        header,
+        _make_estimates_table(summary, title=None, float_precision=float_precision),
     )

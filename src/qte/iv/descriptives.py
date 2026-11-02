@@ -5,10 +5,14 @@ from enum import StrEnum
 from functools import partial
 from typing import NamedTuple
 
+import altair as alt
+import numpy as np
 import polars as pl
 from great_tables import GT, loc, md, style
+from numpy.typing import NDArray
 from rich import box
 from rich.table import Table
+from scipy.stats import gaussian_kde
 
 type _CellValue = float | int | None
 
@@ -442,3 +446,133 @@ def make_descriptive_statistics(
     if output == OutputFormat.rich_table:
         return _make_rich_table(display, row_meta, title)
     return _make_great_table(display, row_meta, title)
+
+
+def _make_density(y: NDArray, w: NDArray, bandwidth: float | None) -> gaussian_kde:
+    """Build a weighted Gaussian KDE with an optional absolute bandwidth."""
+    if bandwidth is None:
+        return gaussian_kde(y, weights=w)
+
+    variance = float(np.cov(y, aweights=w, ddof=1))
+    if variance <= 0.0:
+        raise ValueError("Cannot estimate a density with zero outcome variance.")
+    return gaussian_kde(y, weights=w, bw_method=bandwidth / np.sqrt(variance))
+
+
+def make_subdensity_plot(
+    ds: pl.DataFrame,
+    outcome: str,
+    treatment: str,
+    instrument: str,
+    *,
+    weights: str | None = None,
+    bandwidth: float | None = None,
+    outcome_grid_size: int = 500,
+    labels: Mapping[str, str] | None = None,
+    title: str | None = None,
+) -> alt.FacetChart:
+    """Plot Kitagawa-style outcome subdensities by instrument arm.
+
+    For each treatment value ``d`` and instrument value ``z``, this plots the
+    joint subdensity ``p(y, d | z)`` rather than the conditional density
+    ``f(y | d, z)``. The subdensity integrates to ``Pr(D = d | Z = z)``.
+
+    Parameters
+    ----------
+    ds : polars.DataFrame
+        Input data.
+    outcome : str
+        Outcome column.
+    treatment : str
+        Binary treatment column, coded ``0`` and ``1``.
+    instrument : str
+        Binary instrument column, coded ``0`` and ``1``.
+    weights : str, optional
+        Sampling weights column. When omitted all observations have unit weight.
+    bandwidth : float, optional
+        Absolute Gaussian kernel bandwidth. ``None`` uses SciPy's default
+        bandwidth rule. Kitagawa uses values around ``0.07``--``0.08`` for the
+        log-earnings examples.
+    grid_size : int, default=500
+        Number of outcome grid points at which to evaluate the densities.
+    labels : mapping of str to str, optional
+        Display labels keyed by column name.
+    title : str, optional
+        Plot title.
+
+    Returns
+    -------
+    altair.FacetChart
+        Two panels, one per treatment value, with one line per instrument arm.
+    """
+    labels = labels or {}
+    if weights is None:
+        weights = "_w"
+        ds = ds.with_columns(pl.lit(1.0).alias(weights))
+
+    outcome_label = labels.get(outcome, _get_nicer_name(outcome))
+    treatment_name = labels.get(treatment, _get_nicer_name(treatment))
+    instrument_name = labels.get(instrument, _get_nicer_name(instrument))
+    treatment_labels = {value: f"{treatment_name} = {value}" for value in (0, 1)}
+    instrument_labels = {value: f"{instrument_name} = {value}" for value in (0, 1)}
+
+    outcome_values = ds[outcome].to_numpy()
+    outcome_grid = np.linspace(
+        float(outcome_values.min()), float(outcome_values.max()), outcome_grid_size
+    )
+    chart_data: list[pl.DataFrame] = []
+
+    for instr_val in (0, 1):
+        ds_for_instr_val = ds.filter(pl.col(instrument) == instr_val)
+        sum_weights_for_instr_val = ds_for_instr_val[weights].sum()
+        for trt_val in (0, 1):
+            ds_cell = ds_for_instr_val.filter(pl.col(treatment) == trt_val)
+            y, w = ds_cell[outcome].to_numpy(), ds_cell[weights].to_numpy()
+            density = _make_density(y, w, bandwidth)(outcome_grid) * (
+                w.sum() / sum_weights_for_instr_val
+            )
+            chart_data.append(
+                pl.DataFrame(
+                    {
+                        "outcome": outcome_grid,
+                        "density": density,
+                    }
+                ).with_columns(
+                    pl.lit(instrument_labels[instr_val]).alias("instrument_label"),
+                    pl.lit(treatment_labels[trt_val]).alias("treatment_label"),
+                )
+            )
+
+    chart = (
+        alt.Chart(pl.concat(chart_data))
+        .mark_line()
+        .encode(  # ty: ignore[unresolved-attribute]
+            x=alt.X("outcome:Q", title=outcome_label),
+            y=alt.Y("density:Q", title="Subdensity"),
+            color=alt.Color(
+                "instrument_label:N",
+                title=instrument_name,
+                sort=[instrument_labels[1], instrument_labels[0]],
+            ),
+            tooltip=[
+                alt.Tooltip("treatment_label:N", title=treatment_name),
+                alt.Tooltip("instrument_label:N", title=instrument_name),
+                alt.Tooltip("outcome:Q", title=outcome_label, format=".3f"),
+                alt.Tooltip("density:Q", title="Subdensity", format=".4f"),
+            ],
+        )
+        .properties(width=360, height=260)
+        .facet(
+            column=alt.Column(
+                "treatment_label:N",
+                title=None,
+                sort=[treatment_labels[0], treatment_labels[1]],
+            )
+        )
+    )
+    return chart.properties(
+        title=alt.TitleParams(
+            text=title or f"Subdensities of {outcome_label}",
+            anchor="middle",
+        )
+    )

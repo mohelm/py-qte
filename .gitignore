@@ -40,3 +40,6 @@ docs/_inv/
 # macOS metadata (.DS_Store, AppleDouble ._* files from moving the site)
 .DS_Store
 ._*
+
+# Retired code kept locally for reference (not part of the package or the tests)
+attic/

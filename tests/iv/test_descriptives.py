@@ -1,3 +1,4 @@
+import altair as alt
 import polars as pl
 from great_tables import GT
 from rich.table import Table
@@ -8,6 +9,7 @@ from qte.iv.descriptives import (
     _make_display_frame,
     _RowType,
     make_descriptive_statistics,
+    make_subdensity_plot,
 )
 
 
@@ -56,3 +58,23 @@ def test_make_descriptive_statistics_returns_both_backends():
         title="Card descriptive statistics",
     )
     assert isinstance(rich_table, Table)
+
+
+def test_make_subdensity_plot_returns_faceted_altair_chart():
+    ds = load_card().with_columns(pl.lit(1.0).alias("w"))
+
+    chart = make_subdensity_plot(
+        ds,
+        "lwage",
+        "college",
+        "nearc4",
+        weights="w",
+        bandwidth=0.08,
+        labels={"lwage": "Log wage", "nearc4": "College proximity"},
+    )
+
+    assert isinstance(chart, alt.FacetChart)
+    spec = chart.to_dict()
+    assert "facet" in spec
+    assert spec["facet"]["column"]["sort"] == ["College = 0", "College = 1"]
+    assert spec["title"]["anchor"] == "middle"

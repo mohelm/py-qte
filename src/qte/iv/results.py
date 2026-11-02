@@ -1,13 +1,24 @@
-"""Result container for the local quantile treatment effect estimator."""
+"""Result containers for the instrumental-variables estimators."""
 
 from dataclasses import dataclass, field
 from typing import Any
 
+import numpy as np
 import polars as pl
+from great_tables import GT
+from rich.console import Group
 from scipy.stats import norm
 
 from qte.custom_types import ColumnName, FormulaRhs
-from qte.iv.custom_types import Estimator, WeightAdjustment
+from qte.iv.custom_types import Estimator, ValidityWeighting, WeightAdjustment
+from qte.names import (
+    N_BOOT_ID,
+    P_VALUE_ID,
+    STATISTIC_ID,
+    VERDICT_ID,
+)
+from qte.presentation.tables.gt_tables import make_great_table_for_validity_test
+from qte.presentation.tables.rich_tables import make_rich_table_for_validity_test
 from qte.results import InstrumentProbabilityResult, _BasicQteResult
 
 
@@ -156,3 +167,113 @@ class IvqrResult(_BasicQteResult):
             "2SLS": f"{self.tsls[0]:.3f} [{tsls_lower:.3f}, {tsls_upper:.3f}]",
             "Confidence Lvl": alpha,
         }
+
+
+@dataclass
+class InstrumentValidityResult:
+    """Result of the Kitagawa (2015) instrument-validity test.
+
+    Use `tabulate` or `summarize` to present the test, and `get_as_dataframe`
+    for the underlying one-row summary. Instances are returned by
+    `qte.iv.perform_instrument_validity_test`; the constructor is not part of the
+    public API.
+
+    Attributes
+    ----------
+    statistic : float
+        Kolmogorov--Smirnov test statistic. Larger values are evidence against
+        instrument validity.
+    p_value : float
+        Bootstrap p value.
+    alpha : float
+        Significance level used for the verdict.
+    n_boot : int
+        Number of bootstrap replications.
+    boot_stats : numpy.ndarray
+        Bootstrap realizations of the test statistic.
+    binding : dict or None
+        Configuration of the most violated interval, with keys ``z_low``,
+        ``z_high``, ``direction``, ``y_lower`` and ``y_upper``.
+    n : int
+        Number of observations used by the test.
+    first_stage : float
+        Difference in treatment take-up between the ``instrument == 1`` and
+        ``instrument == 0`` groups. Negative when the coding runs against the
+        monotonicity direction ``D(on) >= D(off)``.
+    outcome : ColumnName
+        Outcome variable.
+    treatment : ColumnName
+        Binary treatment variable.
+    instrument : ColumnName
+        Binary instrument variable.
+    weighting : `ValidityWeighting`
+        Weighting of the test statistic.
+    se_floor : float
+        Lower bound for the plug-in standard error in the variance-weighted
+        statistic.
+    y_grid_size : int
+        Maximum number of outcome grid points used for the interval search.
+    """
+
+    statistic: float
+    p_value: float
+    alpha: float
+    n_boot: int
+    boot_stats: np.ndarray = field(repr=False)
+    binding: dict[str, Any] | None
+    n: int
+    first_stage: float
+    outcome: ColumnName
+    treatment: ColumnName
+    instrument: ColumnName
+    weighting: ValidityWeighting
+    se_floor: float
+    y_grid_size: int
+
+    @property
+    def verdict(self) -> str:
+        """Text verdict at the chosen significance level."""
+        return "Reject IV validity" if self.p_value <= self.alpha else "Cannot reject IV validity"
+
+    def get_as_dataframe(self) -> pl.DataFrame:
+        """Return the test result as a one-row polars DataFrame."""
+        return pl.DataFrame(
+            {
+                STATISTIC_ID: [self.statistic],
+                P_VALUE_ID: [self.p_value],
+                N_BOOT_ID: [self.n_boot],
+                VERDICT_ID: [self.verdict],
+            }
+        )
+
+    def _make_table_header_content(self) -> dict[str, Any]:
+        """Build the header shown above the test table."""
+        content: dict[str, Any] = {
+            "Test": "Kitagawa (2015)",
+            "Outcome": self.outcome,
+            "Treatment": self.treatment,
+            "Instrument": self.instrument,
+            "Observations": self.n,
+            "First Stage": f"{self.first_stage:.3f}",
+            "Weighting": self.weighting.value,
+            "SE Floor": f"{self.se_floor:.2f}",
+            "Significance Lvl": self.alpha,
+        }
+        if self.binding is not None:
+            content["Binding"] = (
+                f"z={self.binding['z_low']} vs {self.binding['z_high']}, "
+                f"{self.binding['direction']}"
+            )
+        return content
+
+    def tabulate(self) -> GT:
+        """Build a Great Tables table of the test result."""
+        return make_great_table_for_validity_test(
+            self.get_as_dataframe(), self._make_table_header_content()
+        )
+
+    def summarize(self) -> Group:
+        """Render a rich text summary of the test result."""
+        return make_rich_table_for_validity_test(
+            self.get_as_dataframe(), self._make_table_header_content()
+        )

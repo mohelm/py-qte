@@ -10,6 +10,7 @@ from qte.presentation.tables.common import (
     COEFFICIENT_TABLE_TITLE,
     NICE_NAMES,
     QTE_TABLE_SUB_HEADER,
+    VALIDITY_TABLE_TITLE,
     _make_table_subtitle,
 )
 
@@ -73,6 +74,29 @@ def make_great_table_for_coefficients(
             subtitle=md(_make_table_subtitle(header_content)),
         )
         .cols_label(**{col: NICE_NAMES.get(col, col) for col in coefficients.columns})
+        .fmt_number(columns=float_cols, decimals=float_precision)
+        .sub_missing(missing_text="-")
+        .tab_options(
+            heading_title_font_size="16px",
+            column_labels_font_weight="bold",
+        )
+    )
+
+
+def make_great_table_for_validity_test(
+    summary: pl.DataFrame,
+    header_content: dict[str, Any],
+    float_precision: int = 3,
+) -> GT:
+    """Build a Great Tables table of an instrument-validity test."""
+    float_cols = [c for c, dtype in summary.schema.items() if dtype.is_float()]
+    return (
+        GT(summary)
+        .tab_header(
+            title=VALIDITY_TABLE_TITLE,
+            subtitle=md(_make_table_subtitle(header_content)),
+        )
+        .cols_label(**{col: NICE_NAMES.get(col, col) for col in summary.columns})
         .fmt_number(columns=float_cols, decimals=float_precision)
         .sub_missing(missing_text="-")
         .tab_options(

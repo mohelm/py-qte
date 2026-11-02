@@ -6,10 +6,13 @@ from qte.names import (
     CI_UB_ID,
     EFFECT_ID,
     ESTIMATE_ID,
+    N_BOOT_ID,
     P_VALUE_ID,
     QUANTILE_ID,
     SE_ID,
+    STATISTIC_ID,
     TERM_ID,
+    VERDICT_ID,
     Z_ID,
 )
 
@@ -24,12 +27,16 @@ NICE_NAMES: dict[str, str] = {
     ESTIMATE_ID: "Coefficient",
     Z_ID: "z value",
     P_VALUE_ID: "p value",
+    STATISTIC_ID: "Test Statistic",
+    N_BOOT_ID: "Bootstrap Draws",
+    VERDICT_ID: "Verdict",
 }
 
 QTE_TABLE_SUB_HEADER = "Quantile Treatment Effects"
 ATE_TABLE_SUB_HEADER = "Average Treatment Effects"
 COEFFICIENT_TABLE_TITLE = "Instrument Probability Model"
 COEFFICIENT_TABLE_SUB_HEADER = "Coefficients"
+VALIDITY_TABLE_TITLE = "Instrument Validity Test"
 
 
 def _make_table_subtitle(header_content: dict[str, Any]) -> str:

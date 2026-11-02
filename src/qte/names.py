@@ -11,6 +11,9 @@ TERM_ID = "term"
 ESTIMATE_ID = "estimate"
 Z_ID = "z"
 P_VALUE_ID = "p_value"
+STATISTIC_ID = "statistic"
+N_BOOT_ID = "n_boot"
+VERDICT_ID = "verdict"
 
 # For simulations
 COVARIATE_ID = "x"

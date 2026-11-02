@@ -79,3 +79,20 @@ class IvqrTreatment:
 
     name: ColumnName
     grid: Sequence[float] | NDArray[np.float64]
+
+
+class ValidityWeighting(StrEnum):
+    """Weighting of the Kitagawa instrument-validity test statistic.
+
+    Attributes
+    ----------
+    VARIANCE
+        Divide each interval-probability violation by its plug-in standard
+        error before taking the supremum (Kitagawa, 2015, equation 2.1).
+    UNWEIGHTED
+        Use the raw positive-part Kolmogorov--Smirnov violation (Kitagawa,
+        2015, equation 2.2).
+    """
+
+    VARIANCE = "variance"
+    UNWEIGHTED = "unweighted"

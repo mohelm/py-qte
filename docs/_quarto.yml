@@ -117,6 +117,10 @@ quartodoc:
         - name: IvqrResult
           include_inherited: true
         - InstrumentProbabilityResult
+        - perform_instrument_validity_test
+        - name: InstrumentValidityResult
+          include_inherited: true
+        - ValidityWeighting
         - Estimator
         - WeightAdjustment
     - title: IV Simulation
