@@ -1,20 +1,30 @@
-from qte.nonlinear_did.custom_types import (
+"""Backwards-compatible alias of `qte.distributional_did`.
+
+The module was renamed to `qte.distributional_did` because it covers both the nonlinear
+difference-in-differences models of Athey and Imbens and the distributional ones of Callaway and
+Li. Import from `qte.distributional_did` instead; this shim is kept so that old code keeps working.
+"""
+
+from qte.distributional_did import (
     BasePeriod,
     ControlGroup,
-    CounterfactualModel,
+    DistributionalDidResult,
+    DistributionalDidResults,
+    Estimator,
+    SamplingScheme,
     TrtGroupConfig,
+    estimate_changes_in_changes_effects,
+    estimate_quantile_did_effects,
 )
-from qte.nonlinear_did.nonlinear_did import (
-    estimate_nonlinear_did_for_panel,
-)
-from qte.nonlinear_did.results import NonlinearDidResult, NonlinearDidResults
 
 __all__ = [
     "BasePeriod",
     "ControlGroup",
-    "CounterfactualModel",
-    "NonlinearDidResult",
-    "NonlinearDidResults",
+    "DistributionalDidResult",
+    "DistributionalDidResults",
+    "Estimator",
+    "SamplingScheme",
     "TrtGroupConfig",
-    "estimate_nonlinear_did_for_panel",
+    "estimate_changes_in_changes_effects",
+    "estimate_quantile_did_effects",
 ]

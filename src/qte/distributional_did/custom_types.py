@@ -1,4 +1,4 @@
-"""Custom types for the nonlinear difference-in-differences estimators."""
+"""Custom types for the distributional difference-in-differences estimators."""
 
 from dataclasses import dataclass
 from enum import StrEnum
@@ -12,7 +12,7 @@ class ControlGroup(StrEnum):
     """Comparison group used for the counterfactual.
 
     Use a member as the ``control_group`` argument of
-    `estimate_nonlinear_did_for_panel`.
+    `estimate_changes_in_changes_effects`.
 
     Attributes
     ----------
@@ -26,14 +26,15 @@ class ControlGroup(StrEnum):
     Use not-yet-treated units as the comparison group:
 
     >>> from qte.datasets import load_mpdta
-    >>> from qte.nonlinear_did import ControlGroup, estimate_nonlinear_did_for_panel
-    >>> res = estimate_nonlinear_did_for_panel(
+    >>> from qte.distributional_did import ControlGroup, TrtGroupConfig, estimate_changes_in_changes_effects
+    >>> res = estimate_changes_in_changes_effects(
     ...     load_mpdta(),
     ...     "lemp",
-    ...     "first.treat",
+    ...     TrtGroupConfig("first.treat", 0),
     ...     "year",
     ...     "countyreal",
     ...     control_group=ControlGroup.NOT_YET_TREATED,
+    ...     bootstrap_config=2,
     ... )
     """
 
@@ -45,7 +46,7 @@ class BasePeriod(StrEnum):
     """Pre-treatment period the post-treatment effect is compared to.
 
     Use a member as the ``base_period`` argument of
-    `estimate_nonlinear_did_for_panel`.
+    `estimate_changes_in_changes_effects`.
 
     Attributes
     ----------
@@ -59,14 +60,15 @@ class BasePeriod(StrEnum):
     Compare each period to the immediately preceding one:
 
     >>> from qte.datasets import load_mpdta
-    >>> from qte.nonlinear_did import BasePeriod, estimate_nonlinear_did_for_panel
-    >>> res = estimate_nonlinear_did_for_panel(
+    >>> from qte.distributional_did import BasePeriod, TrtGroupConfig, estimate_changes_in_changes_effects
+    >>> res = estimate_changes_in_changes_effects(
     ...     load_mpdta(),
     ...     "lemp",
-    ...     "first.treat",
+    ...     TrtGroupConfig("first.treat", 0),
     ...     "year",
     ...     "countyreal",
     ...     base_period=BasePeriod.VARYING,
+    ...     bootstrap_config=2,
     ... )
     """
 
@@ -89,47 +91,50 @@ class SamplingScheme(StrEnum):
     REPEATED_CROSS_SECTIONS = "repeated_cross_sections"
 
 
-class CounterfactualModel(StrEnum):
-    """Model used to construct the counterfactual distribution.
+class Estimator(StrEnum):
+    """Estimator that produced a result.
 
-    Use a member as the ``counterfactual_model`` argument of
-    `estimate_nonlinear_did_for_panel`.
+    This is an output field: read it from ``result.estimator`` to see how an estimate was
+    produced, and compare it against a member. The estimator is selected by calling the
+    corresponding `estimate_changes_in_changes_effects` or `estimate_quantile_did_effects` function.
 
     Attributes
     ----------
-    CIC
+    CHANGES_IN_CHANGES
         Changes-in-changes.
-    QDID
+    QUANTILE_DID
         Quantile difference-in-differences.
 
     Examples
     --------
-    Use quantile difference-in-differences instead of changes-in-changes:
+    Inspect which estimator produced a result:
 
     >>> from qte.datasets import load_mpdta
-    >>> from qte.nonlinear_did import CounterfactualModel, estimate_nonlinear_did_for_panel
-    >>> res = estimate_nonlinear_did_for_panel(
+    >>> from qte.distributional_did import Estimator, TrtGroupConfig, estimate_quantile_did_effects
+    >>> res = estimate_quantile_did_effects(
     ...     load_mpdta(),
     ...     "lemp",
-    ...     "first.treat",
+    ...     TrtGroupConfig("first.treat", 0),
     ...     "year",
     ...     "countyreal",
-    ...     counterfactual_model=CounterfactualModel.QDID,
+    ...     bootstrap_config=2,
     ... )
+    >>> res.overall.estimator is Estimator.QUANTILE_DID
+    True
     """
 
-    CIC = "cic"
-    QDID = "qdid"
+    CHANGES_IN_CHANGES = "changes_in_changes"
+    QUANTILE_DID = "quantile_did"
 
 
 @dataclass(frozen=True)
-class _NonlinearDidAggregation:
+class _DistributionalDidAggregation:
     qtt: pl.DataFrame
     att: pl.DataFrame
     group: tuple[str, ...] | None
 
 
-_NonlinearDidAggregations = dict[str, _NonlinearDidAggregation]
+_DistributionalDidAggregations = dict[str, _DistributionalDidAggregation]
 
 TreatmentGroup = int
 TimePeriod = int

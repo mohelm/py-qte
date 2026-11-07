@@ -12,7 +12,7 @@ The available estimators are
 
 - **Cross-sectional quantile treatment effects** — unadjusted, inverse probability weighted, outcome
   regression and doubly robust;
-- **nonlinear difference-in-differences** — changes-in-changes and quantile
+- **distributional difference-in-differences** — changes-in-changes and quantile
   difference-in-differences; and
 - **instrumental variables** — local quantile treatment effects for compliers.
 
@@ -79,39 +79,34 @@ res.tabulate()  # Great Tables output (see below)
   </tr>
 </table>
 
-## Nonlinear Difference-in-Differences
+## Distributional Difference-in-Differences
 
 We can estimate quantile treatment (and average) treatment effects with the changes-in-changes
 estimator.
 
 ```python
-from qte.nonlinear_did import (
-    CounterfactualModel,
-    TrtGroupConfig,
-    estimate_nonlinear_did_for_panel,
-)
+from qte.distributional_did import TrtGroupConfig, estimate_changes_in_changes_effects
 from qte.datasets import load_mpdta
 
 ds = load_mpdta()
-res = estimate_nonlinear_did_for_panel(
+res = estimate_changes_in_changes_effects(
     ds,
     "lemp",
     TrtGroupConfig("first.treat", 0),  # never-treated group is 0
     "year",
     "countyreal",
     qs=[0.25, 0.5, 0.75],
-    counterfactual_model=CounterfactualModel.CIC,
 )
 ```
 
 <table width="100%" border="0" cellpadding="0" cellspacing="0">
   <tr>
     <td width="48%" valign="top" align="center">
-      <img src="assets/nonlinear_did_results.svg" width="100%">
+      <img src="assets/distributional_did_results.svg" width="100%">
     </td>
     <td width="4%"></td>
     <td width="48%" valign="top" align="center">
-      <img src="assets/nonlinear_did_table.png" width="100%">
+      <img src="assets/distributional_did_table.png" width="100%">
     </td>
   </tr>
 </table>
@@ -180,7 +175,7 @@ See [`RELEASING.md`](RELEASING.md) for how to cut a release.
 
 # Credits
 
-The cross-sectional and nonlinear difference-in-differences estimators reimplement the R
+The cross-sectional and distributional difference-in-differences estimators reimplement the R
 [`qte`](https://github.com/bcallaway11/qte) package by Brantly Callaway. The instrumental-variables
 estimator roughly follows the Stata
 [`ivqte`](https://sites.google.com/site/blaisemelly/home/computer-programs/estimation-of-quantile-treatment-effects-in-stata?authuser=0)

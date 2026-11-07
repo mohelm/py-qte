@@ -2,14 +2,14 @@ import polars as pl
 from polars.testing import assert_frame_equal, assert_series_equal
 from pytest import fixture, mark
 
-from qte.nonlinear_did.custom_types import (
+from qte.distributional_did.custom_types import (
     BasePeriod,
     ControlGroup,
-    CounterfactualModel,
     TrtGroupConfig,
 )
-from qte.nonlinear_did.nonlinear_did import (
-    estimate_nonlinear_did_for_panel,
+from qte.distributional_did.estimator import (
+    estimate_changes_in_changes_effects,
+    estimate_quantile_did_effects,
 )
 
 
@@ -21,12 +21,11 @@ def mpdata_prepared(mpdata):
     )
 
 
-TEST_CASES_NONLINEAR_DID = [
+TEST_CASES_CHANGES_IN_CHANGES = [
     (
         {
             "base_period": BasePeriod.VARYING,
             "control_group": ControlGroup.NEVER_TREATED,
-            "counterfactual_model": CounterfactualModel.CIC,
         },
         {
             "overall": {"group": None, "res": pl.Series("effect", [-0.01924603])},
@@ -111,7 +110,6 @@ TEST_CASES_NONLINEAR_DID = [
         {
             "base_period": BasePeriod.VARYING,
             "control_group": ControlGroup.NOT_YET_TREATED,
-            "counterfactual_model": CounterfactualModel.CIC,
         },
         {
             "overall": {"group": None, "res": pl.Series("effect", [-0.01966596])},
@@ -195,12 +193,12 @@ TEST_CASES_NONLINEAR_DID = [
 ]
 
 
-@mark.parametrize("estimate_params,expected_results", TEST_CASES_NONLINEAR_DID)
-def test_estimate_nonlinear_did_for_panel_data_with_unconditional_parallel_trends(
+@mark.parametrize("estimate_params,expected_results", TEST_CASES_CHANGES_IN_CHANGES)
+def test_estimate_changes_in_changes_for_panel_data_with_unconditional_parallel_trends(
     mpdata_prepared, estimate_params, expected_results
 ):
     qs = [0.25, 0.5, 0.75]
-    res = estimate_nonlinear_did_for_panel(
+    res = estimate_changes_in_changes_effects(
         mpdata_prepared,
         "lemp",
         "first.treat",
@@ -246,12 +244,11 @@ def test_estimate_nonlinear_did_for_panel_data_with_unconditional_parallel_trend
     assert_series_equal(res.event_study.qtt["q"].unique(), pl.Series("q", qs))
 
 
-TEST_CASES_QDID = [
+TEST_CASES_QUANTILE_DID = [
     (
         {
             "base_period": BasePeriod.VARYING,
             "control_group": ControlGroup.NEVER_TREATED,
-            "counterfactual_model": CounterfactualModel.QDID,
         },
         {
             "overall": {"group": None, "res": pl.Series("effect", [-0.02707699])},
@@ -336,7 +333,6 @@ TEST_CASES_QDID = [
         {
             "base_period": BasePeriod.VARYING,
             "control_group": ControlGroup.NOT_YET_TREATED,
-            "counterfactual_model": CounterfactualModel.QDID,
         },
         {
             "overall": {"group": None, "res": pl.Series("effect", [-0.02821676])},
@@ -420,12 +416,12 @@ TEST_CASES_QDID = [
 ]
 
 
-@mark.parametrize("estimate_params,expected_results", TEST_CASES_QDID)
-def test_estimate_qdid_for_panel_data_with_unconditional_parallel_trends(
+@mark.parametrize("estimate_params,expected_results", TEST_CASES_QUANTILE_DID)
+def test_estimate_quantile_did_for_panel_data_with_unconditional_parallel_trends(
     mpdata_prepared, estimate_params, expected_results
 ):
     qs = [0.25, 0.5, 0.75]
-    res = estimate_nonlinear_did_for_panel(
+    res = estimate_quantile_did_effects(
         mpdata_prepared,
         "lemp",
         "first.treat",
@@ -474,24 +470,22 @@ def test_estimate_qdid_for_panel_data_with_unconditional_parallel_trends(
 def test_trt_group_config_on_raw_data_keeps_integer_identifiers(mpdata, mpdata_prepared):
     qs = [0.25, 0.5, 0.75]
 
-    raw = estimate_nonlinear_did_for_panel(
+    raw = estimate_changes_in_changes_effects(
         mpdata,
         "lemp",
         TrtGroupConfig("first.treat", 0),
         "year",
         "countyreal",
         qs=qs,
-        counterfactual_model=CounterfactualModel.CIC,
         bootstrap_config=3,
     )
-    prepared = estimate_nonlinear_did_for_panel(
+    prepared = estimate_changes_in_changes_effects(
         mpdata_prepared,
         "lemp",
         "first.treat",
         "year",
         "countyreal",
         qs=qs,
-        counterfactual_model=CounterfactualModel.CIC,
         bootstrap_config=3,
     )
 

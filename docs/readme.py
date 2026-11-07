@@ -20,8 +20,7 @@ from pathlib import Path
 from qte.constants import DECILES
 from qte.cross_sectional import estimate_aipw_effects
 from qte.datasets import load_lalonde, load_mpdta
-from qte.nonlinear_did import estimate_nonlinear_did_for_panel
-from qte.nonlinear_did.custom_types import CounterfactualModel, TrtGroupConfig
+from qte.distributional_did import TrtGroupConfig, estimate_changes_in_changes_effects
 from qte.results import _BasicQteResult
 
 _ROOT = Path(__file__).resolve().parent.parent
@@ -169,17 +168,16 @@ def main() -> None:
     generate_readme_assets(res, "aipw_qte")
 
     ds = load_mpdta()
-    res = estimate_nonlinear_did_for_panel(
+    res = estimate_changes_in_changes_effects(
         ds,
         "lemp",
         TrtGroupConfig("first.treat", 0),  # never-treated group is 0
         "year",
         "countyreal",
         qs=[0.25, 0.5, 0.75],
-        counterfactual_model=CounterfactualModel.CIC,
         bootstrap_config=50,
     )
-    generate_readme_assets(res.overall, "nonlinear_did")
+    generate_readme_assets(res.overall, "distributional_did")
 
 
 if __name__ == "__main__":

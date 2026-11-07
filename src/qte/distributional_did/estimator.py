@@ -10,8 +10,7 @@ from numpy.typing import ArrayLike, NDArray
 
 from qte.bootstrap import BootstrapConfig, _make_block_bootstrap_run, _make_bootstrap_config
 from qte.constants import MEDIAN
-from qte.names import EFFECT_ID, QUANTILE_ID, SE_ID
-from qte.nonlinear_did.aggregate import (
+from qte.distributional_did.aggregate import (
     aggregate_group_time_effects,
     aggregate_group_time_effects_again_by_group,
     get_group_time_treatment_effects,
@@ -19,22 +18,24 @@ from qte.nonlinear_did.aggregate import (
     get_weights_for_overall_effect,
     get_weights_for_treatment_group_effects,
 )
-from qte.nonlinear_did.custom_types import (
+from qte.distributional_did.counterfactuals import _SPECS, _CounterfactualSpec
+from qte.distributional_did.custom_types import (
     BasePeriod,
     ColumnName,
     ControlGroup,
-    CounterfactualModel,
+    Estimator,
     SamplingScheme,
     TrtGroupConfig,
-    _NonlinearDidAggregation,
-    _NonlinearDidAggregations,
+    _DistributionalDidAggregation,
+    _DistributionalDidAggregations,
 )
-from qte.nonlinear_did.results import (
+from qte.distributional_did.results import (
+    DistributionalDidResult,
+    DistributionalDidResults,
     GroupTimeEffect,
-    NonlinearDidResult,
-    NonlinearDidResults,
 )
-from qte.stats import Ecdf, get_quantiles
+from qte.names import EFFECT_ID, QUANTILE_ID, SE_ID
+from qte.stats import Ecdf
 
 
 @dataclass(frozen=True)
@@ -51,7 +52,7 @@ def _make_columns_to_group_by(groups: str | tuple[str, ...] | None, other: str |
 
 
 def get_statistics_from_bootstrap(
-    boot_iter: Iterable[dict[str, _NonlinearDidAggregation]],
+    boot_iter: Iterable[dict[str, _DistributionalDidAggregation]],
     aggregations: Iterable[tuple[str, str | tuple[str, ...] | None]],
 ) -> dict[str, Estimates]:
     runs = list(boot_iter)
@@ -70,15 +71,15 @@ def get_statistics_from_bootstrap(
     }
 
 
-def _make_nonlinear_did_results(
-    agg: _NonlinearDidAggregation,
+def _make_results(
+    agg: _DistributionalDidAggregation,
     bs_res: Estimates,
     *,
     outcome: ColumnName,
     base_period: BasePeriod,
     control_group: ControlGroup,
-    counterfactual_model: CounterfactualModel,
-) -> NonlinearDidResult:
+    estimator: Estimator,
+) -> DistributionalDidResult:
     qtt = agg.qtt.join(
         bs_res.qtes,
         on=[QUANTILE_ID, *agg.group] if agg.group is not None else [QUANTILE_ID],
@@ -91,7 +92,7 @@ def _make_nonlinear_did_results(
     if agg.group is not None:
         qtt = qtt.with_columns(pl.col(g).cast(pl.Int64) for g in agg.group)
         att = att.with_columns(pl.col(g).cast(pl.Int64) for g in agg.group)
-    return NonlinearDidResult(
+    return DistributionalDidResult(
         qtt,
         att,
         group=agg.group,
@@ -99,7 +100,7 @@ def _make_nonlinear_did_results(
         base_period=base_period,
         control_group=control_group,
         sampling_scheme=SamplingScheme.PANEL,
-        counterfactual_model=counterfactual_model,
+        estimator=estimator,
     )
 
 
@@ -162,43 +163,6 @@ def _get_group_data(
     )
 
 
-def _compute_kcic(pre_trt: NDArray, pre_ctrl: NDArray, post_ctrl: NDArray) -> NDArray:
-    # Compute the ecdf of (pre/ctrl)
-    w_pre_ctrl_norm = pre_ctrl["w"] / pre_ctrl["w"].sum()
-    cdf_pre_ctrl = np.concatenate(([0.0], np.cumsum(w_pre_ctrl_norm)))
-
-    # Now find where the (pre/trt) values are on this cdf. That is, essentially evaluate the
-    # (pre/trt) values at the (pre/ctrl) cdf.
-    idx_u = np.searchsorted(pre_ctrl["o"], pre_trt["o"], side="right")
-    u = cdf_pre_ctrl[idx_u]
-
-    # Get the (post/ctrl) cdf
-    w_post_ctrl_norm = post_ctrl["w"] / post_ctrl["w"].sum()
-    cdf_post_ctrl = np.cumsum(w_post_ctrl_norm)
-
-    # Now check where each u (which is the (pre/trt) values of the (pre/ctrl) cdf) fall on the
-    # (post/ctrl) cdf (at what index).
-    idx_k = np.searchsorted(cdf_post_ctrl, u, side="left")
-    idx_k = np.clip(idx_k, 0, len(post_ctrl["o"]) - 1)
-    return post_ctrl["o"][idx_k]
-
-
-def _compute_kqdid(pre_trt: NDArray, pre_ctrl: NDArray, post_ctrl: NDArray) -> NDArray:
-    # QDiD shifts every treated pre-treatment observation by the control group's quantile change at
-    # that observation's rank *within the treated pre-treatment distribution* (unlike CiC, which
-    # ranks within the control's pre-treatment distribution).
-    y = pre_trt["o"]
-    _, inv = np.unique(y, return_inverse=True)
-    w_unique = np.bincount(inv, weights=pre_trt["w"])
-    u = np.cumsum(w_unique)[inv] / w_unique.sum()
-    u = np.clip(u, 0.0, 1.0)
-
-    q_pre_ctrl = get_quantiles(u, pre_ctrl["o"], pre_ctrl["w"])
-    q_post_ctrl = get_quantiles(u, post_ctrl["o"], post_ctrl["w"])
-
-    return y + q_post_ctrl - q_pre_ctrl
-
-
 def _compute_group_time_effect(
     two_by_two_data: pl.DataFrame,
     g: int,
@@ -206,7 +170,7 @@ def _compute_group_time_effect(
     outcome: ColumnName,
     unit: ColumnName,
     weights: ColumnName,
-    counterfactual_model: CounterfactualModel,
+    spec: _CounterfactualSpec,
 ) -> GroupTimeEffect:
     _group_time_extractor = partial(
         _get_group_data,
@@ -221,28 +185,21 @@ def _compute_group_time_effect(
     pre_ctrl = _group_time_extractor((~pl.col("_is_treated")) & (~pl.col("_is_post")))
     post_ctrl = _group_time_extractor((~pl.col("_is_treated")) & pl.col("_is_post"))
 
-    kcf = (
-        _compute_kcic(pre_trt, pre_ctrl, post_ctrl)
-        if counterfactual_model == CounterfactualModel.CIC
-        else _compute_kqdid(pre_trt, pre_ctrl, post_ctrl)
-    )
-
-    ecdf_post_treated_observed = Ecdf.make(post_trt["o"], post_trt["w"])
-    ecdf_post_treated_counterfact = Ecdf.make(kcf, pre_trt["w"])
+    cf = spec.compute(pre_trt, pre_ctrl, post_ctrl)
 
     return GroupTimeEffect(
         group=g,
         tp=tp,
-        ecdf_observed=ecdf_post_treated_observed,
-        ecdf_counterfact=ecdf_post_treated_counterfact,
+        ecdf_observed=Ecdf.make(post_trt["o"], post_trt["w"]),
+        ecdf_counterfact=Ecdf.make(cf.y_counterfactual, cf.weights),
         mean_observed=np.average(post_trt["o"], weights=post_trt["w"]),
-        mean_counterfact=np.average(kcf, weights=pre_trt["w"]),
+        mean_counterfact=np.average(cf.y_counterfactual, weights=cf.weights),
         group_size_observed=post_trt["w"].sum(),
-        group_size_counterfactual=pre_trt["w"].sum(),
+        group_size_counterfactual=cf.group_size,
     )
 
 
-def _compute_nonlinear_did_for_panel(
+def _compute_effects_for_panel(
     ds: pl.DataFrame,
     outcome: ColumnName,
     treatment_group: ColumnName,
@@ -251,11 +208,11 @@ def _compute_nonlinear_did_for_panel(
     qs: ArrayLike = MEDIAN,
     *,
     weights: ColumnName,
+    spec: _CounterfactualSpec,
     base_period: BasePeriod = BasePeriod.UNIVERSAL,
     control_group: ControlGroup = ControlGroup.NEVER_TREATED,
-    counterfactual_model: CounterfactualModel = CounterfactualModel.CIC,
     n_anticipation_periods: int = 0,
-) -> _NonlinearDidAggregations:
+) -> _DistributionalDidAggregations:
 
     outcome_grid_size = 1000
 
@@ -286,7 +243,7 @@ def _compute_nonlinear_did_for_panel(
             outcome=outcome,
             unit=unit,
             weights=weights,
-            counterfactual_model=counterfactual_model,
+            spec=spec,
         )
         for tp, g in product(time_periods, treated_groups)
         if (
@@ -330,66 +287,26 @@ def _compute_nonlinear_did_for_panel(
         dim_id=lambda gte: gte.tp - gte.group,
         dim_name="event_study_period",
     )
-    return _NonlinearDidAggregations(
+    return _DistributionalDidAggregations(
         group=group_te, event_study=event_study_te, overall=agg_te, group_time=group_time_te
     )
 
 
-def estimate_nonlinear_did_for_panel(
+def _estimate_effects(
     ds: pl.DataFrame,
     outcome: ColumnName,
     treatment_group: ColumnName | TrtGroupConfig,
     time: ColumnName,
     unit: ColumnName,
-    qs: ArrayLike = MEDIAN,
+    qs: ArrayLike,
     *,
+    spec: _CounterfactualSpec,
     weights: ColumnName | None = None,
     n_anticipation_periods: int = 0,
     base_period: BasePeriod = BasePeriod.UNIVERSAL,
     control_group: ControlGroup = ControlGroup.NEVER_TREATED,
-    counterfactual_model: CounterfactualModel = CounterfactualModel.CIC,
     bootstrap_config: BootstrapConfig | int = 1000,
-) -> NonlinearDidResults:
-    """Estimate nonlinear difference-in-differences effects for panel data.
-
-    Implements the changes-in-changes (CiC) and quantile difference-in-differences
-    (QDiD) estimators with the aggregations of Callaway and Li. Returns the
-    group, event-study, overall and group-time effects.
-
-    Parameters
-    ----------
-    ds : polars.DataFrame
-        Panel data in long format.
-    outcome : ColumnName
-        Name of the outcome column.
-    treatment_group : ColumnName or `TrtGroupConfig`
-        Column holding the first treatment period of a unit. A plain string
-        treats the column as already coded with ``inf`` for never-treated units;
-        a `TrtGroupConfig` maps a custom never-treated value to ``inf``.
-    time : ColumnName
-        Name of the time period column.
-    unit : ColumnName
-        Name of the unit identifier column.
-    qs : array_like, default=0.5
-        Quantiles in ``(0, 1)`` at which to estimate the effects.
-    weights : ColumnName, optional
-        Name of a column with sampling weights.
-    n_anticipation_periods : int, default=0
-        Number of periods before treatment in which units may anticipate it.
-    base_period : `BasePeriod`, default=`BasePeriod.UNIVERSAL`
-        Pre-treatment period used for the comparisons.
-    control_group : `ControlGroup`, default=`ControlGroup.NEVER_TREATED`
-        Comparison group used for the counterfactual.
-    counterfactual_model : `CounterfactualModel`, default=`CounterfactualModel.CIC`
-        Model used to construct the counterfactual distribution.
-    bootstrap_config : `BootstrapConfig` or int, default=1000
-        Bootstrap settings, or the number of replications.
-
-    Returns
-    -------
-    `NonlinearDidResults`
-        The group, event-study, overall and group-time effects.
-    """
+) -> DistributionalDidResults:
     bootstrap_config = _make_bootstrap_config(bootstrap_config)
     if isinstance(treatment_group, str):
         treatment_group = TrtGroupConfig(name=treatment_group)
@@ -422,19 +339,19 @@ def estimate_nonlinear_did_for_panel(
         | pl.col(treatment_group.name).is_infinite()
     )
     fcn = partial(
-        _compute_nonlinear_did_for_panel,
+        _compute_effects_for_panel,
         outcome=outcome,
         treatment_group=treatment_group.name,
         time=time,
         unit=unit,
         qs=qs,
         weights=weights,
+        spec=spec,
         base_period=base_period,
         control_group=control_group,
-        counterfactual_model=counterfactual_model,
         n_anticipation_periods=n_anticipation_periods,
     )
-    estimate: _NonlinearDidAggregations = fcn(ds)
+    estimate: _DistributionalDidAggregations = fcn(ds)
     bs_iterations = _make_block_bootstrap_run(
         ds,
         fcn,
@@ -450,14 +367,178 @@ def estimate_nonlinear_did_for_panel(
     bs_aggs = get_statistics_from_bootstrap(bs_iterations, groupers)
 
     results = {
-        agg_name: _make_nonlinear_did_results(
+        agg_name: _make_results(
             agg,
             bs_aggs[agg_name],
             outcome=outcome,
             base_period=base_period,
             control_group=control_group,
-            counterfactual_model=counterfactual_model,
+            estimator=Estimator(spec.key),
         )
         for agg_name, agg in estimate.items()
     }
-    return NonlinearDidResults(**results)
+    return DistributionalDidResults(**results)
+
+
+def estimate_changes_in_changes_effects(
+    ds: pl.DataFrame,
+    outcome: ColumnName,
+    treatment_group: ColumnName | TrtGroupConfig,
+    time: ColumnName,
+    unit: ColumnName,
+    qs: ArrayLike = MEDIAN,
+    *,
+    weights: ColumnName | None = None,
+    n_anticipation_periods: int = 0,
+    base_period: BasePeriod = BasePeriod.UNIVERSAL,
+    control_group: ControlGroup = ControlGroup.NEVER_TREATED,
+    bootstrap_config: BootstrapConfig | int = 1000,
+) -> DistributionalDidResults:
+    """Estimate quantile treatment effects with changes-in-changes.
+
+    Changes-in-changes compares individuals across groups by their outcomes and over time by
+    their quantiles. It
+    requires a time-invariant, strictly increasing production function mapping unobservables to
+    outcomes, and thus rank invariance; the distribution of unobservables may differ between the
+    treated and untreated groups. Returns the group, event-study, overall and group-time effects.
+
+    Parameters
+    ----------
+    ds : polars.DataFrame
+        Panel data in long format.
+    outcome : ColumnName
+        Name of the outcome column.
+    treatment_group : ColumnName or `TrtGroupConfig`
+        Column holding the first treatment period of a unit. A plain string
+        treats the column as already coded with ``inf`` for never-treated units;
+        a `TrtGroupConfig` maps a custom never-treated value to ``inf``.
+    time : ColumnName
+        Name of the time period column.
+    unit : ColumnName
+        Name of the unit identifier column.
+    qs : array_like, default=0.5
+        Quantiles in ``(0, 1)`` at which to estimate the effects.
+    weights : ColumnName, optional
+        Name of a column with sampling weights.
+    n_anticipation_periods : int, default=0
+        Number of periods before treatment in which units may anticipate it.
+    base_period : `BasePeriod`, default=`BasePeriod.UNIVERSAL`
+        Pre-treatment period used for the comparisons.
+    control_group : `ControlGroup`, default=`ControlGroup.NEVER_TREATED`
+        Comparison group used for the counterfactual.
+    bootstrap_config : `BootstrapConfig` or int, default=1000
+        Bootstrap settings, or the number of replications.
+
+    Returns
+    -------
+    `DistributionalDidResults`
+        The group, event-study, overall and group-time effects.
+
+    See Also
+    --------
+    estimate_quantile_did_effects
+        Compares individuals across both groups and time by their quantiles.
+
+    References
+    ----------
+    Athey, Susan and Guido Imbens. "Identification and Inference in Nonlinear
+    Difference-in-Differences Models." Econometrica 74(2), pp. 431-497, 2006.
+    """
+    return _estimate_effects(
+        ds,
+        outcome,
+        treatment_group,
+        time,
+        unit,
+        qs,
+        spec=_SPECS["changes_in_changes"],
+        weights=weights,
+        n_anticipation_periods=n_anticipation_periods,
+        base_period=base_period,
+        control_group=control_group,
+        bootstrap_config=bootstrap_config,
+    )
+
+
+def estimate_quantile_did_effects(
+    ds: pl.DataFrame,
+    outcome: ColumnName,
+    treatment_group: ColumnName | TrtGroupConfig,
+    time: ColumnName,
+    unit: ColumnName,
+    qs: ArrayLike = MEDIAN,
+    *,
+    weights: ColumnName | None = None,
+    n_anticipation_periods: int = 0,
+    base_period: BasePeriod = BasePeriod.UNIVERSAL,
+    control_group: ControlGroup = ControlGroup.NEVER_TREATED,
+    bootstrap_config: BootstrapConfig | int = 1000,
+) -> DistributionalDidResults:
+    """Estimate quantile treatment effects with quantile difference-in-differences.
+
+    Quantile difference-in-differences applies difference-in-differences to every quantile instead
+    of to the mean: each treated
+    pre-treatment observation is shifted by the change over time of the control group at the same
+    quantile. It is identified by an additively separable model whose unobservables must be
+    identically distributed in all groups and periods, which rules out the treated and untreated
+    groups differing in the distribution of unobservables. Under continuity, the implied average
+    treatment effect equals that of the mean difference-in-differences estimator, even though the
+    counterfactual distributions differ. Returns the group, event-study, overall and group-time
+    effects.
+
+    Parameters
+    ----------
+    ds : polars.DataFrame
+        Panel data in long format.
+    outcome : ColumnName
+        Name of the outcome column.
+    treatment_group : ColumnName or `TrtGroupConfig`
+        Column holding the first treatment period of a unit. A plain string
+        treats the column as already coded with ``inf`` for never-treated units;
+        a `TrtGroupConfig` maps a custom never-treated value to ``inf``.
+    time : ColumnName
+        Name of the time period column.
+    unit : ColumnName
+        Name of the unit identifier column.
+    qs : array_like, default=0.5
+        Quantiles in ``(0, 1)`` at which to estimate the effects.
+    weights : ColumnName, optional
+        Name of a column with sampling weights.
+    n_anticipation_periods : int, default=0
+        Number of periods before treatment in which units may anticipate it.
+    base_period : `BasePeriod`, default=`BasePeriod.UNIVERSAL`
+        Pre-treatment period used for the comparisons.
+    control_group : `ControlGroup`, default=`ControlGroup.NEVER_TREATED`
+        Comparison group used for the counterfactual.
+    bootstrap_config : `BootstrapConfig` or int, default=1000
+        Bootstrap settings, or the number of replications.
+
+    Returns
+    -------
+    `DistributionalDidResults`
+        The group, event-study, overall and group-time effects.
+
+    See Also
+    --------
+    estimate_changes_in_changes_effects
+        Does not require the unobservables to be identically distributed across groups.
+
+    References
+    ----------
+    Athey, Susan and Guido Imbens. "Identification and Inference in Nonlinear
+    Difference-in-Differences Models." Econometrica 74(2), pp. 431-497, 2006, Section 3.3.
+    """
+    return _estimate_effects(
+        ds,
+        outcome,
+        treatment_group,
+        time,
+        unit,
+        qs,
+        spec=_SPECS["quantile_did"],
+        weights=weights,
+        n_anticipation_periods=n_anticipation_periods,
+        base_period=base_period,
+        control_group=control_group,
+        bootstrap_config=bootstrap_config,
+    )

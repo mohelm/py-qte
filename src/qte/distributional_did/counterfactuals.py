@@ -1,0 +1,122 @@
+"""Counterfactual distributions for the distributional difference-in-differences models.
+
+Each model is a `_CounterfactualSpec`: a 2x2 workhorse that turns the four observed cells of a
+group-time comparison into a counterfactual outcome for every unit of one of them. The specs are
+interchangeable -- they are registered in `_SPECS` and dispatched on by the estimator engine -- so
+adding a model means adding a function here, not touching the estimation machinery.
+"""
+
+from collections.abc import Callable
+from dataclasses import dataclass
+
+import numpy as np
+from numpy.typing import NDArray
+
+from qte.stats import get_quantiles
+
+
+@dataclass(frozen=True)
+class _Counterfactual:
+    """The counterfactual outcome distribution of one group-time cell.
+
+    Parameters
+    ----------
+    y_counterfactual : NDArray
+        Counterfactual untreated potential outcomes, one entry per unit of the cell that the
+        model is indexed on (the treated pre-period cell for all currently supported models).
+    weights : NDArray
+        Sampling weights that belong to ``y_counterfactual``. Models that index the
+        counterfactual on the control group must pass the control weights here.
+    group_size : int
+        Total weight of the units the counterfactual is indexed on.
+    """
+
+    y_counterfactual: NDArray
+    weights: NDArray
+    group_size: int
+
+
+@dataclass(frozen=True)
+class _CounterfactualSpec:
+    """A model that constructs the counterfactual distribution of a 2x2 cell.
+
+    Parameters
+    ----------
+    key : str
+        Short name of the model, also stored on the results as `Estimator`.
+    compute : Callable
+        Maps the three cells it needs to a `_Counterfactual`.
+    references : tuple of str
+        Papers to cite for the identifying assumption.
+    """
+
+    key: str
+    compute: Callable[[NDArray, NDArray, NDArray], _Counterfactual]
+    references: tuple[str, ...] = ()
+
+
+def _compute_changes_in_changes(
+    pre_trt: NDArray, pre_ctrl: NDArray, post_ctrl: NDArray
+) -> _Counterfactual:
+    # Changes-in-changes maps the treated pre-treatment outcomes through the control group's
+    # pre-to-post quantile transformation.
+
+    # Compute the ecdf of (pre/ctrl)
+    w_pre_ctrl_norm = pre_ctrl["w"] / pre_ctrl["w"].sum()
+    cdf_pre_ctrl = np.concatenate(([0.0], np.cumsum(w_pre_ctrl_norm)))
+
+    # Now find where the (pre/trt) values are on this cdf. That is, essentially evaluate the
+    # (pre/trt) values at the (pre/ctrl) cdf.
+    idx_u = np.searchsorted(pre_ctrl["o"], pre_trt["o"], side="right")
+    u = cdf_pre_ctrl[idx_u]
+
+    # Get the (post/ctrl) cdf
+    w_post_ctrl_norm = post_ctrl["w"] / post_ctrl["w"].sum()
+    cdf_post_ctrl = np.cumsum(w_post_ctrl_norm)
+
+    # Now check where each u (which is the (pre/trt) values of the (pre/ctrl) cdf) fall on the
+    # (post/ctrl) cdf (at what index).
+    idx_k = np.searchsorted(cdf_post_ctrl, u, side="left")
+    idx_k = np.clip(idx_k, 0, len(post_ctrl["o"]) - 1)
+    return _Counterfactual(
+        y_counterfactual=post_ctrl["o"][idx_k],
+        weights=pre_trt["w"],
+        group_size=int(pre_trt["w"].sum()),
+    )
+
+
+def _compute_quantile_did(
+    pre_trt: NDArray, pre_ctrl: NDArray, post_ctrl: NDArray
+) -> _Counterfactual:
+    # Quantile difference-in-differences shifts every treated pre-treatment observation by the
+    # control group's quantile change at that observation's rank *within the treated pre-treatment
+    # distribution* (unlike changes-in-changes, which ranks within the control's pre-treatment
+    # distribution).
+    y = pre_trt["o"]
+    _, inv = np.unique(y, return_inverse=True)
+    w_unique = np.bincount(inv, weights=pre_trt["w"])
+    u = np.cumsum(w_unique)[inv] / w_unique.sum()
+    u = np.clip(u, 0.0, 1.0)
+
+    q_pre_ctrl = get_quantiles(u, pre_ctrl["o"], pre_ctrl["w"])
+    q_post_ctrl = get_quantiles(u, post_ctrl["o"], post_ctrl["w"])
+
+    return _Counterfactual(
+        y_counterfactual=y + q_post_ctrl - q_pre_ctrl,
+        weights=pre_trt["w"],
+        group_size=int(pre_trt["w"].sum()),
+    )
+
+
+_SPECS: dict[str, _CounterfactualSpec] = {
+    "changes_in_changes": _CounterfactualSpec(
+        key="changes_in_changes",
+        compute=_compute_changes_in_changes,
+        references=("Athey and Imbens (2006), Econometrica 74(2), 431-497.",),
+    ),
+    "quantile_did": _CounterfactualSpec(
+        key="quantile_did",
+        compute=_compute_quantile_did,
+        references=("Athey and Imbens (2006), Econometrica 74(2), 431-497, Section 3.3.",),
+    ),
+}

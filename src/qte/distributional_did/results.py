@@ -1,11 +1,11 @@
-"""Result containers for the nonlinear difference-in-differences estimator."""
+"""Result containers for the distributional difference-in-differences estimator."""
 
 from dataclasses import dataclass
 
-from qte.nonlinear_did.custom_types import (
+from qte.distributional_did.custom_types import (
     BasePeriod,
     ControlGroup,
-    CounterfactualModel,
+    Estimator,
     SamplingScheme,
 )
 from qte.results import _BasicQteResult
@@ -25,11 +25,11 @@ class GroupTimeEffect:
 
 
 @dataclass()
-class NonlinearDidResult(_BasicQteResult):
-    """Result for one aggregation of a nonlinear difference-in-differences estimation.
+class DistributionalDidResult(_BasicQteResult):
+    """Result for one aggregation of a distributional difference-in-differences estimation.
 
     Use `plot`, `tabulate`, `summarize` or `get_as_dataframe` to present the
-    estimates. Instances are returned by `estimate_nonlinear_did_for_panel`; the
+    estimates. Instances are returned by `estimate_changes_in_changes_effects` or `estimate_quantile_did_effects`; the
     constructor is not part of the public API.
 
     Attributes
@@ -48,34 +48,34 @@ class NonlinearDidResult(_BasicQteResult):
         Comparison group used for the counterfactual.
     sampling_scheme : `SamplingScheme`
         Sampling scheme of the input data.
-    counterfactual_model : `CounterfactualModel`
-        Model used to construct the counterfactual distribution.
+    estimator : `Estimator`
+        Estimator that produced the result.
     """
 
     group: tuple[str, ...] | None
     base_period: BasePeriod
     control_group: ControlGroup
     sampling_scheme: SamplingScheme
-    counterfactual_model: CounterfactualModel
+    estimator: Estimator
 
 
 @dataclass()
-class NonlinearDidResults:
-    """The four aggregations returned by `estimate_nonlinear_did_for_panel`.
+class DistributionalDidResults:
+    """The four aggregations returned by `estimate_changes_in_changes_effects` or `estimate_quantile_did_effects`.
 
     Attributes
     ----------
-    group : `NonlinearDidResult`
+    group : `DistributionalDidResult`
         Effects aggregated by treatment group.
-    event_study : `NonlinearDidResult`
+    event_study : `DistributionalDidResult`
         Effects by event-study period (time since treatment).
-    overall : `NonlinearDidResult`
+    overall : `DistributionalDidResult`
         Single overall effect.
-    group_time : `NonlinearDidResult`
+    group_time : `DistributionalDidResult`
         Effects by treatment group and time period.
     """
 
-    group: NonlinearDidResult
-    event_study: NonlinearDidResult
-    overall: NonlinearDidResult
-    group_time: NonlinearDidResult
+    group: DistributionalDidResult
+    event_study: DistributionalDidResult
+    overall: DistributionalDidResult
+    group_time: DistributionalDidResult

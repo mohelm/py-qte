@@ -4,6 +4,12 @@ import numpy as np
 import polars as pl
 from numpy.typing import ArrayLike, NDArray
 
+from qte.distributional_did.custom_types import (
+    BasePeriod,
+    WeightsLookup,
+    _DistributionalDidAggregation,
+)
+from qte.distributional_did.results import GroupTimeEffect
 from qte.helpers import _as_iterable_array, _get_mean_differences, _get_quantile_differences
 from qte.names import (
     EFFECT_ID,
@@ -13,8 +19,6 @@ from qte.names import (
     QUANTILE_ID,
     QUANTILE_TREATED_VAL_ID,
 )
-from qte.nonlinear_did.custom_types import BasePeriod, WeightsLookup, _NonlinearDidAggregation
-from qte.nonlinear_did.results import GroupTimeEffect
 from qte.stats import Ecdf
 
 
@@ -75,7 +79,7 @@ def aggregate_group_time_effects_again_by_group(
     *,
     dim_id: Callable,
     dim_name: str,
-) -> _NonlinearDidAggregation:
+) -> _DistributionalDidAggregation:
 
     qs = _as_iterable_array(qs)
     ecdf_on_grid_o, ecdf_on_grid_cf, means_o, means_cf = _merge_group_time_effects_on_grid(
@@ -108,7 +112,7 @@ def aggregate_group_time_effects_again_by_group(
             f"{MEAN_CONTROL_ID}": G @ means_cf,
         }
     ).with_columns((pl.col(MEAN_TREATED_ID) - pl.col(MEAN_CONTROL_ID)).alias(EFFECT_ID))
-    return _NonlinearDidAggregation(qtts, atts, (dim_name,))
+    return _DistributionalDidAggregation(qtts, atts, (dim_name,))
 
 
 def aggregate_group_time_effects(
@@ -116,7 +120,7 @@ def aggregate_group_time_effects(
     gtes: list[GroupTimeEffect],
     weights: dict[tuple[int, int], float],
     y_grid: NDArray,
-) -> _NonlinearDidAggregation:
+) -> _DistributionalDidAggregation:
     ecdf_on_grid_o, ecdf_on_grid_cf, means_o, means_cf = _merge_group_time_effects_on_grid(
         gtes, weights, y_grid
     )
@@ -129,12 +133,12 @@ def aggregate_group_time_effects(
     )
 
     atts = _get_mean_differences(means_o.sum(), means_cf.sum())
-    return _NonlinearDidAggregation(qtes, atts, None)
+    return _DistributionalDidAggregation(qtes, atts, None)
 
 
 def get_group_time_treatment_effects(
     qs: ArrayLike, gtes: list[GroupTimeEffect]
-) -> _NonlinearDidAggregation:
+) -> _DistributionalDidAggregation:
     qs = _as_iterable_array(qs)
     qtes = pl.concat(
         pl.DataFrame(
@@ -161,4 +165,4 @@ def get_group_time_treatment_effects(
         )
         for gte in gtes
     ).with_columns((pl.col(MEAN_TREATED_ID) - pl.col(MEAN_CONTROL_ID)).alias(EFFECT_ID))
-    return _NonlinearDidAggregation(qtes, att, ("group", "time"))
+    return _DistributionalDidAggregation(qtes, att, ("group", "time"))
