@@ -39,7 +39,8 @@ def _compute_joint_cdf(
 
 
 def _compute_interval_probabilities(cdf: NDArray[np.float64]) -> NDArray[np.float64]:
-    """Interval masses for every pair of endpoints, ``p[i, j] = cdf[j] - cdf[i]``."""
+    # Here we compute the interval masses for every pair of endpoints p[i,j]=cdf[j]-cdf[i] using
+    # NumPy's broadcasting
     return cdf[None, :] - cdf[:, None]
 
 
@@ -161,16 +162,12 @@ def _compute_sampled_statistic(
     weighting: ValidityWeighting,
     se_floor: float,
 ) -> float:
-    """``T_N`` for one pooled bootstrap draw (Kitagawa, 2015, Algorithm 2.1).
-
-    ``sampled`` is a with-replacement resample of the pooled ``(Y, D)`` data; its
-    first ``n_on_rows`` rows play the role of ``P*_m`` and the remaining rows the
-    role of ``Q*_n``. Disjoint positions of independent draws are themselves
-    independent samples, so splitting one resample is the paper's two-sample draw
-    from ``H_N``. Both CDFs, the effective sizes and the plug-in ``sigma`` are
-    rebuilt from the drawn rows, so this is the same functional as the observed
-    statistic rather than a rescaling of it.
-    """
+    # The bootstrapped sample is just a case boostrap from the whole dataframe ignoring the instrument.
+    # Here we put the first n_on_rows cases as those cases that have the instrument switched on and
+    # the remainder as the cases that have it switched off. We, then, compute the test statistic for
+    # this scenario. Notice that this is consistent with a scenario where the inequalities exactly
+    # bind (so P=Q) since here there can be no difference between P and Q. It is this scenario we
+    # evaluate the test statistic against.
     sampled_on, sampled_off = sampled.head(n_on_rows), sampled.tail(sampled.height - n_on_rows)
     statistic, _ = _compute_test_statistic(
         sampled_off,
