@@ -171,9 +171,7 @@ def _compute_sampled_statistic(
     rebuilt from the drawn rows, so this is the same functional as the observed
     statistic rather than a rescaling of it.
     """
-    n_off_rows = sampled.height - n_on_rows
-    sampled_on = sampled.head(n_on_rows)
-    sampled_off = sampled.tail(n_off_rows)
+    sampled_on, sampled_off = sampled.head(n_on_rows), sampled.tail(sampled.height - n_on_rows)
     statistic, _ = _compute_test_statistic(
         sampled_off,
         sampled_on,
