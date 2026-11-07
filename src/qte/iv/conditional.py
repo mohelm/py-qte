@@ -1,15 +1,3 @@
-"""Conditional quantile treatment effects for compliers.
-
-The estimator targets the conditional (on the covariates ``X``) quantile
-treatment effect for compliers, following Abadie, Angrist & Imbens (2002).
-Abadie's kappa identifies compliers but is negative whenever ``D != Z``, so the
-estimator replaces it by its conditional mean given ``U = (Y, D, X)`` - which is
-the nonnegative complier probability given ``U`` - and reads the effect off a
-kappa-weighted quantile regression of the outcome on the treatment and the
-covariates. With no covariates the same routine estimates the unconditional
-local QTE.
-"""
-
 from dataclasses import dataclass
 from functools import partial
 
@@ -85,7 +73,7 @@ def _adjust_kappa_via_plugin(
     instrument: ColumnName,
     weight_formula: FormulaRhs,
 ) -> NDArray[np.float64]:
-    """Plug-in estimate of ``E[kappa | U]`` via ``nu(U) = E[Z | Y, D, X]``.
+    """Plug-in estimate of ``E[kappa | U]`` via ``nu_0(U) = E[Z | Y, D, X]``.
 
     ``nu`` is fitted by OLS on the weight design separately for the treated and
     the untreated (as in Abadie, Angrist & Imbens, 2002); it is then plugged
@@ -193,11 +181,45 @@ def estimate_conditional_local_effects(
     trim: float = _DEFAULT_TRIM,
     bootstrap_config: BootstrapConfig | int = 100,
 ) -> ConditionalLocalQteResult:
-    """Estimate the conditional quantile treatment effect for compliers.
+    r"""Estimate conditional quantile treatment effects for compliers as in Abadie et al. (2002).
+
+    The model postulates that
+    $Q_{\theta}(Y \mid X, D, D_{1} > D_{0}) = \alpha_{\theta} D + X' \beta_{\theta}$.
+    $\theta$ indexes the quantile of $Y$. $D$ is binary, one-dimensional and endogenous, which is
+    why it needs to be instrumented.
+
+    $\alpha$ can, in principle, be obtained from the following quantile regression problem:
+    $$
+    (\alpha_{\theta}, \beta_{\theta})
+    = \arg\min_{\alpha, \beta} E\big[\kappa \, \rho_{\theta}(Y - \alpha D - X' \beta)\big],
+    $$
+
+    where $\kappa$ is the _signed_ Abadie's kappa weight
+    ($\kappa = 1 - \frac{D\,(1 - Z)}{1 - \pi_0(X)} - \frac{(1 - D)\,Z}{\pi_0(X)}$ with
+    $\pi_0(X) = P(Z = 1 \mid X)$). This problem is computationally challenging since the weights can
+    be negative. Thus, the weights are replaced with another set of weights, where
+    $U = (Y, D, X)$ and $\nu_0(U) = E[Z \mid U]$:
+
+    $$
+    \tilde{\kappa}(U) = E[\kappa \mid U]
+    = 1 - \frac{D\,(1 - \nu_0(U))}{1 - \pi_0(X)}
+      - \frac{(1 - D)\,\nu_0(U)}{\pi_0(X)},
+    $$
+
+    which can be shown to be nonnegative across the board. The `weight_formula` gives the design of
+    the first step and `weight_adjustment` the way it is used: `PLUGIN` approximates $\nu_0(U)$ and
+    plugs it into the identity above, `PROJECTION` projects $\kappa$ on the design directly.
+
+    Standard errors are found via a case bootstrap.
 
     The estimand is the coefficient on the treatment in a quantile regression of
-    the outcome on the treatment and the covariates, for compliers. With no
-    covariates the estimand is the unconditional local QTE.
+    the outcome on the treatment and the covariates, for compliers. Notice that the conditional (on
+    $X$) effect (on the compliers) generally does not coincide with the unconditional effect (on the
+    compliers). This is because here we identify
+    $Q_{\theta}(Y \mid D=1, X=x) - Q_{\theta}(Y \mid D=0, X=x) = \alpha_{\theta}$
+    (for the compliers), but if we integrate out $X$ on the left hand side, the resulting
+    functional _is not_ comprised of the marginal distributions of $Y$ given the treatment status
+    for the compliers, since quantiles are not linear operators.
 
     Parameters
     ----------
@@ -241,6 +263,12 @@ def estimate_conditional_local_effects(
     See Also
     --------
     `qte.iv.estimate_unconditional_local_effects`
+    `WeightAdjustment`
+
+    References
+    ----------
+    Abadie, A., Angrist, J., & Imbens, G. (2002). Instrumental Variables Estimates of the Effect of
+    Subsidized Training on the Quantiles of Trainee Earnings. *Econometrica*, 70(1), 91--117.
     """
     bootstrap_config = _make_bootstrap_config(bootstrap_config)
     qs = _as_iterable_array(qs)

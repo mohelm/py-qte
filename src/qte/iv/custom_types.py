@@ -56,7 +56,7 @@ class WeightAdjustment(StrEnum):
         Project the Abadie-Angrist-Imbens kappa onto the outcome and covariates
         separately for the treated and untreated (Stata ``ivqte, aai``).
     PLUGIN
-        Estimate ``nu(U) = E[Z | Y, D, X]`` and plug it into the exact kappa
+        Estimate ``nu_0(U) = E[Z | Y, D, X]`` and plug it into the exact kappa
         identity, ``1 - D(1-nu)/(1-p) - (1-D)nu/p`` (Abadie, Angrist & Imbens,
         2002, eq. 4).
     """
