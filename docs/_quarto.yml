@@ -135,6 +135,8 @@ quartodoc:
       contents:
         - estimate_changes_in_changes_effects
         - estimate_quantile_did_effects
+        - estimate_mean_did_effects
+        - estimate_distributional_did_effects
         - DistributionalDidResults
         - name: DistributionalDidResult
           include_inherited: true

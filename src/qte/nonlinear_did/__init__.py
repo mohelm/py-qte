@@ -26,5 +26,7 @@ __all__ = [
     "SamplingScheme",
     "TrtGroupConfig",
     "estimate_changes_in_changes_effects",
+    "estimate_distributional_did_effects",
+    "estimate_mean_did_effects",
     "estimate_quantile_did_effects",
 ]

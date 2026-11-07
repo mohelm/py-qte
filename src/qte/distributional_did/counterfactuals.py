@@ -12,7 +12,7 @@ from dataclasses import dataclass
 import numpy as np
 from numpy.typing import NDArray
 
-from qte.stats import get_quantiles
+from qte.stats import Ecdf, get_quantiles
 
 
 @dataclass(frozen=True)
@@ -108,6 +108,51 @@ def _compute_quantile_did(
     )
 
 
+def _compute_mean_did(pre_trt: NDArray, pre_ctrl: NDArray, post_ctrl: NDArray) -> _Counterfactual:
+    # Mean difference-in-differences shifts the whole treated pre-treatment distribution by the
+    # change in the control group's mean, that is the counterfactual is a pure location shift. The
+    # reported quantile treatment effects are then not identified: they vary with the quantile only
+    # because the treated group's own distribution changes.
+    delta = np.average(post_ctrl["o"], weights=post_ctrl["w"]) - np.average(
+        pre_ctrl["o"], weights=pre_ctrl["w"]
+    )
+    return _Counterfactual(
+        y_counterfactual=pre_trt["o"] + delta,
+        weights=pre_trt["w"],
+        group_size=int(pre_trt["w"].sum()),
+    )
+
+
+def _compute_distributional_did(
+    pre_trt: NDArray, pre_ctrl: NDArray, post_ctrl: NDArray
+) -> _Counterfactual:
+    # Distributional difference-in-differences pairs each control unit's own change over time with
+    # the treated pre-treatment outcome at that unit's rank in the control pre-treatment
+    # distribution. The pairing therefore carries the control group's dependence between the change
+    # and the initial level over to the treated group; the counterfactual is indexed on the control
+    # units, which is why no unit-level treatment effects are identified.
+    pre_ctrl_by_unit = pre_ctrl[np.argsort(pre_ctrl["u"])]
+    post_ctrl_by_unit = post_ctrl[np.argsort(post_ctrl["u"])]
+    if not np.array_equal(pre_ctrl_by_unit["u"], post_ctrl_by_unit["u"]):
+        raise ValueError(
+            "distributional difference-in-differences needs the same control units in both "
+            "periods of a group-time cell to form each unit's change; got "
+            f"{len(pre_ctrl_by_unit)} units in the earlier period and "
+            f"{len(post_ctrl_by_unit)} in the later one. Drop units that are not observed in "
+            "both periods, or use another estimator."
+        )
+    delta_ctrl = post_ctrl_by_unit["o"] - pre_ctrl_by_unit["o"]
+
+    u = Ecdf.make(pre_ctrl["o"], pre_ctrl["w"]).evaluate(pre_ctrl_by_unit["o"])
+    y_level = get_quantiles(np.clip(u, 0.0, 1.0), pre_trt["o"], pre_trt["w"])
+
+    return _Counterfactual(
+        y_counterfactual=delta_ctrl + y_level,
+        weights=pre_ctrl_by_unit["w"],
+        group_size=int(pre_ctrl["w"].sum()),
+    )
+
+
 _SPECS: dict[str, _CounterfactualSpec] = {
     "changes_in_changes": _CounterfactualSpec(
         key="changes_in_changes",
@@ -118,5 +163,15 @@ _SPECS: dict[str, _CounterfactualSpec] = {
         key="quantile_did",
         compute=_compute_quantile_did,
         references=("Athey and Imbens (2006), Econometrica 74(2), 431-497, Section 3.3.",),
+    ),
+    "mean_did": _CounterfactualSpec(
+        key="mean_did",
+        compute=_compute_mean_did,
+        references=("Thuysbaert (2007), working paper, as in qte::mdid.",),
+    ),
+    "distributional_did": _CounterfactualSpec(
+        key="distributional_did",
+        compute=_compute_distributional_did,
+        references=("Callaway, Li and Oka (2018), Journal of Econometrics 206(2), 395-413.",),
     ),
 }

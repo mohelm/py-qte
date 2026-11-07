@@ -83,8 +83,10 @@ class Ecdf:
         y_unique, indices = np.unique(y_sorted, return_inverse=True)
         w_unique = np.bincount(indices, weights=w_sorted)
 
-        w_norm = w_unique / w_unique.sum()
-        return cls(y_unique, np.cumsum(w_norm), w_unique)
+        # Accumulate the raw weights and scale once at the end. Scaling every weight before the
+        # cumulative sum accumulates rounding error, which matters here because ranks are compared
+        # against quantile grids: an error of one ulp can push a tie onto the next order statistic.
+        return cls(y_unique, np.cumsum(w_unique) / w_unique.sum(), w_unique)
 
     def evaluate_inverse(self, qs: NDArray) -> NDArray:
         idx = np.searchsorted(self.probs, qs, side="left")

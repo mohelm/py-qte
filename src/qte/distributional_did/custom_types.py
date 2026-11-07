@@ -96,7 +96,7 @@ class Estimator(StrEnum):
 
     This is an output field: read it from ``result.estimator`` to see how an estimate was
     produced, and compare it against a member. The estimator is selected by calling the
-    corresponding `estimate_changes_in_changes_effects` or `estimate_quantile_did_effects` function.
+    corresponding ``estimate_*_effects`` function.
 
     Attributes
     ----------
@@ -104,6 +104,10 @@ class Estimator(StrEnum):
         Changes-in-changes.
     QUANTILE_DID
         Quantile difference-in-differences.
+    MEAN_DID
+        Mean difference-in-differences.
+    DISTRIBUTIONAL_DID
+        Distributional difference-in-differences.
 
     Examples
     --------
@@ -125,6 +129,8 @@ class Estimator(StrEnum):
 
     CHANGES_IN_CHANGES = "changes_in_changes"
     QUANTILE_DID = "quantile_did"
+    MEAN_DID = "mean_did"
+    DISTRIBUTIONAL_DID = "distributional_did"
 
 
 @dataclass(frozen=True)

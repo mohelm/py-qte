@@ -477,9 +477,8 @@ def estimate_quantile_did_effects(
     """Estimate quantile treatment effects with quantile difference-in-differences.
 
     Quantile difference-in-differences applies difference-in-differences to every quantile instead
-    of to the mean: each treated
-    pre-treatment observation is shifted by the change over time of the control group at the same
-    quantile. It is identified by an additively separable model whose unobservables must be
+    of to the mean: each treated pre-treatment observation is shifted by the change over time of
+    the control group at the same quantile. It is identified by an additively separable model whose unobservables must be
     identically distributed in all groups and periods, which rules out the treated and untreated
     groups differing in the distribution of unobservables. Under continuity, the implied average
     treatment effect equals that of the mean difference-in-differences estimator, even though the
@@ -536,6 +535,188 @@ def estimate_quantile_did_effects(
         unit,
         qs,
         spec=_SPECS["quantile_did"],
+        weights=weights,
+        n_anticipation_periods=n_anticipation_periods,
+        base_period=base_period,
+        control_group=control_group,
+        bootstrap_config=bootstrap_config,
+    )
+
+
+def estimate_mean_did_effects(
+    ds: pl.DataFrame,
+    outcome: ColumnName,
+    treatment_group: ColumnName | TrtGroupConfig,
+    time: ColumnName,
+    unit: ColumnName,
+    qs: ArrayLike = MEDIAN,
+    *,
+    weights: ColumnName | None = None,
+    n_anticipation_periods: int = 0,
+    base_period: BasePeriod = BasePeriod.UNIVERSAL,
+    control_group: ControlGroup = ControlGroup.NEVER_TREATED,
+    bootstrap_config: BootstrapConfig | int = 1000,
+) -> DistributionalDidResults:
+    """Estimate treatment effects with mean difference-in-differences.
+
+    The counterfactual distribution of untreated potential outcomes for the treated group is the
+    treated group's pre-treatment distribution shifted by the change in the control group's mean.
+    This implies the usual parallel trends assumption, so the average treatment effect on the
+    treated is identified, but it is stronger: it also requires that only the location of the
+    distribution shifts, not its shape. The reported quantile treatment effects are therefore not
+    identified by the assumption. They are the difference between the observed treated quantiles
+    and the shifted pre-treatment quantiles, ``Q(Y | treated, post) - Q(Y | treated, pre) - delta``,
+    which varies with the quantile only because the treated group's own distribution changes.
+    Reading a slope into them as evidence of treatment effect heterogeneity is a mistake. Returns
+    the group, event-study, overall and group-time effects.
+
+    Parameters
+    ----------
+    ds : polars.DataFrame
+        Panel data in long format.
+    outcome : ColumnName
+        Name of the outcome column.
+    treatment_group : ColumnName or `TrtGroupConfig`
+        Column holding the first treatment period of a unit. A plain string
+        treats the column as already coded with ``inf`` for never-treated units;
+        a `TrtGroupConfig` maps a custom never-treated value to ``inf``.
+    time : ColumnName
+        Name of the time period column.
+    unit : ColumnName
+        Name of the unit identifier column.
+    qs : array_like, default=0.5
+        Quantiles in ``(0, 1)`` at which to estimate the effects.
+    weights : ColumnName, optional
+        Name of a column with sampling weights.
+    n_anticipation_periods : int, default=0
+        Number of periods before treatment in which units may anticipate it.
+    base_period : `BasePeriod`, default=`BasePeriod.UNIVERSAL`
+        Pre-treatment period used for the comparisons.
+    control_group : `ControlGroup`, default=`ControlGroup.NEVER_TREATED`
+        Comparison group used for the counterfactual.
+    bootstrap_config : `BootstrapConfig` or int, default=1000
+        Bootstrap settings, or the number of replications.
+
+    Returns
+    -------
+    `DistributionalDidResults`
+        The group, event-study, overall and group-time effects.
+
+    See Also
+    --------
+    estimate_distributional_did_effects
+        Relaxes the location-shift restriction by restricting the dependence between the change and
+        the initial level instead, which identifies distributional effects.
+
+    References
+    ----------
+    Thuysbaert, Bram. "Distributional Comparisons in Difference in Differences Models." Working
+    paper, 2007 (as in ``qte::mdid``).
+
+    Heckman, James, Hidehiko Ichimura and Petra Todd. "Matching as an Econometric Evaluation
+    Estimator: Evidence from Evaluating a Job Training Programme." Review of Economic Studies
+    64(4), pp. 605-654, 1997.
+
+    Abadie, Alberto. "Semiparametric Difference-in-Differences Estimators." Review of Economic
+    Studies 72(1), pp. 1-19, 2005.
+    """
+    return _estimate_effects(
+        ds,
+        outcome,
+        treatment_group,
+        time,
+        unit,
+        qs,
+        spec=_SPECS["mean_did"],
+        weights=weights,
+        n_anticipation_periods=n_anticipation_periods,
+        base_period=base_period,
+        control_group=control_group,
+        bootstrap_config=bootstrap_config,
+    )
+
+
+def estimate_distributional_did_effects(
+    ds: pl.DataFrame,
+    outcome: ColumnName,
+    treatment_group: ColumnName | TrtGroupConfig,
+    time: ColumnName,
+    unit: ColumnName,
+    qs: ArrayLike = MEDIAN,
+    *,
+    weights: ColumnName | None = None,
+    n_anticipation_periods: int = 0,
+    base_period: BasePeriod = BasePeriod.UNIVERSAL,
+    control_group: ControlGroup = ControlGroup.NEVER_TREATED,
+    bootstrap_config: BootstrapConfig | int = 1000,
+) -> DistributionalDidResults:
+    """Estimate quantile treatment effects with distributional difference-in-differences.
+
+    Combines a distributional parallel trends assumption -- the distribution of the change in
+    untreated potential outcomes is the same for the treated and untreated groups -- with the
+    assumption that the dependence, that is the copula, between the change in untreated potential
+    outcomes and the initial level of untreated potential outcomes is the same for the two groups.
+    The initial distribution of outcomes is allowed to differ between the groups, which is what
+    distinguishes this estimator from quantile difference-in-differences, where the unobservables
+    must be identically distributed everywhere. The counterfactual pairs each control unit's own
+    change over time with the treated outcome at that unit's rank, so it needs the same units in
+    both periods of a cell, and it is indexed on the control units, which means the distribution of
+    individual treatment effects is not identified. Returns the group, event-study, overall and
+    group-time effects.
+
+    Parameters
+    ----------
+    ds : polars.DataFrame
+        Panel data in long format.
+    outcome : ColumnName
+        Name of the outcome column.
+    treatment_group : ColumnName or `TrtGroupConfig`
+        Column holding the first treatment period of a unit. A plain string
+        treats the column as already coded with ``inf`` for never-treated units;
+        a `TrtGroupConfig` maps a custom never-treated value to ``inf``.
+    time : ColumnName
+        Name of the time period column.
+    unit : ColumnName
+        Name of the unit identifier column.
+    qs : array_like, default=0.5
+        Quantiles in ``(0, 1)`` at which to estimate the effects.
+    weights : ColumnName, optional
+        Name of a column with sampling weights.
+    n_anticipation_periods : int, default=0
+        Number of periods before treatment in which units may anticipate it.
+    base_period : `BasePeriod`, default=`BasePeriod.UNIVERSAL`
+        Pre-treatment period used for the comparisons.
+    control_group : `ControlGroup`, default=`ControlGroup.NEVER_TREATED`
+        Comparison group used for the counterfactual.
+    bootstrap_config : `BootstrapConfig` or int, default=1000
+        Bootstrap settings, or the number of replications.
+
+    Returns
+    -------
+    `DistributionalDidResults`
+        The group, event-study, overall and group-time effects.
+
+    See Also
+    --------
+    estimate_mean_did_effects
+        A location-shift restriction that identifies only the average effect.
+    estimate_quantile_did_effects
+        Requires the unobservables to be identically distributed across groups.
+
+    References
+    ----------
+    Callaway, Brantly, Tong Li and Tatsushi Oka. "Quantile Treatment Effects in Difference in
+    Differences Models under Dependence Restrictions and with Only Two Time Periods." Journal of
+    Econometrics 206(2), pp. 395-413, 2018.
+    """
+    return _estimate_effects(
+        ds,
+        outcome,
+        treatment_group,
+        time,
+        unit,
+        qs,
+        spec=_SPECS["distributional_did"],
         weights=weights,
         n_anticipation_periods=n_anticipation_periods,
         base_period=base_period,
