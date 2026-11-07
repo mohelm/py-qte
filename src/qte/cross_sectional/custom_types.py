@@ -6,6 +6,7 @@ from enum import StrEnum
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
 
+from qte._validation import check_grid
 from qte.constants import _make_q
 from qte.custom_types import FormulaRhs
 from qte.quantile_regression import QuantileRegressionAlgorithms
@@ -96,6 +97,10 @@ class OutcomeRegressionConfig:
     formula: FormulaRhs
     grid: int | ArrayLike = 100
     algorithm: QuantileRegressionAlgorithms = QuantileRegressionAlgorithms.PREPROCESSING
+
+    def __post_init__(self) -> None:
+        """Validate the quantile grid."""
+        check_grid(self.grid)
 
 
 def make_outcome_regression_config(

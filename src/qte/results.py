@@ -122,11 +122,11 @@ class InstrumentProbabilityResult:
 
         coefficients = pl.DataFrame(
             {
-                TERM_ID: list(result.params.index),
-                ESTIMATE_ID: result.params.to_numpy(),
-                SE_ID: result.bse.to_numpy(),
-                Z_ID: result.tvalues.to_numpy(),
-                P_VALUE_ID: result.pvalues.to_numpy(),
+                TERM_ID: list(result.model.exog_names),
+                ESTIMATE_ID: np.asarray(result.params),
+                SE_ID: np.asarray(result.bse),
+                Z_ID: np.asarray(result.tvalues),
+                P_VALUE_ID: np.asarray(result.pvalues),
             }
         )
         return cls(

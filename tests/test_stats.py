@@ -34,9 +34,9 @@ def test_weighted_propensity_score_matches_replication():
         )
     )
 
-    weighted = estimate_propensity_score(ds, "y", "x", "w").params.to_numpy()
+    weighted = np.asarray(estimate_propensity_score(ds, "y", "x", "w").params)
     # Integer frequency weights are equivalent to replicating every row w_i times.
     replicated = ds.select(pl.all().repeat_by("w").explode()).drop("w")
-    unweighted = estimate_propensity_score(replicated, "y", "x").params.to_numpy()
+    unweighted = np.asarray(estimate_propensity_score(replicated, "y", "x").params)
 
     assert np.allclose(weighted, unweighted, atol=1e-9)

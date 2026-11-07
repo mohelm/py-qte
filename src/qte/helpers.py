@@ -15,11 +15,8 @@ from qte.names import (
 
 
 def _as_iterable_array(values: ArrayLike) -> NDArray:
-    """Coerce ``values`` to a 1-d float array, so a scalar becomes ``[value]``.
-
-    Downstream code treats a quantile specification as a sized, iterable
-    sequence; a 0-d array fails both ``len()`` and iteration.
-    """
+    # Basically, we ensure that the array we create from values is always iterable and has a
+    # length. For instance values=0.5 is ArrayLike, but np.asarray(0.5) has no length and is not iterable.
     return np.atleast_1d(np.asarray(values, dtype=float))
 
 

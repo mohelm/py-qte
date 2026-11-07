@@ -38,7 +38,7 @@ from numpy.typing import ArrayLike, NDArray
 
 from qte.bootstrap import (
     BootstrapConfig,
-    _attach_standard_errors,
+    _attach_standard_errors_to_estimate,
     _make_bootstrap_config,
     _make_bootstrap_runs,
 )
@@ -414,7 +414,7 @@ def estimate_unconditional_local_effects(
         seed=bootstrap_config.seed,
         n_workers=bootstrap_config.n_workers,
     )
-    qtt, att = _attach_standard_errors(point, runs)
+    qtt, att = _attach_standard_errors_to_estimate(point, runs)
     assert point.instrument_probability is not None
     return UnconditionalLocalQteResult(
         qtt=qtt,

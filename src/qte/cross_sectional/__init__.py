@@ -3,9 +3,18 @@ from functools import partial
 import polars as pl
 from numpy.typing import ArrayLike
 
+from qte._validation import (
+    check_columns_are_in_dataset,
+    check_missing_values_in_dataset,
+    check_outcome,
+    check_quantiles,
+    check_treatment_is_binary,
+    check_weights,
+    get_formula_columns,
+)
 from qte.bootstrap import (
     BootstrapConfig,
-    _attach_standard_errors,
+    _attach_standard_errors_to_estimate,
     _make_bootstrap_config,
     _make_bootstrap_runs,
 )
@@ -70,8 +79,20 @@ def estimate_unadjusted_effects(
     --------
     `estimate_ipw_effects`, `estimate_outcome_regression_effects`, `estimate_aipw_effects`
     """
-    bootstrap_config = _make_bootstrap_config(bootstrap_config)
     qs = _as_iterable_array(qs)
+    bootstrap_config = _make_bootstrap_config(bootstrap_config)
+
+    # Check data
+    required_columns = [outcome, treatment] + ([weights] if weights is not None else [])
+    check_columns_are_in_dataset(ds, required_columns)
+    check_missing_values_in_dataset(ds, required_columns)
+    check_outcome(ds[outcome])
+    check_treatment_is_binary(ds[treatment])
+    check_quantiles(qs)
+    if weights is not None:
+        check_weights(ds[weights])
+
+    # Bind parameters that are constant across boostrap runs.
     fcn = partial(
         compute_unadjusted_effects,
         outcome=outcome,
@@ -79,7 +100,10 @@ def estimate_unadjusted_effects(
         qs=qs,
         weights=weights,
     )
+    # Compute point estimate on original data.
     estimate = fcn(ds)
+
+    # Perform boostrap.
     bs_it = _make_bootstrap_runs(
         ds,
         fcn=fcn,
@@ -87,7 +111,7 @@ def estimate_unadjusted_effects(
         seed=bootstrap_config.seed,
         n_workers=bootstrap_config.n_workers,
     )
-    qtt, att = _attach_standard_errors(estimate, bs_it)
+    qtt, att = _attach_standard_errors_to_estimate(estimate, bs_it)
     return QteResult(
         qtt=qtt,
         att=att,
@@ -143,7 +167,24 @@ def estimate_ipw_effects(
     `estimate_unadjusted_effects`, `estimate_outcome_regression_effects`, `estimate_aipw_effects`
     """
     qs = _as_iterable_array(qs)
-    bootstrap_config = _make_bootstrap_config(bootstrap_config)
+    target = CausalTarget(target)
+
+    # Validate the input data.
+    required_columns = list(
+        dict.fromkeys(
+            [outcome, treatment, *get_formula_columns(propensity_score_formula)]
+            + ([weights] if weights is not None else [])
+        )
+    )
+    check_columns_are_in_dataset(ds, required_columns)
+    check_missing_values_in_dataset(ds, required_columns)
+    check_outcome(ds[outcome])
+    check_treatment_is_binary(ds[treatment])
+    check_quantiles(qs)
+    if weights is not None:
+        check_weights(ds[weights])
+
+    # Bind parameters that are constant across boostrap runs.
     fcn = partial(
         compute_ipw_effects,
         outcome=outcome,
@@ -153,7 +194,12 @@ def estimate_ipw_effects(
         weights=weights,
         target=target,
     )
+
+    # Compute the point estimate.
     estimate = fcn(ds)
+
+    # Perform boostrap.
+    bootstrap_config = _make_bootstrap_config(bootstrap_config)
     bs_it = _make_bootstrap_runs(
         ds,
         fcn=fcn,
@@ -161,7 +207,7 @@ def estimate_ipw_effects(
         seed=bootstrap_config.seed,
         n_workers=bootstrap_config.n_workers,
     )
-    qtt, att = _attach_standard_errors(estimate, bs_it)
+    qtt, att = _attach_standard_errors_to_estimate(estimate, bs_it)
     return QteResult(
         qtt=qtt,
         att=att,
@@ -220,6 +266,26 @@ def estimate_outcome_regression_effects(
     """
     qs = _as_iterable_array(qs)
     or_config = make_outcome_regression_config(outcome_regression_config)
+    bootstrap_config = _make_bootstrap_config(bootstrap_config)
+    target = CausalTarget(target)
+
+    # Validate input data.
+    required_columns = list(
+        dict.fromkeys(
+            [outcome, treatment, *get_formula_columns(or_config.formula)]
+            + ([weights] if weights is not None else [])
+        )
+    )
+    check_columns_are_in_dataset(ds, required_columns)
+    check_missing_values_in_dataset(ds, required_columns)
+    check_outcome(ds[outcome])
+    check_treatment_is_binary(ds[treatment])
+    check_quantiles(qs)
+    if weights is not None:
+        check_weights(ds[weights])
+
+    # Bind parameters that are constant across boostrap runs for the function that actually
+    # performs the work.
     fcn = partial(
         compute_outcome_regression_effects,
         outcome=outcome,
@@ -229,8 +295,10 @@ def estimate_outcome_regression_effects(
         weights=weights,
         target=target,
     )
+    # Point estimate on the original data.
     estimate = fcn(ds)
-    bootstrap_config = _make_bootstrap_config(bootstrap_config)
+
+    # Boostrap for standard erros.
     bs_it = _make_bootstrap_runs(
         ds,
         fcn=fcn,
@@ -238,7 +306,7 @@ def estimate_outcome_regression_effects(
         seed=bootstrap_config.seed,
         n_workers=bootstrap_config.n_workers,
     )
-    qtt, att = _attach_standard_errors(estimate, bs_it)
+    qtt, att = _attach_standard_errors_to_estimate(estimate, bs_it)
     return QteResult(
         qtt=qtt,
         att=att,
@@ -298,11 +366,37 @@ def estimate_aipw_effects(
     --------
     `estimate_unadjusted_effects`, `estimate_ipw_effects`, `estimate_outcome_regression_effects`
     """
+    qs = _as_iterable_array(qs)
+    or_config = make_outcome_regression_config(outcome_regression_config)
+    bootstrap_config = _make_bootstrap_config(bootstrap_config)
+    target = CausalTarget(target)
+
+    # Validate input data.
+    required_columns = list(
+        dict.fromkeys(
+            [
+                outcome,
+                treatment,
+                *get_formula_columns(propensity_score_formula),
+                *get_formula_columns(or_config.formula),
+            ]
+            + ([weights] if weights is not None else [])
+        )
+    )
+    check_columns_are_in_dataset(ds, required_columns)
+    check_missing_values_in_dataset(ds, required_columns)
+    check_outcome(ds[outcome])
+    check_treatment_is_binary(ds[treatment])
+    check_quantiles(qs)
+    if weights is not None:
+        check_weights(ds[weights])
+
     if weights is None:
         weights = "_w"
         ds = ds.with_columns(pl.lit(1).alias(weights))
-    qs = _as_iterable_array(qs)
-    or_config = make_outcome_regression_config(outcome_regression_config)
+
+    # Bind parameters that are constant across boostrap runs for the function that actually
+    # performs the work.
     fcn = partial(
         compute_aipw_effects,
         outcome=outcome,
@@ -313,8 +407,11 @@ def estimate_aipw_effects(
         weights=weights,
         target=target,
     )
+
+    # Point estimate on the original data.
     estimate = fcn(ds)
-    bootstrap_config = _make_bootstrap_config(bootstrap_config)
+
+    # Boostrap the standard errors.
     bs_it = _make_bootstrap_runs(
         ds,
         fcn=fcn,
@@ -322,7 +419,7 @@ def estimate_aipw_effects(
         seed=bootstrap_config.seed,
         n_workers=bootstrap_config.n_workers,
     )
-    qtt, att = _attach_standard_errors(estimate, bs_it)
+    qtt, att = _attach_standard_errors_to_estimate(estimate, bs_it)
     return QteResult(
         qtt=qtt,
         att=att,

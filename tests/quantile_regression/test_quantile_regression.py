@@ -1,6 +1,7 @@
 import numpy as np
 import polars as pl
-import statsmodels.formula.api as smf
+import statsmodels.api as sm
+from formulaic import Formula
 from pytest import fixture, mark
 
 import qte.quantile_regression as qr
@@ -75,10 +76,11 @@ def test_weighted_quantile_regression_matches_replication_on_exploded_data(data_
     atol = 1e-6 if qr.rq_fortran is not None else 5e-5
     assert np.allclose(weighted.coefficients, unweighted.coefficients, atol=atol)
 
-    # Compare to statsmmodels
-    mod = smf.quantreg(formula, replicated)
+    # Compare to statsmodels
+    response, design = Formula.from_spec(formula).get_model_matrix(replicated, output="numpy")
+    mod = sm.QuantReg(np.asarray(response).ravel(), np.asarray(design))
 
-    sm_coeffs = np.c_[*[mod.fit(q=q).params.values for q in qs]]
+    sm_coeffs = np.c_[*[np.asarray(mod.fit(q=q).params) for q in qs]]
     assert np.allclose(weighted.coefficients, sm_coeffs, atol=1e-4)
 
 
@@ -90,8 +92,11 @@ def test_weighted_quantile_regression_matches_statsmodels_on_scaled_data(data_wi
     scaled_data = data_with_int_weights.with_columns(
         [(pl.col(c) * pl.col("w")).alias(f"{c}_w") for c in ["y", "x"]]
     )
-    mod = smf.quantreg("y_w ~ -1 + w + x_w", scaled_data)
-    sm_coeffs = np.c_[*[mod.fit(q=q).params.values for q in qs]]
+    response, design = Formula.from_spec("y_w ~ -1 + w + x_w").get_model_matrix(
+        scaled_data, output="numpy"
+    )
+    mod = sm.QuantReg(np.asarray(response).ravel(), np.asarray(design))
+    sm_coeffs = np.c_[*[np.asarray(mod.fit(q=q).params) for q in qs]]
     assert np.allclose(weighted.coefficients, sm_coeffs, atol=1e-4)
 
 

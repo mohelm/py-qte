@@ -33,6 +33,13 @@ class BootstrapConfig:
     seed: int | None = None
     n_workers: int = 1
 
+    def __post_init__(self) -> None:
+        """Validate the bootstrap settings."""
+        if self.n_iter < 1:
+            raise ValueError("`n_iter` must be at least 1.")
+        if self.n_workers < 1:
+            raise ValueError("`n_workers` must be at least 1.")
+
 
 class _BootstrapEstimates(Protocol):
     """Minimal interface of one bootstrap draw's estimates."""
@@ -62,7 +69,7 @@ def _bootstrap_standard_errors(
     return qtt, att
 
 
-def _attach_standard_errors(
+def _attach_standard_errors_to_estimate(
     point: _BootstrapEstimates,
     runs: Iterable[_BootstrapEstimates],
 ) -> tuple[pl.DataFrame, pl.DataFrame]:

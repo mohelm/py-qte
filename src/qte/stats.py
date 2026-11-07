@@ -4,7 +4,7 @@ from typing import Self
 import numpy as np
 import polars as pl
 import statsmodels.api as sm
-import statsmodels.formula.api as smf
+from formulaic import Formula
 from numpy.typing import NDArray
 from scipy.stats import norm
 from statsmodels.genmod.generalized_linear_model import GLMResultsWrapper
@@ -38,14 +38,19 @@ def estimate_propensity_score(
 ) -> GLMResultsWrapper:
     # Need to use glm since the standard logistic regression in statsmodels does not seem to
     # consider the sampling weights.
-    ds_as_dict = {col.name: col.to_numpy() for col in ds.iter_columns()}
+    design = Formula.from_spec(f"~ {x_formula}").get_model_matrix(ds, output="numpy")
+    response = ds[treatment].cast(pl.Float64).to_numpy()
     sample_weights = ds[weights].to_numpy() if weights is not None else None
-    return smf.glm(
-        formula=f"{treatment}~{x_formula}",
-        data=ds_as_dict,
+    result = sm.GLM(
+        response,
+        np.asarray(design),
         family=sm.families.Binomial(),
         freq_weights=sample_weights,
     ).fit()
+    model_spec = design.model_spec
+    assert model_spec is not None
+    result.model.data.xnames = list(model_spec.column_names)
+    return result
 
 
 def estimate_outcome_model(

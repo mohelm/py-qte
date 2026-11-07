@@ -1,7 +1,9 @@
 """Tests for the shared bootstrap helpers in :mod:`qte.bootstrap`."""
 
+from dataclasses import replace
+
 import polars as pl
-from pytest import fixture
+from pytest import fixture, raises
 
 from qte.bootstrap import (
     BootstrapConfig,
@@ -36,6 +38,17 @@ def test_make_bootstrap_config_passes_config_through():
     cfg = BootstrapConfig(n_iter=3, seed=7, n_workers=2)
     assert _make_bootstrap_config(5) == BootstrapConfig(n_iter=5)
     assert _make_bootstrap_config(cfg) is cfg
+
+
+def test_bootstrap_config_rejects_invalid_values():
+    with raises(ValueError):
+        BootstrapConfig(n_iter=0)
+    with raises(ValueError):
+        BootstrapConfig(n_workers=0)
+    with raises(ValueError):
+        _make_bootstrap_config(0)
+    with raises(ValueError):
+        replace(BootstrapConfig(), n_iter=0)
 
 
 def test_make_bootstrap_runs_yields_one_resample_per_iteration(panel):
