@@ -1,65 +1,3 @@
-"""Kitagawa (2015) instrument-validity test with the pooled bootstrap.
-
-This module implements the Kitagawa (2015) test of instrument validity, with the
-pooled bootstrap of her Algorithm 2.1. The instrument is taken as given: ``instrument == 1`` is the encouraged arm ("on") and
-``instrument == 0`` the unencouraged arm ("off"), so no reordering happens. Write
-``P`` for the distribution of ``(Y, D)`` given the instrument is on and ``Q`` for
-the distribution given it is off, and let ``P_m`` and ``Q_n`` be their empirical
-counterparts. Under IV validity (exclusion, random assignment, monotonicity with
-``D(on) >= D(off)``),
-
-    P(B, 1) - Q(B, 1) >= 0,      Q(B, 0) - P(B, 0) >= 0,
-
-for every Borel set ``B``, because both differences equal the probability that a
-complier's potential outcome lies in ``B``. The test measures the largest
-violation of these inequalities over intervals of outcomes,
-
-    T_N = sqrt(m n / N) * max{ sup_B [Q_n(B, 1) - P_m(B, 1)] / (xi v sigma(B, 1)),
-                               sup_B [P_m(B, 0) - Q_n(B, 0)] / (xi v sigma(B, 0)) },
-
-with ``sigma^2(B, d) = (1 - lambda) P_m(B, d) (1 - P_m(B, d))
-+ lambda Q_n(B, d) (1 - Q_n(B, d))``, ``lambda = m / N``, and a trimming
-constant ``xi`` (Kitagawa, 2015, equation 2.1). The unweighted variant replaces
-the ``sigma`` denominator by one (equation 2.2).
-
-Critical values come from Algorithm 2.1: the instrument is dropped and ``m``
-observations for ``P*_m`` and ``n`` observations for ``Q*_n`` are drawn with
-replacement from the pooled empirical distribution
-``H_N = lambda P_m + (1 - lambda) Q_n``. Both bootstrap samples therefore follow
-the *same* distribution, which imposes the null ``P = Q = H``; Kitagawa (2015,
-footnote 11) notes that no recentering is needed for exactly this reason. The
-statistic is recomputed on the bootstrap samples, including ``sigma``, and the
-p value is the share of replications at least as large as the observed statistic.
-
-The implementation is written in Polars. Resampling on the pooled frame goes
-through `qte.bootstrap._make_bootstrap_runs`, which hands each replication a
-with-replacement resample of the data, exactly as the other estimators in the
-package do; the frame holds only outcome and treatment, because ``H_N`` is a law
-of ``(Y, D)``. Empirical CDFs are running weight sums read off with
-`polars.Series.search_sorted`, and the supremum over intervals is taken with
-NumPy on the ``(endpoint, endpoint, treatment)`` array of interval masses, where
-the variance weighting, the trimming and the maximum are plain array algebra.
-The observed data and every bootstrap replication enter the same
-`_compute_statistic`; they differ only in which two frames are handed to it.
-
-With sampling weights the module works with the weighted empirical measures and a
-*case* bootstrap: rows are drawn uniformly from the pooled frame and keep their
-weights, so the effective size of a resampled arm is the sum of its drawn weights.
-Kitagawa (2015) does not consider weights, so this is an extension rather than the
-paper's algorithm: with unit weights it is literally Algorithm 2.1, and with
-weights it is the same test for the weighted measures, bootstrapped the way the
-rest of the package bootstraps (rows resampled, weights carried as attributes).
-It is not the Rao--Wu/pseudo-population bootstrap, which would draw rows with
-probability proportional to their weight and give the draws unit weight.
-
-The pooled bootstrap is the procedure in the paper, at the price of rebuilding
-the two empirical CDFs in every replication. A multiplier-bootstrap variant of
-the same statistic, which perturbs the observed CDFs instead of resampling them,
-is kept in ``attic/validity_mult.py`` for reference; the two agree closely in size and
-power (both are conservative, because the bootstrap evaluates the inequalities as
-if they were binding).
-"""
-
 from functools import partial
 from typing import Any
 
@@ -264,14 +202,34 @@ def perform_instrument_validity_test(
     alpha: float = 0.05,
     bootstrap_config: BootstrapConfig | int = 1000,
 ) -> InstrumentValidityResult:
-    """Test instrument validity with Kitagawa (2015) and her pooled bootstrap.
+    """Test instrument validity with the Kitagawa (2015) test.
 
-    Only binary treatments and binary instruments are covered, and the test
-    concerns validity, not relevance.
-    Critical values come from Algorithm 2.1 of the paper, which resamples both
-    instrument arms from the pooled empirical distribution of ``(Y, D)``. Since
-    the pooled bootstrap is what the paper prescribes, this function does not
-    take a multiplier distribution.
+    The treatment and the instrument need to be binary, and ``D = 1`` needs to be the state that
+    the instrument encourages (as of now you have to recode the variables if it is not).
+
+    The test relies on the fact that, under the assumptions that identify a treatment effect on the
+    compliers, we must have
+
+    $$
+    P(B, 1) - Q(B, 1) >= 0 and
+    Q(B, 0) - P(B, 0) >= 0.
+    $$
+
+    That is, the distribution of $(Y,D)$ when the instrument is switched on (off), $P$ ($Q$),
+    assigns at least as much probability as the other one to _every_ set $B$ whenever the treatment
+    is on (off).
+
+    The test builds a test statistic on this basis and then uses the pooled bootstrap to derive the
+    distribution of the test statistic under the assumption that $Q$ and $P$ are in fact equal.
+
+    Notice that the test can only reject instrument validity, not confirm it. Further, the test is
+    conservative in the sense that it tends to underreject. This is because the bootstrap
+    distribution is computed at $P = Q$, the least favourable member of the null, so the critical
+    values are conservative whenever the inequalities are slack.
+
+    This implementation is relatively close to the original Kitagawa (2015) paper as opposed to the
+    implementation in the `ivcheck` R package which uses the wild bootstrap.
+
 
     Parameters
     ----------
@@ -314,27 +272,6 @@ def perform_instrument_validity_test(
     --------
     `qte.iv.estimate_unconditional_local_effects`
 
-    Notes
-    -----
-    The instrument is not reordered: the one-sided inequalities are stated for
-    ``instrument == 1`` as the encouraged arm, so the caller is responsible for
-    the coding. ``first_stage`` is reported as the on-minus-off take-up gap and
-    is negative when the coding runs against monotonicity.
-
-    Kitagawa (2015) defines the test for unweighted empirical measures; with unit
-    weights this implementation is exactly her Algorithm 2.1. With sampling
-    weights it applies the same statistic to the weighted measures and bootstraps
-    it by resampling rows, which is not the paper's algorithm (it has none for
-    this case) nor the pseudo-population bootstrap.
-
-    The bootstrap re-draws both arms from the pooled sample, so the bootstrap
-    world has ``P = Q`` by construction; Kitagawa (2015, footnote 11) notes that
-    this is why no recentering is needed. The null distribution is therefore
-    evaluated as if every inequality were binding, which makes the test
-    conservative: a p value near one is uninformative about validity, and only
-    a small p value is evidence against it. The paper suggests improving power
-    by restricting the search to a preestimated contact set (footnote 10), which
-    this implementation does not do.
 
     References
     ----------
