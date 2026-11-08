@@ -1,4 +1,4 @@
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from functools import partial
 from itertools import product
@@ -29,7 +29,13 @@ from qte.distributional_did.aggregate import (
     get_weights_for_overall_effect,
     get_weights_for_treatment_group_effects,
 )
-from qte.distributional_did.counterfactuals import _SPECS, _CounterfactualSpec
+from qte.distributional_did.counterfactuals import (
+    _compute_changes_in_changes,
+    _compute_distributional_did,
+    _compute_mean_did,
+    _compute_quantile_did,
+    _Counterfactual,
+)
 from qte.distributional_did.custom_types import (
     BasePeriod,
     ColumnName,
@@ -48,6 +54,8 @@ from qte.distributional_did.results import (
 from qte.helpers import _as_iterable_array
 from qte.names import EFFECT_ID, QUANTILE_ID, SE_ID
 from qte.stats import Ecdf
+
+_CounterfactualCompute = Callable[[NDArray, NDArray, NDArray], _Counterfactual]
 
 
 @dataclass(frozen=True)
@@ -182,7 +190,7 @@ def _compute_group_time_effect(
     outcome: ColumnName,
     unit: ColumnName,
     weights: ColumnName,
-    spec: _CounterfactualSpec,
+    compute: _CounterfactualCompute,
 ) -> GroupTimeEffect:
     _group_time_extractor = partial(
         _get_group_data,
@@ -197,7 +205,7 @@ def _compute_group_time_effect(
     pre_ctrl = _group_time_extractor((~pl.col("_is_treated")) & (~pl.col("_is_post")))
     post_ctrl = _group_time_extractor((~pl.col("_is_treated")) & pl.col("_is_post"))
 
-    cf = spec.compute(pre_trt, pre_ctrl, post_ctrl)
+    cf = compute(pre_trt, pre_ctrl, post_ctrl)
 
     return GroupTimeEffect(
         group=g,
@@ -220,7 +228,7 @@ def _compute_effects_for_panel(
     qs: ArrayLike = MEDIAN,
     *,
     weights: ColumnName,
-    spec: _CounterfactualSpec,
+    compute: _CounterfactualCompute,
     base_period: BasePeriod = BasePeriod.UNIVERSAL,
     control_group: ControlGroup = ControlGroup.NEVER_TREATED,
     n_anticipation_periods: int = 0,
@@ -255,7 +263,7 @@ def _compute_effects_for_panel(
             outcome=outcome,
             unit=unit,
             weights=weights,
-            spec=spec,
+            compute=compute,
         )
         for tp, g in product(time_periods, treated_groups)
         if (
@@ -336,7 +344,8 @@ def _estimate_effects(
     unit: ColumnName,
     qs: ArrayLike,
     *,
-    spec: _CounterfactualSpec,
+    compute: _CounterfactualCompute,
+    estimator: Estimator,
     weights: ColumnName | None = None,
     n_anticipation_periods: int = 0,
     base_period: BasePeriod = BasePeriod.UNIVERSAL,
@@ -386,7 +395,7 @@ def _estimate_effects(
         unit=unit,
         qs=qs,
         weights=weights,
-        spec=spec,
+        compute=compute,
         base_period=base_period,
         control_group=control_group,
         n_anticipation_periods=n_anticipation_periods,
@@ -413,7 +422,7 @@ def _estimate_effects(
             outcome=outcome,
             base_period=base_period,
             control_group=control_group,
-            estimator=Estimator(spec.key),
+            estimator=estimator,
         )
         for agg_name, agg in estimate.items()
     }
@@ -491,7 +500,8 @@ def estimate_changes_in_changes_effects(
         time,
         unit,
         qs,
-        spec=_SPECS["changes_in_changes"],
+        compute=_compute_changes_in_changes,
+        estimator=Estimator.CHANGES_IN_CHANGES,
         weights=weights,
         n_anticipation_periods=n_anticipation_periods,
         base_period=base_period,
@@ -574,7 +584,8 @@ def estimate_quantile_did_effects(
         time,
         unit,
         qs,
-        spec=_SPECS["quantile_did"],
+        compute=_compute_quantile_did,
+        estimator=Estimator.QUANTILE_DID,
         weights=weights,
         n_anticipation_periods=n_anticipation_periods,
         base_period=base_period,
@@ -603,12 +614,12 @@ def estimate_mean_did_effects(
     treated group's pre-treatment distribution shifted by the change in the control group's mean.
     This implies the usual parallel trends assumption, so the average treatment effect on the
     treated is identified, but it is stronger: it also requires that only the location of the
-    distribution shifts, not its shape. The reported quantile treatment effects are therefore not
-    identified by the assumption. They are the difference between the observed treated quantiles
-    and the shifted pre-treatment quantiles, ``Q(Y | treated, post) - Q(Y | treated, pre) - delta``,
-    which varies with the quantile only because the treated group's own distribution changes.
-    Reading a slope into them as evidence of treatment effect heterogeneity is a mistake. Returns
-    the group, event-study, overall and group-time effects.
+    distribution shifts, not its shape. The quantile treatment effects that follow,
+    ``Q(Y | treated, post) - Q(Y | treated, pre) - delta``, are a mechanical consequence of that
+    shape restriction: they vary across quantiles only because the treated group's own distribution
+    moves over time, which the assumption leaves unrestricted. Their shape therefore says nothing
+    about how treatment effects vary, and only the average effect rests on the identifying
+    assumption. Returns the group, event-study, overall and group-time effects.
 
     Parameters
     ----------
@@ -667,7 +678,8 @@ def estimate_mean_did_effects(
         time,
         unit,
         qs,
-        spec=_SPECS["mean_did"],
+        compute=_compute_mean_did,
+        estimator=Estimator.MEAN_DID,
         weights=weights,
         n_anticipation_periods=n_anticipation_periods,
         base_period=base_period,
@@ -756,7 +768,8 @@ def estimate_distributional_did_effects(
         time,
         unit,
         qs,
-        spec=_SPECS["distributional_did"],
+        compute=_compute_distributional_did,
+        estimator=Estimator.DISTRIBUTIONAL_DID,
         weights=weights,
         n_anticipation_periods=n_anticipation_periods,
         base_period=base_period,

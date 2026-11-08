@@ -132,6 +132,9 @@ class DuplicateUnitTimeError(Exception): ...
 class TimeVaryingTreatmentGroupError(Exception): ...
 
 
+class UnbalancedPanelError(Exception): ...
+
+
 def check_numeric(s: pl.Series) -> None:
     """Check that a column is numeric, finite and free of missing values."""
     if not s.dtype.is_numeric() or s.null_count() or not s.is_finite().all():
@@ -183,3 +186,21 @@ def check_treatment_group_is_time_invariant(
             "for these units:\n\n"
             f"{varying}"
         )
+
+
+def check_units_are_observed_in_both_periods(earlier: NDArray, later: NDArray) -> None:
+    """Check that two period cells of a group-time cell contain the same units.
+
+    Estimators that form a unit's change over time from its outcomes in two periods need every unit
+    of the cell they are indexed on to appear in both of them. Neither the data alone nor a
+    dataset-wide check can establish this: which units a cell contains depends on the treatment
+    group, the period, the comparison group and the anticipation window.
+    """
+    if len(earlier) == len(later) and np.array_equal(np.sort(earlier), np.sort(later)):
+        return
+    raise UnbalancedPanelError(
+        "Every unit must be observed in both periods of a group-time cell to form its change over "
+        f"time, but the earlier period has {len(earlier)} units and the later one has "
+        f"{len(later)}. Drop units that are not observed in both periods, or use an estimator that "
+        "does not need unit-level changes."
+    )

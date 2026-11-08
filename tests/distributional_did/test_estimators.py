@@ -2,6 +2,7 @@ import polars as pl
 from polars.testing import assert_frame_equal, assert_series_equal
 from pytest import approx, fixture, mark, raises
 
+from qte._validation import UnbalancedPanelError
 from qte.distributional_did.custom_types import (
     BasePeriod,
     ControlGroup,
@@ -809,7 +810,7 @@ def test_distributional_did_requires_control_units_in_both_periods(mpdata, mpdat
     unbalanced = mpdata_prepared.filter(
         ~((pl.col("countyreal") == never_treated_unit) & (pl.col("year") == 2004.0))
     )
-    with raises(ValueError, match="same control units in both periods"):
+    with raises(UnbalancedPanelError, match="observed in both periods"):
         estimate_distributional_did_effects(
             unbalanced,
             "lemp",
