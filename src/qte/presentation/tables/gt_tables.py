@@ -45,6 +45,7 @@ def make_great_table(
         .fmt_number(columns=float_cols, decimals=float_precision)
         .sub_missing(missing_text="-")
         .tab_options(
+            heading_align="left",
             heading_title_font_size="16px",
             column_labels_font_weight="bold",
             row_group_font_weight="bold",
@@ -77,6 +78,7 @@ def make_great_table_for_coefficients(
         .fmt_number(columns=float_cols, decimals=float_precision)
         .sub_missing(missing_text="-")
         .tab_options(
+            heading_align="left",
             heading_title_font_size="16px",
             column_labels_font_weight="bold",
         )
@@ -100,6 +102,7 @@ def make_great_table_for_validity_test(
         .fmt_number(columns=float_cols, decimals=float_precision)
         .sub_missing(missing_text="-")
         .tab_options(
+            heading_align="left",
             heading_title_font_size="16px",
             column_labels_font_weight="bold",
         )

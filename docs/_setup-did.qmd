@@ -1,0 +1,40 @@
+```{python}
+#| label: setup-did
+#| echo: false
+import time
+
+import polars as pl
+import vl_convert as vlc
+from great_tables import GT
+from IPython.display import publish_display_data
+from qte.bootstrap import BootstrapConfig
+
+QS = [0.25, 0.50, 0.75]
+
+# Kept deliberately small so the page builds quickly while the documentation is being iterated on.
+BOOTSTRAP = BootstrapConfig(n_iter=50, seed=42, n_workers=4)
+
+
+def show_chart(chart) -> None:
+    """Render an Altair chart as inline SVG.
+
+    Publishing the HTML directly keeps this a single cell output; returning an ``HTML`` object
+    would add an empty ``text/plain`` output as well, and Quarto would split the figure into
+    sub-figures.
+    """
+    publish_display_data({"text/html": vlc.vegalite_to_svg(chart.to_dict())})
+
+
+class timer:
+    """Report how long a block took."""
+
+    def __init__(self, label: str) -> None:
+        self.label = label
+
+    def __enter__(self) -> "timer":
+        self._start = time.perf_counter()
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        print(f"[{self.label}] {time.perf_counter() - self._start:.2f}s")
+```

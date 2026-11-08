@@ -31,6 +31,12 @@ website:
             href: iv/jtpa.qmd
           - text: "IVQR"
             href: iv/ivqr.qmd
+      - text: "Difference-in-Differences"
+        menu:
+          - text: "Estimators"
+            href: did.qmd
+          - text: "Aggregating Estimates"
+            href: did-aggregation.qmd
       - text: "Reference"
         href: reference/index.qmd
 

@@ -1,6 +1,7 @@
 """Result containers for the distributional difference-in-differences estimator."""
 
 from dataclasses import dataclass
+from typing import Any
 
 from qte.distributional_did.custom_types import (
     BasePeriod,
@@ -57,6 +58,16 @@ class DistributionalDidResult(_BasicQteResult):
     control_group: ControlGroup
     sampling_scheme: SamplingScheme
     estimator: Estimator
+
+    def _make_table_header_content(self, alpha: float) -> dict[str, Any]:
+        """Add the estimator and the comparison settings to the shared table header."""
+        return {
+            "Outcome": self.outcome,
+            "Estimator": self.estimator.value,
+            "Base period": self.base_period.value,
+            "Control group": self.control_group.value,
+            "Confidence Lvl": alpha,
+        }
 
 
 @dataclass()
