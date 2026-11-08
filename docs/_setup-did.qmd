@@ -1,28 +1,40 @@
 ```{python}
 #| label: setup-did
 #| echo: false
+import base64
 import time
 
 import polars as pl
 import vl_convert as vlc
 from great_tables import GT
 from IPython.display import publish_display_data
-from qte.bootstrap import BootstrapConfig
-
-QS = [0.25, 0.50, 0.75]
-
-# Kept deliberately small so the page builds quickly while the documentation is being iterated on.
-BOOTSTRAP = BootstrapConfig(n_iter=50, seed=42, n_workers=4)
 
 
-def show_chart(chart) -> None:
+def _as_image(svg: str) -> str:
+    """Embed the SVG as an image rather than inline markup.
+
+    Quarto moves sections holding an inline chart that is wider than the text column onto the
+    full-width page grid; as an image the chart simply scales with the column.
+    """
+    encoded = base64.b64encode(svg.encode()).decode()
+    return f'<img role="img" src="data:image/svg+xml;base64,{encoded}">'
+
+
+def show_chart(chart, *, facet_width: int | None = None) -> None:
     """Render an Altair chart as inline SVG.
 
-    Publishing the HTML directly keeps this a single cell output; returning an ``HTML`` object
-    would add an empty ``text/plain`` output as well, and Quarto would split the figure into
-    sub-figures.
+    ``facet_width`` narrows the individual panels of a faceted chart. A faceted chart is as wide as
+    all its panels together, and Quarto moves any section holding a figure wider than the text column
+    onto the full-width page grid, which visibly shifts the prose in that section.
+
+    Publishing the HTML directly keeps this a single cell output: returning an ``HTML`` object would
+    add an empty ``text/plain`` output as well, and Quarto would split the figure into sub-figures.
     """
-    publish_display_data({"text/html": vlc.vegalite_to_svg(chart.to_dict())})
+    spec = chart.to_dict()
+    if facet_width is not None and "spec" in spec and isinstance(spec["spec"], dict):
+        spec["spec"]["width"] = facet_width
+        spec["spec"]["height"] = facet_width
+    publish_display_data({"text/html": _as_image(vlc.vegalite_to_svg(spec))})
 
 
 class timer:

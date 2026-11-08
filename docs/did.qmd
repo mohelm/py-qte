@@ -7,49 +7,61 @@ format:
   html:
     embed-resources: true
     code-fold: false
+    fig-align: left
 execute:
   echo: true
   warning: false
   message: false
 ---
 
-## What This Page Does
+This page demonstrates the estimators that `py-qte` offers for distributional
+difference-in-differences. The available estimators are
 
-This page runs the four estimators of `qte.distributional_did` on a demonstration panel, one section
-per estimator, so that their output can be compared. Each section states the identifying assumption
-in a paragraph and then shows the estimator at work; the assumptions are stated in full in the
-reference documentation of the respective function.
+1. Changes-in-changes ([Athey & Imbens 2006](#ref-ai-2006)),
+2. Quantile difference-in-differences ([Athey & Imbens 2006](#ref-ai-2006), Section 3.3),
+3. Mean difference-in-differences, and
+4. Distributional difference-in-differences ([Callaway, Li & Oka 2018](#ref-clo-2018)).
 
-All four share the same structure. For a treatment group $g$ and a period $t$ they compare a
-pre-treatment period with $t$, between the treated group and a comparison group of units that are
-never treated or not yet treated. Within that comparison — a _cell_ — they construct the
-distribution of untreated potential outcomes for the treated group in $t$ and report quantile
-treatment effects as the difference between the observed treated quantiles and those of the
-counterfactual distribution. With staggered adoption there is one cell per group and period, and the
-cells are aggregated to an overall effect, a per-group effect and an event-study path (compare
-[Callaway & Sant'Anna 2021](#ref-cs-2021)). What the four differ in is only how they construct the
-counterfactual distribution.
+All four follow the approach of [Callaway & Sant'Anna 2021](#ref-cs-2021) in that they allow an
+arbitrary number of groups and time periods, but the actual effects are estimated per treated
+group-time cell relative to a single comparison (_pre-treatment_) period and a single control group.
+The estimators offer various ways to determine the comparison group and period. As in
+[Callaway & Sant'Anna 2021](#ref-cs-2021), aggregation procedures are offered which give treatment
+effects at higher levels than the individual group-time cells of the treated. The available
+aggregations are described [here](did-aggregation.qmd).
 
-Every estimation returns all four aggregations at once — `res.overall`, `res.group`,
-`res.event_study` and `res.group_time` — and each of them can be displayed with `plot()` or
-`tabulate()`. The sections below show the overall aggregation; the header of each table repeats the
-estimator, the base period and the comparison group that produced it, so that the output stays
-readable on its own.
+The object of interest in what follows is the _entire_ distribution of $Y^{d=0}(d=1,t=T)$, i.e. the
+potential outcome under no treatment (as indicated by the superscript $d=0$) for a group that was in
+fact treated, i.e. $d=1$, at period $T$.
+
+The available estimators differ in under what assumptions this counterfactual distribution is
+derived from observables. The following sections give a brief description of each estimator and the
+underlying identification assumptions, together with showing how the corresponding estimation can be
+performed with the `py-qte` package and how to present the results.
 
 {{< include _setup-did.qmd >}}
+
+@lst-config displays what quantiles are computed throughout and the configuration of the boostrap.
+
+```{python}
+#| label: lst-config
+from qte.bootstrap import BootstrapConfig
+
+QS = [0.25, 0.50, 0.75]
+BOOTSTRAP = BootstrapConfig(n_iter=50, seed=42, n_workers=4)
+```
 
 ## The Data
 
 The demonstration data are county-level teen employment in the United States from 2003 to 2007,
-together with whether a county's minimum wage was raised above the federal minimum. They are the
-data used by the `did` and `qte` R packages for the same purpose, and enter `py-qte` as
-`load_mpdta()`. A county is treated from the first year in which its minimum wage exceeds the
-federal minimum, so the treatment groups are 2004, 2006 and 2007, and counties that never raised
-their minimum wage form the comparison group.
+together with whether a county's minimum wage was raised above the federal minimum. The dataset
+contains three treatment groups identified by the year in which the respective county was initially
+treated (2004, 2006, 2007). There is also a group of counties that was never treated. The panel is
+balanced: 500 counties observed in each of the five years.
 
-The dataset is a demonstration device only: it has nothing to do with the estimators, it is small
-enough to estimate quickly, and it has staggered adoption, which exercises the aggregation across
-cells.
+The outcome of interest is `lemp`, the natural logarithm of the number of employed teenagers in the
+county. Because it is a count and not a rate, its level also reflects how large a county is, and
+differences in county size across the treatment groups are visible in the averages below.
 
 ```{python}
 #| label: lst-did-data
@@ -66,76 +78,86 @@ GROUP_LABEL = (
 
 # `first.treat` is 0 for counties that never raised their minimum wage; the estimators expect
 # +inf for never-treated units, which is what the default of `TrtGroupConfig` assumes.
-panel = load_mpdta().with_columns(
-    pl.col("first.treat").replace(0, float("inf")).alias("group")
-)
+panel = load_mpdta().with_columns(pl.col("first.treat").replace(0, float("inf")).alias("group"))
 print(f"{panel.height:,} county-year observations for {panel['countyreal'].n_unique()} counties")
 print(f"years: {panel['year'].unique().sort().to_list()}")
 ```
 
-## Descriptive Statistics
-
-The table below counts the counties by treatment group. The treated groups are very unbalanced: of
-the 191 treated counties, 20 are first treated in 2004, 40 in 2006 and 131 in 2007.
-
-```{python}
-#| label: tbl-did-groups
-groups = (
-    panel.unique("countyreal")
-    .group_by("group")
-    .len()
-    .sort("group")
-    .with_columns(GROUP_LABEL)
-    .select("Group", pl.col("len").alias("Counties"))
-)
-(
-    GT(groups)
-    .tab_header(title="Counties by first treated period")
-    .fmt_number("Counties", decimals=0)
-)
-```
-
-The next table reports the average log teen employment by treatment group and year. The groups
-differ substantially in levels — from about 5.6 log points in the never-treated counties to about
-6.5 in those first treated in 2006 — which is precisely the situation the estimators are meant to
-handle: the groups need not be comparable _in levels_, only in how they would have evolved.
+@tbl-did-means reports the average log teen employment by treatment group and year. We see that
+there are large differences in the outcome variable even under no treatment. This suggests that a
+simple comparison between the treated group and a control group will not successfully identify
+treatment effects on the treated group. The distributional difference-in-differences estimators can
+address some of the potential confounding.
 
 ```{python}
 #| label: tbl-did-means
+#| echo: false
+from great_tables import GT, loc, style
+
 means = (
     panel.pivot(on="year", index="group", values="lemp", aggregate_function="mean")
     .sort("group")
     .with_columns(GROUP_LABEL)
 )
 means = means.select("Group", *[c for c in means.columns if c not in ("group", "Group")])
-(
+years = [c for c in means.columns if c != "Group"]
+
+# A cell is treated once the group has been treated by that year. The never-treated counties are
+# never treated, and the years before a group's first treated year are not yet treated.
+means_table = (
     GT(means)
-    .tab_header(
-        title="Average log teen employment by treatment group and year",
-        subtitle="Group = first year in which the county's minimum wage exceeded the federal minimum",
+    .tab_header(title="Average log teen employment by treatment group and year")
+    # Row striping would add a third background colour on top of the two below.
+    .opt_row_striping(row_striping=False)
+    .tab_footnote(
+        footnote="Group is the first year in which the county's minimum wage exceeded the federal "
+        "minimum.",
+        locations=loc.column_labels(columns="Group"),
     )
-    .fmt_number([c for c in means.columns if c != "Group"], decimals=3)
+    # Keep the table (and with it the footnote block) flush with the left margin of the text.
+    .tab_options(table_margin_left="0px", table_margin_right="auto")
 )
+for row in means.iter_rows(named=True):
+    treated_from = None if row["Group"] == "never treated" else int(row["Group"])
+    for year in years:
+        treated = treated_from is not None and int(year) >= treated_from
+        means_table = means_table.tab_style(
+            style=style.fill(color="#fde68a" if treated else "#e5e7eb"),
+            locations=loc.body(columns=year, rows=pl.col("Group") == row["Group"]),
+        )
+
+means_table.tab_source_note(
+    "Yellow cells are years in which the group is treated; grey cells are not treated, which "
+    "includes the years before a group is treated and the never-treated counties throughout."
+).fmt_number(years, decimals=3)
 ```
 
 ## Changes-in-Changes
 
-Changes-in-changes ([Athey & Imbens 2006](#ref-ai-2006)) makes no assumption about the distribution
-of unobservables in either group. It requires only that a single strictly increasing production
-function maps unobservables into outcomes in each period, so that the comparison group's pre-to-post
-quantile transformation can be applied to the treated group's pre-treatment outcomes. The
-counterfactual outcome of a treated unit with pre-treatment outcome $y$ is obtained by finding the
-quantile of $y$ in the pre-treatment distribution of the comparison group and reading off that
-quantile from the comparison group's post-treatment distribution,
+The Changes-in-Changes (CIC) model was developed by [Athey & Imbens 2006](#ref-ai-2006). The crucial
+assumptions are that the outcomes under no treatment — if the causal target of interest is an effect
+on the treated — are determined by a “production function”, $Y^{d=0}=h(U,t)$, that depends on time,
+$t$, and on a _single_ unobserved index of individual-level characteristics, $U$.
+
+The production function is assumed to be monotone in that index, and it is indexed by neither group
+membership nor the individual observation $i$. The distribution of $U$ is unrestricted across groups
+but, within a group, does not change over time. It is further assumed that the latent
+characteristics satisfy a common support assumption across groups.
+
+So this model, intuitively, assumes that _in the absence of the treatment_ two individuals from
+different groups _with the same latent characteristic_ $U=u$ display the exact same evolution of
+outcomes. This, together with the assumption of common support, suggests that one can indeed
+identify the counterfactual distribution of the outcomes of the treated under no treatment in the
+post-treatment period.
+
+Formally, under the assumptions of the CIC model this counterfactual distribution is generated by
+the following transformation, applied to the outcomes of the treated in the pre-treatment period.
 
 $$
-k_{CIC}(y) = F^{-1}_{Y_{01}}\!\left(F_{Y_{00}}(y)\right),
+k_{CIC}(y) = F^{-1}_{Y^{obs}(d=0,t=1)}\!\left(F_{Y^{obs}(d=0,t=0)}(y)\right).
 $$
 
-with $Y_{00}$ and $Y_{01}$ the comparison group's outcome before and after, and $Y_{10}$ the treated
-group's outcome before. This is the least restrictive of the four on how the two groups may differ,
-at the price of requiring that the distribution of unobservables within each group does not change
-over time.
+@lst-cic shows how to use this estimator in `py-qte`.
 
 ```{python}
 #| label: lst-cic
@@ -153,38 +175,53 @@ with timer("changes-in-changes"):
     )
 ```
 
+@tbl-cic and @fig-cic show the results in tabular and graphical form.
+
 ```{python}
 #| label: tbl-cic
 cic.overall.tabulate(quantiles=QS)
 ```
 
-The quantile effects are identified by the mapping alone, so the only element of judgement left in
-the output is the aggregation: `cic.group_time` holds the same estimate for every treatment group
-and period, and `cic.event_study` aligns them by time since treatment.
-
 ```{python}
 #| label: fig-cic
-#| fig-cap: "Changes-in-changes: quantile treatment effects on the overall aggregation."
+#| fig-cap: "Changes-in-Changes: quantile treatment effects on the overall aggregation."
 show_chart(cic.overall.plot())
 ```
 
 ## Quantile Difference-in-Differences
 
-Quantile difference-in-differences ([Athey & Imbens 2006](#ref-ai-2006), Section 3.3) applies
-difference-in-differences to every quantile instead of to the mean: the change over time of the
-comparison group at the $q$-th quantile is added to the treated group's pre-treatment outcome at
-that same quantile,
+The Quantile Difference-in-Differences (QDID) model is motivated by the idea that the observed
+evolution of a quantile $q$ of the (marginal) distribution of outcomes that the untreated
+experienced from the pre- to the post-treatment period can act as a stand-in for the counterfactual
+evolution of the same quantile that the outcome distribution of the treated would have experienced
+had they not been treated.
 
 $$
-k_{QDID}(y) = y + \left[Q_{Y_{01}}(q) - Q_{Y_{00}}(q)\right],
-\qquad q = F_{Y_{10}}(y).
+F^{-1}_{Y^{d=0}(d=1,t=1)}(q) =
+F^{-1}_{Y^{obs}(d=1,t=0)}(q) +
+\left[F^{-1}_{Y^{obs}(d=0,t=1)}(q) - F^{-1}_{Y^{obs}(d=0,t=0)}(q)\right]
 $$
 
-This is justified by an additively separable model whose unobservables must be identically
-distributed in all groups and periods. That is the most restrictive of the four on how the groups
-may differ — the authors who formalized the estimator list it among its drawbacks — and it is what
-distinguishes it from the distributional version below, which leaves the initial distributions
-unrestricted.
+The QDID model is formalized — that is, connected to a set of assumptions on primitives — in
+[Athey & Imbens 2006](#ref-ai-2006), Section 3.3. They assume that
+$Y^{d=0} = \tilde{h}(U,G,T) = \tilde{h}_G(U,G) + \tilde{h}_T(U,T)$, which is strictly increasing in
+$U$, and that $U$ is independent of both $G$ and $T$. This model generates differences in the
+distribution of $Y^{d=0}$ both across groups and across time. Intuitively, at a fixed $U$ the change
+in untreated potential outcomes is identical across the two groups, which is what identifies the
+counterfactual distribution in an essentially analogous way to the standard
+difference-in-differences model (at a fixed $u$ the counterfactual post-treatment period outcome of
+the treatment is exactly equal to the pre-treatment period outcome plus the observed change in the
+outcome derived from the untreated).
+
+Applied to each treated pre-treatment outcome rather than to one quantile at a time, the identity
+above gives the following transformation:
+
+$$
+k_{QDID}(y) = y + \left[F^{-1}_{Y^{obs}(d=0,t=1)}(q) - F^{-1}_{Y^{obs}(d=0,t=0)}(q)\right],
+\qquad q = F_{Y^{obs}(d=1,t=0)}(y).
+$$
+
+@lst-qdid shows how to use this estimator in `py-qte`.
 
 ```{python}
 #| label: lst-qdid
@@ -202,37 +239,45 @@ with timer("quantile difference-in-differences"):
     )
 ```
 
+@tbl-qdid and @fig-qdid show the results in tabular and graphical form.
+
 ```{python}
 #| label: tbl-qdid
 qdid.overall.tabulate(quantiles=QS)
 ```
 
-The effect at each quantile is the treated group's own change at that quantile net of the comparison
-group's change. Because the model assumes the unobservables are identically distributed everywhere,
-the two groups are effectively compared quantile by quantile, which is also why the estimator is
-sensitive to the groups differing in the shape of their outcome distributions.
-
 ```{python}
 #| label: fig-qdid
-#| fig-cap: "Quantile difference-in-differences: quantile treatment effects on the overall aggregation."
+#| fig-cap: "Quantile Difference-in-Differences: quantile treatment effects on the overall aggregation."
 show_chart(qdid.overall.plot())
 ```
 
 ## Mean Difference-in-Differences
 
-Mean difference-in-differences is the textbook estimator. It shifts the treated group's whole
-pre-treatment distribution by the change in the comparison group's mean,
+Mean Difference-in-Differences (MDID) shifts the treated group's whole pre-treatment distribution by
+the change in the comparison group's mean:
 
 $$
-F_{Y(0)\mid D=1}(y) = F_{Y,\text{pre}\mid D=1}(y - \Delta),
-\qquad \Delta = E[Y_{\text{post}} \mid D=0] - E[Y_{\text{pre}} \mid D=0].
+\begin{aligned}
+F_{Y(0)\mid D=1}(y) &= F_{Y,\text{pre}\mid D=1}(y - \Delta), \\[2pt]
+\Delta &= E[Y_{\text{post}} \mid D=0] - E[Y_{\text{pre}} \mid D=0].
+\end{aligned}
 $$
 
-This implies the parallel trends assumption and therefore identifies the average effect on the
-treated, but it also requires that only the location of the distribution moves. The quantile effects
-it reports are consequently not evidence about how effects vary across the distribution: they are
-the treated group's own distributional change net of a constant, and only the average effect rests
-on the identifying assumption.
+This is stronger than the usual difference-in-differences assumption, which only requires the means
+to move in parallel: here every quantile of the counterfactual distribution is the corresponding
+pre-treatment quantile shifted by the same constant,
+$F^{-1}_{Y^{d=0}(d=1,t=1)}(q) = F^{-1}_{Y^{obs}(d=1,t=0)}(q) + \Delta$. In the notation of
+[Athey & Imbens 2006](#ref-ai-2006) this is the transformation
+$k_{DID}(y) = y + E[Y_{01}] - E[Y_{00}]$.
+
+Relative to the QDID model, the change is not allowed to vary with $u$: in the QDID model above the
+time effect can differ across quantiles, whereas here it is a single number. The quantile effects
+this model reports are consequently not evidence about how effects vary across the distribution —
+they are the treated group's own distributional change net of a constant, and only the average
+effect rests on the identifying assumption.
+
+@lst-mdid shows how to use this estimator in `py-qte`.
 
 ```{python}
 #| label: lst-mdid
@@ -250,41 +295,41 @@ with timer("mean difference-in-differences"):
     )
 ```
 
+@tbl-mdid and @fig-mdid show the results in tabular and graphical form.
+
 ```{python}
 #| label: tbl-mdid
 mdid.overall.tabulate(quantiles=QS)
 ```
 
-Only the average effect of this estimator carries identifying content. The quantile treatment
-effects are the treated group's observed quantiles minus its shifted pre-treatment quantiles, so
-they differ from the quantile difference-in-differences estimates above exactly by the deviation of
-the comparison group's quantile change from its mean change — a property of the comparison group,
-not of the treatment.
-
 ```{python}
 #| label: fig-mdid
-#| fig-cap: "Mean difference-in-differences: quantile treatment effects on the overall aggregation."
+#| fig-cap: "Mean Difference-in-Differences: quantile treatment effects on the overall aggregation."
 show_chart(mdid.overall.plot())
 ```
 
 ## Distributional Difference-in-Differences
 
-Distributional difference-in-differences ([Callaway, Li & Oka 2018](#ref-clo-2018)) assumes that the
-change in untreated potential outcomes has the same distribution in both groups, and that the
-dependence — the copula — between that change and the initial level of untreated potential outcomes
-is the same in both groups, while the initial distribution itself may differ. The counterfactual
-pairs each comparison unit's own change over time with the treated pre-treatment outcome at that
-unit's rank in the comparison group's pre-treatment distribution,
+The Distributional Difference-in-Differences (DDiD) model of
+[Callaway, Li & Oka 2018](#ref-clo-2018) assumes that the _change in untreated potential outcomes_
+has the same distribution in both groups. This, however, is not enough to identify
+$F_{Y^{d=0}(d=1,t=1)}$. Intuitively, for a given pre-treatment period distribution of outcomes for
+the treated, $F_{Y^{d=0}(d=1,t=0)}$, a restriction on the distribution of changes can generate many
+distributions of the outcome levels of the treated group in the post-treatment period. This issue
+can be remedied by imposing that the pre-treatment period levels and the changes from the pre- to
+the post-treatment period move in a similar way together in the treated and in the untreated group.
+Technically, it is required that the associated copula be the same in both groups.
+
+The counterfactual distribution of interest is then given by:
 
 $$
 F_{Y(0)\mid D=1}(y) =
 \Pr\left\{\Delta Y_{j} + F^{-1}_{Y_{10}}\!\left(F_{Y_{00}}(Y_{j})\right) \le y \;\middle|\; D = 0\right\},
 $$
 
-where $\Delta Y_j$ is comparison unit $j$'s own change and $Y_j$ its pre-treatment outcome. This
-identifies the counterfactual distribution without restricting the distribution of unobservables
-across groups. Because the counterfactual is built from the comparison group's units, the
-distribution of individual treatment effects is not identified, unlike for the other three.
+where $\Delta Y_j$ is comparison unit $j$'s own change and $Y_j$ its pre-treatment outcome.
+
+@lst-ddid shows how to use this estimator in `py-qte`.
 
 ```{python}
 #| label: lst-ddid
@@ -302,25 +347,22 @@ with timer("distributional difference-in-differences"):
     )
 ```
 
+@tbl-ddid and @fig-ddid show the results in tabular and graphical form.
+
 ```{python}
 #| label: tbl-ddid
 ddid.overall.tabulate(quantiles=QS)
 ```
 
-The counterfactual is assembled from the comparison group's units, so each control unit has to be
-observed in both periods of a cell; units that are not are rejected rather than silently dropped.
-That also means the distribution of individual treatment effects is not identified here, unlike for
-the other three, where the counterfactual is attached to the treated units.
-
 ```{python}
 #| label: fig-ddid
-#| fig-cap: "Distributional difference-in-differences: quantile treatment effects on the overall aggregation."
+#| fig-cap: "Distributional Difference-in-Differences: quantile treatment effects on the overall aggregation."
 show_chart(ddid.overall.plot())
 ```
 
-## Comparing the Four
+## Summary
 
-The table below puts the four sets of estimates next to each other.
+Finally, @tbl-did-all compares the four estimators.
 
 ```{python}
 #| label: tbl-did-all
@@ -343,23 +385,6 @@ for name, result in estimates.items():
 )
 ```
 
-They do not agree. The average effects point in the same direction and are of the same order of
-magnitude — between roughly $-0.02$ and $-0.05$ — but the quantile profiles differ substantially.
-The widest gap is at the median, where changes-in-changes reports no effect at all and the
-distributional version reports $-0.09$; at the quartiles the four are closer, between $-0.08$ and
-$-0.11$ at the lower one and between $-0.02$ and $-0.05$ at the upper one.
-
-That disagreement is the point of the exercise. The four differ only in the counterfactual
-distribution they construct, so how much their estimates disagree measures how much that choice
-matters in these data; with 191 treated counties spread over three small adoption groups, the
-differences between the counterfactuals are large enough to make the four disagree by up to a tenth
-of a log point, which is a large effect in these data. The bootstrap standard errors are not small
-relative to these differences, and with 50 replications they are themselves imprecise, so read the
-numbers as a demonstration of the mechanics rather than as evidence about minimum wages.
-
-Choosing between the four is therefore not a matter of fit, which they all achieve equally by
-construction, but a choice between the assumptions stated in the four sections above.
-
 ## References
 
 1. <a id="ref-ai-2006"></a>Athey, S., & Imbens, G. W. (2006). Identification and inference in
@@ -372,12 +397,3 @@ construction, but a choice between the assumptions stated in the four sections a
 3. <a id="ref-cs-2021"></a>Callaway, B., & Sant'Anna, P. H. C. (2021). Difference-in-differences
    with multiple time periods. _Journal of Econometrics_, 225(2), 200–230.
    [doi:10.1016/j.jeconom.2020.12.001](https://doi.org/10.1016/j.jeconom.2020.12.001)
-4. <a id="ref-hit-1997"></a>Heckman, J. J., Ichimura, H., & Todd, P. E. (1997). Matching as an
-   econometric evaluation estimator: Evidence from evaluating a job training programme. _The Review
-   of Economic Studies_, 64(4), 605–654. [doi:10.2307/2971733](https://doi.org/10.2307/2971733)
-5. <a id="ref-abadie-2005"></a>Abadie, A. (2005). Semiparametric difference-in-differences
-   estimators. _The Review of Economic Studies_, 72(1), 1–19.
-   [doi:10.1111/0034-6527.00321](https://doi.org/10.1111/0034-6527.00321)
-6. <a id="ref-thuysbaert-2007"></a>Thuysbaert, B. (2007). Distributional comparisons in difference
-   in differences models. Working paper. Cited as the reference of the mean
-   difference-in-differences estimator in the R `qte` package.
