@@ -4,16 +4,23 @@ import pytest
 
 from qte._validation import (
     BinaryTreatmentError,
+    DuplicateUnitTimeError,
     InvalidQuantilesError,
+    InvalidTreatmentGroupError,
     InvalidWeightsError,
     MissingColumnsError,
     MissingValuesError,
+    TimeVaryingTreatmentGroupError,
     check_columns_are_in_dataset,
     check_grid,
     check_missing_values_in_dataset,
+    check_numeric,
     check_outcome,
     check_quantiles,
+    check_treatment_group,
+    check_treatment_group_is_time_invariant,
     check_treatment_is_binary,
+    check_unit_time_is_unique,
     check_weights,
     get_formula_columns,
 )
@@ -23,6 +30,12 @@ from qte.cross_sectional import (
     estimate_ipw_effects,
     estimate_outcome_regression_effects,
     estimate_unadjusted_effects,
+)
+from qte.distributional_did import (
+    estimate_changes_in_changes_effects,
+    estimate_distributional_did_effects,
+    estimate_mean_did_effects,
+    estimate_quantile_did_effects,
 )
 
 
@@ -241,3 +254,146 @@ def test_estimate_aipw_effects_rejects_missing_outcome_formula_column():
             outcome_regression_config="age",
             bootstrap_config=1,
         )
+
+
+# --- distributional difference-in-differences ---------------------------------
+
+DIFF_IN_DIFFS_ENTRY_POINTS = [
+    estimate_changes_in_changes_effects,
+    estimate_distributional_did_effects,
+    estimate_mean_did_effects,
+    estimate_quantile_did_effects,
+]
+
+
+def _diff_in_diffs_data(**overrides) -> pl.DataFrame:
+    data = {
+        "unit": [1, 1, 2, 2, 3, 3, 4, 4],
+        "year": [1, 2, 1, 2, 1, 2, 1, 2],
+        "y": [1.0, 2.0, 2.0, 3.0, 3.0, 3.5, 4.0, 5.0],
+        "g": [2.0, 2.0, float("inf"), float("inf"), float("inf"), float("inf"), 2.0, 2.0],
+    }
+    data.update(overrides)
+    return pl.DataFrame(data)
+
+
+@pytest.mark.parametrize(
+    "series",
+    [
+        pl.Series("t", [0, 1, 2]),
+        pl.Series("t", [0.0, 1.5, 2.0]),
+    ],
+)
+def test_check_numeric_accepts_numeric_finite(series):
+    check_numeric(series)
+
+
+@pytest.mark.parametrize(
+    "series",
+    [
+        pl.Series("t", ["a", "b"]),
+        pl.Series("t", [1, None]),
+        pl.Series("t", [1.0, float("nan")]),
+        pl.Series("t", [1.0, float("inf")]),
+    ],
+)
+def test_check_numeric_rejects_invalid(series):
+    with pytest.raises(ValueError):
+        check_numeric(series)
+
+
+def test_check_treatment_group_accepts_positive_infinity():
+    check_treatment_group(pl.Series("g", [1.0, 2.0, float("inf")]))
+    check_treatment_group(pl.Series("g", [1, 2, 3]))
+
+
+@pytest.mark.parametrize(
+    "series",
+    [
+        pl.Series("g", ["a", "b"]),
+        pl.Series("g", [1.0, None]),
+        pl.Series("g", [1.0, float("nan")]),
+        pl.Series("g", [1.0, float("-inf")]),
+    ],
+)
+def test_check_treatment_group_rejects_invalid(series):
+    with pytest.raises(InvalidTreatmentGroupError):
+        check_treatment_group(series)
+
+
+def test_check_unit_time_is_unique_accepts_panel():
+    check_unit_time_is_unique(_diff_in_diffs_data(), "unit", "year")
+
+
+def test_check_unit_time_is_unique_rejects_duplicates():
+    ds = _diff_in_diffs_data()
+    with pytest.raises(DuplicateUnitTimeError):
+        check_unit_time_is_unique(pl.concat([ds, ds]), "unit", "year")
+
+
+def test_check_treatment_group_is_time_invariant_accepts_constant_group():
+    check_treatment_group_is_time_invariant(_diff_in_diffs_data(), "unit", "g")
+
+
+def test_check_treatment_group_is_time_invariant_rejects_varying_group():
+    ds = _diff_in_diffs_data(
+        g=[2.0, float("inf"), float("inf"), float("inf"), float("inf"), float("inf"), 2.0, 2.0]
+    )
+    with pytest.raises(TimeVaryingTreatmentGroupError):
+        check_treatment_group_is_time_invariant(ds, "unit", "g")
+
+
+@pytest.mark.parametrize("estimate", DIFF_IN_DIFFS_ENTRY_POINTS)
+def test_diff_in_diffs_rejects_missing_columns(estimate):
+    with pytest.raises(MissingColumnsError):
+        estimate(pl.DataFrame({"unit": [1], "year": [1]}), "y", "g", "year", "unit")
+
+
+@pytest.mark.parametrize("estimate", DIFF_IN_DIFFS_ENTRY_POINTS)
+def test_diff_in_diffs_rejects_missing_values(estimate):
+    ds = _diff_in_diffs_data(y=[1.0, 2.0, 2.0, 3.0, 3.0, None, 4.0, 5.0])
+    with pytest.raises(MissingValuesError):
+        estimate(ds, "y", "g", "year", "unit", bootstrap_config=1)
+
+
+@pytest.mark.parametrize("estimate", DIFF_IN_DIFFS_ENTRY_POINTS)
+def test_diff_in_diffs_rejects_non_numeric_outcome(estimate):
+    ds = _diff_in_diffs_data(y=["a", "b", "c", "d", "e", "f", "g", "h"])
+    with pytest.raises(ValueError):
+        estimate(ds, "y", "g", "year", "unit", bootstrap_config=1)
+
+
+@pytest.mark.parametrize("estimate", DIFF_IN_DIFFS_ENTRY_POINTS)
+def test_diff_in_diffs_rejects_invalid_quantiles(estimate):
+    with pytest.raises(InvalidQuantilesError):
+        estimate(_diff_in_diffs_data(), "y", "g", "year", "unit", qs=(0.0, 0.5), bootstrap_config=1)
+
+
+@pytest.mark.parametrize("estimate", DIFF_IN_DIFFS_ENTRY_POINTS)
+def test_diff_in_diffs_rejects_invalid_weights(estimate):
+    ds = _diff_in_diffs_data(w=[1.0, 1.0, -1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
+    with pytest.raises(InvalidWeightsError):
+        estimate(ds, "y", "g", "year", "unit", weights="w", bootstrap_config=1)
+
+
+@pytest.mark.parametrize("estimate", DIFF_IN_DIFFS_ENTRY_POINTS)
+def test_diff_in_diffs_rejects_non_numeric_time(estimate):
+    ds = _diff_in_diffs_data(year=["a", "b", "a", "b", "a", "b", "a", "b"])
+    with pytest.raises(ValueError):
+        estimate(ds, "y", "g", "year", "unit", bootstrap_config=1)
+
+
+@pytest.mark.parametrize("estimate", DIFF_IN_DIFFS_ENTRY_POINTS)
+def test_diff_in_diffs_rejects_duplicate_unit_time(estimate):
+    ds = _diff_in_diffs_data()
+    with pytest.raises(DuplicateUnitTimeError):
+        estimate(pl.concat([ds, ds]), "y", "g", "year", "unit", bootstrap_config=1)
+
+
+@pytest.mark.parametrize("estimate", DIFF_IN_DIFFS_ENTRY_POINTS)
+def test_diff_in_diffs_rejects_time_varying_treatment_group(estimate):
+    ds = _diff_in_diffs_data(
+        g=[2.0, float("inf"), float("inf"), float("inf"), float("inf"), float("inf"), 2.0, 2.0]
+    )
+    with pytest.raises(TimeVaryingTreatmentGroupError):
+        estimate(ds, "y", "g", "year", "unit", bootstrap_config=1)

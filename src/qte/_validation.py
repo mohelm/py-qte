@@ -121,3 +121,65 @@ def check_weights(s: pl.Series) -> None:
         or s.sum() <= 0
     ):
         raise InvalidWeightsError(f"Invalid weights in {s.name!r}.")
+
+
+class InvalidTreatmentGroupError(Exception): ...
+
+
+class DuplicateUnitTimeError(Exception): ...
+
+
+class TimeVaryingTreatmentGroupError(Exception): ...
+
+
+def check_numeric(s: pl.Series) -> None:
+    """Check that a column is numeric, finite and free of missing values."""
+    if not s.dtype.is_numeric() or s.null_count() or not s.is_finite().all():
+        raise ValueError(f"{s.name!r} must be numeric and finite.")
+
+
+def check_treatment_group(s: pl.Series) -> None:
+    """Check that a treatment-group column is numeric, with ``inf`` marking never-treated units."""
+    if not s.dtype.is_numeric():
+        raise InvalidTreatmentGroupError(
+            f"Treatment group {s.name!r} must be numeric, got {s.dtype}. Map your never-treated "
+            "code to +inf, either in the data or through `TrtGroupConfig`."
+        )
+    groups = s.cast(pl.Float64)
+    if groups.null_count() or groups.is_nan().any() or (groups.is_infinite() & (groups < 0)).any():
+        raise InvalidTreatmentGroupError(
+            f"Treatment group {s.name!r} must not contain missing values or negative infinity; "
+            "use +inf for units that are never treated."
+        )
+
+
+def check_unit_time_is_unique(ds: pl.DataFrame, unit: ColumnName, time: ColumnName) -> None:
+    """Check that every unit appears at most once per period, as the panel estimators require."""
+    duplicated = (
+        ds.group_by([unit, time]).len().filter(pl.col("len") > 1).sort([unit, time]).head(10)
+    )
+    if not duplicated.is_empty():
+        raise DuplicateUnitTimeError(
+            f"Units must appear at most once per period in {time!r}, but {unit!r} repeats within "
+            "a period:\n\n"
+            f"{duplicated}"
+        )
+
+
+def check_treatment_group_is_time_invariant(
+    ds: pl.DataFrame, unit: ColumnName, treatment_group: ColumnName
+) -> None:
+    """Check that a unit's treatment group does not change over its observations."""
+    varying = (
+        ds.group_by(unit)
+        .agg(pl.col(treatment_group).n_unique().alias("n_groups"))
+        .filter(pl.col("n_groups") > 1)
+        .sort(unit)
+        .head(10)
+    )
+    if not varying.is_empty():
+        raise TimeVaryingTreatmentGroupError(
+            f"Treatment group {treatment_group!r} must be constant within {unit!r}, but it varies "
+            "for these units:\n\n"
+            f"{varying}"
+        )

@@ -8,6 +8,17 @@ import polars as pl
 import polars.selectors as cs
 from numpy.typing import ArrayLike, NDArray
 
+from qte._validation import (
+    check_columns_are_in_dataset,
+    check_missing_values_in_dataset,
+    check_numeric,
+    check_outcome,
+    check_quantiles,
+    check_treatment_group,
+    check_treatment_group_is_time_invariant,
+    check_unit_time_is_unique,
+    check_weights,
+)
 from qte.bootstrap import BootstrapConfig, _make_block_bootstrap_run, _make_bootstrap_config
 from qte.constants import MEDIAN
 from qte.distributional_did.aggregate import (
@@ -34,6 +45,7 @@ from qte.distributional_did.results import (
     DistributionalDidResults,
     GroupTimeEffect,
 )
+from qte.helpers import _as_iterable_array
 from qte.names import EFFECT_ID, QUANTILE_ID, SE_ID
 from qte.stats import Ecdf
 
@@ -292,6 +304,30 @@ def _compute_effects_for_panel(
     )
 
 
+def _check_inputs(
+    ds: pl.DataFrame,
+    outcome: ColumnName,
+    treatment_group: ColumnName,
+    time: ColumnName,
+    unit: ColumnName,
+    qs: NDArray,
+    weights: ColumnName | None,
+) -> None:
+    required_columns = [outcome, treatment_group, time, unit] + (
+        [weights] if weights is not None else []
+    )
+    check_columns_are_in_dataset(ds, required_columns)
+    check_missing_values_in_dataset(ds, required_columns)
+    check_outcome(ds[outcome])
+    check_numeric(ds[time])
+    check_treatment_group(ds[treatment_group])
+    check_quantiles(qs)
+    check_unit_time_is_unique(ds, unit, time)
+    check_treatment_group_is_time_invariant(ds, unit, treatment_group)
+    if weights is not None:
+        check_weights(ds[weights])
+
+
 def _estimate_effects(
     ds: pl.DataFrame,
     outcome: ColumnName,
@@ -307,9 +343,13 @@ def _estimate_effects(
     control_group: ControlGroup = ControlGroup.NEVER_TREATED,
     bootstrap_config: BootstrapConfig | int = 1000,
 ) -> DistributionalDidResults:
+    qs = _as_iterable_array(qs)
     bootstrap_config = _make_bootstrap_config(bootstrap_config)
     if isinstance(treatment_group, str):
         treatment_group = TrtGroupConfig(name=treatment_group)
+
+    _check_inputs(ds, outcome, treatment_group.name, time, unit, qs, weights)
+
     ds = ds.with_columns(
         cs.by_name(
             treatment_group.name,
