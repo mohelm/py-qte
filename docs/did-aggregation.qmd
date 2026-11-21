@@ -7,44 +7,40 @@ format:
   html:
     embed-resources: true
     code-fold: false
+    fig-align: left
 execute:
   echo: true
   warning: false
   message: false
 ---
 
-## What This Page Does
+All estimators in `qte.distributional_did` follow the per-cell approach of
+[Callaway & Sant'Anna 2021](#ref-cs-2021): for a treatment group $g$ and a period $t$ they construct
+the counterfactual distribution of that cell and compare it to the observed one. We are often
+interested in effects above the level of the individual cells. In the `py-qte` package, besides the
+cell-level effect estimates, effects by treatment group, by event time and overall effects, all _on
+the treated_, are available.
 
-Every call to one of the estimators in `qte.distributional_did` returns four aggregations of the
-same cell-level estimates: `res.group_time` holds them as they are, `res.group` averages over the
-periods of a treatment group, `res.event_study` aligns them by time since treatment, and
-`res.overall` reduces them to a single number. This page takes them apart, one section per
-aggregation.
-
-The examples use changes-in-changes throughout; nothing below depends on which estimator produced
-the cells, so the same four aggregations are available from the other three. The estimators
-themselves, and the data, are described in [Distributional Difference-in-Differences](did.qmd).
+In the following, we demonstrate these aggregations using the `mpdta` dataset, a description of
+which can be found [here](did.qmd#the-data) in the context of the Changes-in-Changes (CIC)
+estimator.
 
 {{< include _setup-did.qmd >}}
 
-## The Data and the Estimates
-
-The two cells below load the demonstration panel and estimate changes-in-changes on it. They repeat
-what the other page does, since this page has to be read on its own.
-
-```{python}
-#| label: lst-data
-from qte.datasets import load_mpdta
-
-panel = load_mpdta().with_columns(
-    pl.col("first.treat").replace(0, float("inf")).alias("group")
-)
-print(f"{panel.height:,} county-year observations for {panel['countyreal'].n_unique()} counties")
-```
+@lst-estimate shows the estimation on which our aggregations are based.
 
 ```{python}
 #| label: lst-estimate
+from qte.bootstrap import BootstrapConfig
+from qte.datasets import load_mpdta
 from qte.distributional_did import estimate_changes_in_changes_effects
+
+QS = [0.25, 0.50, 0.75]
+
+# Kept deliberately small so the page builds quickly while the documentation is being iterated on.
+BOOTSTRAP = BootstrapConfig(n_iter=50, seed=42, n_workers=4)
+
+panel = load_mpdta().with_columns(pl.col("first.treat").replace(0, float("inf")).alias("group"))
 
 with timer("changes-in-changes"):
     cic = estimate_changes_in_changes_effects(
@@ -58,24 +54,20 @@ with timer("changes-in-changes"):
     )
 ```
 
-## The Cells
+## Aggregation
 
-For every treatment group and period the estimator compares that period with a pre-treatment period
-and constructs the counterfactual distribution for the treated group afresh. Each such comparison is
-one cell, and the three aggregations below are all built from them: `res.group_time` keeps the cells
-as they are, one row per cell and quantile, and the other three average them in different ways.
+Aggregating distributional estimates differs from aggregating means. To get from cell-level means to
+an aggregation level of choice, it is enough to weight the individual cells by their relative cell
+sizes. This is not true for the aggregation of quantiles: a sum of cell-size-weighted quantiles
+generally does not correspond to the quantile of the distribution that corresponds to the
+aggregation level (for instance, the overall distribution of outcomes under treatment and under no
+treatment for the treated group). Thus, one first has to construct the aggregate distribution by
+combining the cell-level distributions (on a common grid) with the appropriate weights; the
+quantiles of interest are then the quantiles of that aggregate distribution.
 
-Cells whose period precedes the treatment are placebos: the estimator is applied to a period in
-which nobody was treated yet, so the effects there should be close to zero. With the default base
-period (`BasePeriod.UNIVERSAL`) every cell compares to the period just before treatment, so a group
-treated in 2007 contributes placebo cells at 2003 to 2006.
+## By Treatment Group
 
-## By Treatment Group: `group`
-
-Averaging a group's cells over time gives one estimate per treatment group — the effect of being
-treated from that year onwards, on average over the periods in which the group is treated. The
-weights are equal within a group, and they sum to one, so each group's estimate is a simple average
-over its own post-treatment periods.
+One effect per treatment group, averaged over that group's post-treatment periods.
 
 ```{python}
 #| label: tbl-group
@@ -84,21 +76,13 @@ cic.group.tabulate(quantiles=QS)
 
 ```{python}
 #| label: fig-group
-#| fig-cap: "Changes-in-changes, aggregated by treatment group."
-show_chart(cic.group.plot())
+#| fig-cap: "Changes-in-Changes, aggregated by treatment group."
+show_chart(cic.group.plot(), facet_width=200)
 ```
 
-## By Time Since Treatment: `event_study`
+## By Time Since Treatment
 
-The event study reorders the cells by the event time $e = t - g$, so that cells from different
-groups but the same distance from treatment line up: the effect at $e = 0$ pools the periods in
-which each group is first treated, $e = 1$ the period after, and so on. Negative event times are the
-placebos.
-
-The weights are not equal across groups here. At each event time the groups that contribute a cell
-are weighted by their number of counties and renormalized, which is why a group contributes to a
-different number of event times depending on how many periods it is observed for — 2004 spans $e$
-from $-4$ to $3$, while 2007 spans $-4$ to $0$.
+Effects by event time $e = t - g$; negative event times are placebo cells.
 
 ```{python}
 #| label: tbl-event-study
@@ -107,63 +91,13 @@ cic.event_study.tabulate(quantiles=QS)
 
 ```{python}
 #| label: fig-event-study
-#| fig-cap: "Changes-in-changes by event time; negative event times are placebo cells."
-show_chart(cic.event_study.plot())
+#| fig-cap: "Changes-in-Changes by event time."
+show_chart(cic.event_study.plot(), facet_width=95)
 ```
 
-Which cells exist depends on the base period. With `BasePeriod.VARYING` the placebo cells compare to
-the immediately preceding period rather than to the period before treatment, which shifts every
-negative event time by one and leaves the post-treatment estimates untouched.
+## Overall
 
-```{python}
-#| label: lst-varying
-from qte.distributional_did import BasePeriod
-
-with timer("base period"):
-    cic_varying = estimate_changes_in_changes_effects(
-        panel,
-        "lemp",
-        "group",
-        "year",
-        "countyreal",
-        qs=QS,
-        base_period=BasePeriod.VARYING,
-        bootstrap_config=BOOTSTRAP,
-    )
-```
-
-```{python}
-#| label: tbl-varying
-comparison = (
-    cic.event_study.att.filter(pl.col("event_study_period") >= 0)
-    .select(
-        pl.col("event_study_period").alias("Event time"),
-        pl.col("effect").alias("Universal base"),
-    )
-    .join(
-        cic_varying.event_study.att.filter(pl.col("event_study_period") >= 0).select(
-            pl.col("event_study_period").alias("Event time"),
-            pl.col("effect").alias("Varying base"),
-        ),
-        on="Event time",
-    )
-)
-(
-    GT(comparison)
-    .tab_header(
-        title="Post-treatment effects under the two base periods",
-        subtitle="Only the placebo cells, which are not shown, depend on the choice.",
-    )
-    .fmt_number(["Universal base", "Varying base"], decimals=4)
-)
-```
-
-## A Single Number: `overall`
-
-The overall aggregation reduces the cells to one estimate. Groups are weighted by their number of
-units — here the number of counties, so 20, 40 and 131 — and within a group the post-treatment
-periods are weighted equally. The result is therefore the size-weighted average of the three
-estimates in the group table.
+A single effect, weighting treatment groups by their number of counties.
 
 ```{python}
 #| label: tbl-overall
@@ -172,81 +106,12 @@ cic.overall.tabulate(quantiles=QS)
 
 ```{python}
 #| label: fig-overall
-#| fig-cap: "Changes-in-changes, overall aggregation."
+#| fig-cap: "Changes-in-Changes, overall aggregation."
 show_chart(cic.overall.plot())
 ```
 
-```{python}
-#| label: lst-check
-n = panel.unique("countyreal").group_by("group").len().rename({"len": "counties"}).sort("group")
-weighted = (
-    cic.group.att.select(pl.col("treatment_group").cast(pl.Float64).alias("group"), "effect")
-    .join(n, on="group")
-    .select(
-        (pl.col("effect") * pl.col("counties")).sum() / pl.col("counties").sum()
-    )
-    .item()
-)
-print(f"size-weighted average of the group estimates: {weighted:.6f}")
-print(f"overall aggregation:                           {cic.overall.att['effect'][0]:.6f}")
-```
-
-## What the Weights Do
-
-@tbl-weights spells the weights out for this panel. A group's share is its number of counties over
-all treated counties; that share is then split equally over the group's post-treatment periods,
-which gives the weight each cell receives in the overall aggregation.
-
-```{python}
-#| label: tbl-weights
-post_cells = (
-    panel.select("group", "year")
-    .unique()
-    .filter(pl.col("year") >= pl.col("group"))
-    .group_by("group")
-    .agg(pl.col("year").len().alias("periods"))
-)
-weights = (
-    n.join(post_cells, on="group")
-    .with_columns(share=pl.col("counties") / pl.col("counties").sum())
-    .with_columns(weight=pl.col("share") / pl.col("periods"))
-    .select(
-        pl.col("group").cast(pl.Int64).alias("Group"),
-        "counties",
-        "share",
-        "periods",
-        "weight",
-    )
-    .rename(
-        {
-            "counties": "Counties",
-            "share": "Group share",
-            "periods": "Treated periods",
-            "weight": "Weight per cell",
-        }
-    )
-)
-(GT(weights).tab_header(title="Aggregation weights").fmt_number(decimals=4))
-```
-
-Two things follow from aggregating distributions rather than numbers.
-
-The average effect is an average of the cells' average effects, so the check above goes through
-exactly. The quantile treatment effects are not: the aggregation averages the cells' counterfactual
-_distributions_ — each evaluated on a common grid of outcomes — and only then inverts the result to
-get quantiles. The reported quantile effect at a given quantile is therefore not the weighted
-average of the cells' quantile effects at that quantile, and it is the reason the aggregated
-quantiles cannot be reproduced from the tables above by hand.
-
-The placebos enter no aggregation other than the event study. `res.overall` and `res.group` use only
-post-treatment cells, so a badly behaved placebo shows up in the event-study figure and not in the
-headline number.
-
 ## References
 
-1. <a id="ref-ai-2006"></a>Athey, S., & Imbens, G. W. (2006). Identification and inference in
-   nonlinear difference-in-differences models. _Econometrica_, 74(2), 431–497.
-   [doi:10.1111/j.1468-0262.2006.00668.x](https://doi.org/10.1111/j.1468-0262.2006.00668.x)
-2. <a id="ref-cs-2021"></a>Callaway, B., & Sant'Anna, P. H. C. (2021). Difference-in-differences
+1. <a id="ref-cs-2021"></a>Callaway, B., & Sant'Anna, P. H. C. (2021). Difference-in-differences
    with multiple time periods. _Journal of Econometrics_, 225(2), 200–230.
    [doi:10.1016/j.jeconom.2020.12.001](https://doi.org/10.1016/j.jeconom.2020.12.001)
