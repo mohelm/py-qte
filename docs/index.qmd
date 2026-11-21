@@ -12,16 +12,20 @@ currently inspired by the R [`qte`](https://github.com/bcallaway11/qte) package 
 [`ivqte`](https://sites.google.com/site/blaisemelly/home/computer-programs/estimation-of-quantile-treatment-effects-in-stata?authuser=0)
 package.
 
-You can find some benchmarks comparing the `py-qte` and the `qte` package [here](benchmark.qmd).
+You can find benchmarks comparing the `py-qte` and the `qte` package on the
+[cross-sectional benchmarks page](cross_sectional/benchmarks.qmd).
+
+## Cross-Sectional
+
+- [Estimators](cross_sectional/index.qmd)
+- [Benchmarks](cross_sectional/benchmarks.qmd)
 
 ## Difference-in-Differences
 
-- [Distributional Difference-in-Differences](did.qmd)
-- [Aggregating Estimates](did-aggregation.qmd)
+- [Distributional Difference-in-Differences](did/index.qmd)
+- [Aggregating Estimates](did/aggregation.qmd)
 
 ## IV
 
-- [Overview](iv/index.qmd)
-- [Card (1995)](iv/card.qmd)
-- [JTPA](iv/jtpa.qmd)
-- [IVQR](iv/ivqr.qmd)
+- [Estimators](iv/index.qmd)
+- [Instrument Validity](iv/validity.qmd)

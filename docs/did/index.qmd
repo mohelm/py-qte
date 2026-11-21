@@ -6,6 +6,9 @@ page-layout: full
 format:
   html:
     embed-resources: true
+    toc: true
+    toc-location: right
+    toc-depth: 3
     code-fold: false
     fig-align: left
 execute:
@@ -28,7 +31,7 @@ group-time cell relative to a single comparison (_pre-treatment_) period and a s
 The estimators offer various ways to determine the comparison group and period. As in
 [Callaway & Sant'Anna 2021](#ref-cs-2021), aggregation procedures are offered which give treatment
 effects at higher levels than the individual group-time cells of the treated. The available
-aggregations are described [here](did-aggregation.qmd).
+aggregations are described [here](aggregation.qmd).
 
 The object of interest in what follows is the _entire_ distribution of $Y^{d=0}(d=1,t=T)$, i.e. the
 potential outcome under no treatment (as indicated by the superscript $d=0$) for a group that was in

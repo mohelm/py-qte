@@ -1,5 +1,5 @@
 ---
-title: "QTE benchmark: py-qte vs R qte"
+title: "QTE Benchmark: py-qte vs R qte"
 engine: knitr
 params:
   n_iter: 10

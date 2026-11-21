@@ -6,6 +6,9 @@ page-layout: full
 format:
   html:
     embed-resources: true
+    toc: true
+    toc-location: right
+    toc-depth: 3
     code-fold: false
     fig-align: left
 execute:
@@ -22,7 +25,7 @@ cell-level effect estimates, effects by treatment group, by event time and overa
 the treated_, are available.
 
 In the following, we demonstrate these aggregations using the `mpdta` dataset, a description of
-which can be found [here](did.qmd#the-data) in the context of the Changes-in-Changes (CIC)
+which can be found [here](index.qmd#the-data) in the context of the Changes-in-Changes (CIC)
 estimator.
 
 {{< include _setup-did.qmd >}}

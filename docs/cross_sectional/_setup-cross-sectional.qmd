@@ -1,0 +1,40 @@
+```{python}
+#| label: setup-cross-sectional
+#| echo: false
+import base64
+import time
+
+import polars as pl
+import vl_convert as vlc
+from great_tables import GT
+from IPython.display import publish_display_data
+
+
+def _as_image(svg: str) -> str:
+    """Embed the SVG as an image rather than inline markup.
+
+    Quarto moves sections holding an inline chart that is wider than the text column onto the
+    full-width page grid; as an image the chart simply scales with the column.
+    """
+    encoded = base64.b64encode(svg.encode()).decode()
+    return f'<img role="img" src="data:image/svg+xml;base64,{encoded}">'
+
+
+def show_chart(chart) -> None:
+    """Render an Altair chart as inline SVG."""
+    publish_display_data({"text/html": _as_image(vlc.vegalite_to_svg(chart.to_dict()))})
+
+
+class timer:
+    """Report how long a block took."""
+
+    def __init__(self, label: str) -> None:
+        self.label = label
+
+    def __enter__(self) -> "timer":
+        self._start = time.perf_counter()
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        print(f"[{self.label}] {time.perf_counter() - self._start:.2f}s")
+```

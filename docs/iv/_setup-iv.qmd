@@ -1,48 +1,32 @@
-```{=html}
-<style>
-.iv-side {
-  display: grid;
-  grid-template-columns: minmax(360px, 1fr) minmax(500px, 1fr);
-  gap: 1.5rem;
-  align-items: start;
-}
-@media (max-width: 1100px) {
-  .iv-side { grid-template-columns: 1fr; }
-}
-.iv-side svg { width: 100%; height: auto; }
-</style>
-```
-
 ```{python}
 #| label: setup
-#| code-summary: "Show code (setup, side-by-side and timing helpers)"
+#| echo: false
+import base64
 import time
 
 import polars as pl
 import vl_convert as vlc
 from great_tables import GT
-from IPython.display import HTML
-
-from qte.bootstrap import BootstrapConfig
-from qte.constants import _make_q
-from qte.iv import Estimator, estimate_unconditional_local_effects
-
-QS = _make_q(20)  # 0.05, 0.10, ..., 0.95
-BOOTSTRAP = BootstrapConfig(n_iter=1000, seed=42, n_workers=4)
+from IPython.display import publish_display_data
 
 
-def side_by_side(result, report: list[float] | None = None, **plot_kwargs) -> HTML:
-    """Render a result's QTE plot and summary table side by side.
+def _as_image(svg: str) -> str:
+    """Embed the SVG as an image rather than inline markup.
 
-    The plot shows every estimated quantile; the table reports only ``report``.
+    Quarto moves sections holding an inline chart that is wider than the text column onto the
+    full-width page grid; as an image the chart simply scales with the column.
     """
-    svg = vlc.vegalite_to_svg(result.plot(**plot_kwargs).to_dict())
-    table = result.tabulate(quantiles=report).as_raw_html()
-    return HTML('<div class="iv-side">' f"<div>{svg}</div><div>{table}</div></div>")
+    encoded = base64.b64encode(svg.encode()).decode()
+    return f'<img role="img" src="data:image/svg+xml;base64,{encoded}">'
+
+
+def show_chart(chart) -> None:
+    """Render an Altair chart as inline SVG."""
+    publish_display_data({"text/html": _as_image(vlc.vegalite_to_svg(chart.to_dict()))})
 
 
 class timer:
-    """Report how long a block took, like the knitr ``time_it`` hook."""
+    """Report how long a block took."""
 
     def __init__(self, label: str) -> None:
         self.label = label

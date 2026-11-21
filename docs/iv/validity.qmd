@@ -1,0 +1,150 @@
+---
+title: "Instrument Validity"
+engine: jupyter
+jupyter: python3
+page-layout: full
+format:
+  html:
+    embed-resources: true
+    toc: true
+    toc-location: right
+    toc-depth: 3
+    code-fold: false
+    fig-align: left
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+The local quantile treatment effects on the [estimators page](index.qmd) require the instrument to
+be valid. The `py-qte` package implements the [Kitagawa 2015](#ref-kitagawa-2015) test for
+instrument validity.
+
+For a binary treatment $D$ and a binary instrument $Z$, let $P$ denote the distribution of $(Y, D)$
+when the instrument is switched on and $Q$ the distribution when it is switched off. Under the LATE
+assumptions of [Imbens & Angrist 1994](#ref-ia-1994), every set $B$ must satisfy
+
+$$
+P(B, 1) - Q(B, 1) \ge 0
+\qquad\text{and}\qquad
+Q(B, 0) - P(B, 0) \ge 0,
+$$
+
+because both differences are probabilities of a complier's potential outcome falling in $B$. the
+`py-qte` package implements Kitagawa's test based on these inequalities. The implementation is
+inspired by the original paper and the related R
+[`ivcheck`](https://cran.r-project.org/package=ivcheck) package; unlike `ivcheck`, it uses
+Kitagawa's pooled bootstrap rather than a wild bootstrap.
+
+{{< include _setup-iv.qmd >}}
+
+## The Test Statistic
+
+The test evaluates the inequalities over intervals of the outcome. For each interval and treatment
+value it computes the violation of the corresponding inequality; the test statistic is the largest
+violation. With `ValidityWeighting.VARIANCE`, each violation is divided by its plug-in standard
+error before the maximum is taken, which is the statistic in equation 2.1 of
+[Kitagawa 2015](#ref-kitagawa-2015). With `ValidityWeighting.UNWEIGHTED`, the raw violation is used
+instead (equation 2.2).
+
+Critical values come from a pooled bootstrap. Replications are drawn from the pooled empirical
+distribution of $(Y, D)$, which imposes the null that the two instrument arms have the same
+distribution. The p-value is the share of bootstrap statistics at least as large as the observed
+one.
+
+```{python}
+#| label: lst-validity-config
+from qte.bootstrap import BootstrapConfig
+
+VALIDITY_BOOTSTRAP = BootstrapConfig(n_iter=200, seed=42, n_workers=4)
+```
+
+## JTPA Assignment
+
+We use the JTPA women sample from the [JTPA Data](index.qmd#jpta-data) section of the estimators
+page. Assignment to training is randomized, so the instrument is `assignmt`, the treatment is actual
+training, and the outcome is 30-month earnings.
+
+```{python}
+#| label: lst-validity-data
+from qte.datasets import load_jtpa
+
+jtpa = load_jtpa().filter(pl.col("sex") == 0)
+print(f"{jtpa.height} women")
+```
+
+## Subdensities
+
+Listing @lst-validity-subdensities shows how to construct the Kitagawa-style joint subdensities
+$p(y, d \mid z)$ separately for the two instrument arms and treatment values. These are the
+distributions behind the inequalities above: under validity, the instrument-on distribution should
+place at least as much mass as the instrument-off distribution on every interval when $d = 1$, and
+vice versa when $d = 0$. The figure is a descriptive complement to the formal test, not a test
+itself.
+
+```{python}
+#| label: lst-validity-subdensities
+from qte.iv.descriptives import make_subdensity_plot
+
+subdensities = make_subdensity_plot(
+    jtpa,
+    "earnings",
+    "training",
+    "assignmt",
+    labels={
+        "earnings": "Earnings",
+        "training": "Training",
+        "assignmt": "Assignment",
+    },
+    title="JTPA earnings subdensities by assignment and training status",
+).configure_legend(orient="bottom")
+```
+
+```{python}
+#| label: fig-validity-subdensities
+#| fig-cap: "JTPA earnings subdensities by assignment and training status."
+show_chart(subdensities)
+```
+
+The figure lines up with the validity inequalities: in the training panel the assigned arm lies
+above the unassigned arm, while the reverse holds in the no-training panel.
+
+## Running the Test
+
+`perform_instrument_validity_test` uses `ValidityWeighting.VARIANCE` by default. This standardizes
+each interval violation by its plug-in standard error before taking the maximum, which is the
+statistic in equation 2.1 of [Kitagawa 2015](#ref-kitagawa-2015). We use this version because it
+accounts for the different sampling variability of the interval probabilities. The alternative,
+`ValidityWeighting.UNWEIGHTED`, uses the raw positive-part Kolmogorov–Smirnov violation instead
+(equation 2.2). The `se_floor` argument bounds the plug-in standard error from below, and
+`outcome_grid_size` controls the number of outcome grid points used in the interval search.
+
+```{python}
+#| label: lst-validity-test
+from qte.iv import ValidityWeighting, perform_instrument_validity_test
+
+with timer("validity"):
+    validity_test = perform_instrument_validity_test(
+        jtpa,
+        "earnings",
+        "training",
+        "assignmt",
+        weighting=ValidityWeighting.VARIANCE,
+        bootstrap_config=VALIDITY_BOOTSTRAP,
+    )
+
+validity_test.tabulate()
+```
+
+The result exposes `statistic`, `p_value`, `verdict` and the most violated interval in `binding`.
+`first_stage` is the take-up difference between the two instrument arms; it is negative when the
+instrument is coded against the monotonicity direction.
+
+## References
+
+1. <a id="ref-ia-1994"></a>Imbens, G. W., & Angrist, J. D. (1994). Identification and estimation of
+   local average treatment effects. _Econometrica_, 62(2), 467–475.
+   [doi:10.2307/2951620](https://doi.org/10.2307/2951620)
+2. <a id="ref-kitagawa-2015"></a>Kitagawa, T. (2015). A test for instrument validity.
+   _Econometrica_, 83(5), 2043–2063. [doi:10.3982/ECTA11974](https://doi.org/10.3982/ECTA11974)

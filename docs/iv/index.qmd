@@ -1,382 +1,505 @@
 ---
-title: "Quantile Treatment Effects with Instrumental Variables"
+title: "Instrumental Variables"
 engine: jupyter
 jupyter: python3
 page-layout: full
 format:
   html:
     embed-resources: true
-    code-fold: true
-    code-summary: "Show code"
+    toc: true
+    toc-location: right
+    toc-depth: 3
+    code-fold: false
+    fig-align: left
 execute:
   echo: true
   warning: false
   message: false
 ---
 
-## The Estimator
+This page demonstrates the instrumental-variable estimators in `py-qte`. All three estimate effects
+of an endogenous treatment, which is why they require an instrument.
 
-When the treatment is endogenous we can still identify **quantile treatment effects for compliers**
-using an instrumental variable approach. The corresponding _average_ effect is the local average
-treatment effect (LATE); its quantile counterpart is the local quantile treatment effect (LQTE).
-Under the classical LATE assumptions, Abadie's kappa (compare [Abadie 2003](#ref-abadie-2003)) can
-be used to identify the outcome distribution of the compliers. `py-qte` provides implementations of
-the estimation procedures proposed by [Frölich & Melly (2013)](#ref-frolich-melly-2013), hereafter
-referred to as unconditional quantiles, and by [Abadie, Angrist & Imbens (2002)](#ref-aai-2002),
-hereafter referred to as conditional quantiles.
+1. Unconditional local quantile treatment effects ([Frölich & Melly 2013](#ref-frolich-melly-2013)),
+2. Conditional local quantile treatment effects ([Abadie, Angrist & Imbens 2002](#ref-aai-2002)),
+   and
+3. Instrumental-variable quantile regression ([Chernozhukov & Hansen 2004](#ref-chernozhukov-2004),
+   [2005](#ref-chernozhukov-2005), [2006](#ref-chernozhukov-2006)), which targets a structural
+   quantile function rather than a complier effect.
 
-$$
-\begin{aligned}
-F_{Y(d)\mid c}(y) &= \frac{E\!\left[w_d\,\mathbb{1}\{Y \le y\}\right]}{E[w_d]}, \\[2pt]
-w_1 &= \frac{D\,\bigl(Z - \pi(X)\bigr)}{\pi(X)\,\bigl(1 - \pi(X)\bigr)}, \\[2pt]
-w_0 &= \frac{(1 - D)\,\bigl(\pi(X) - Z\bigr)}{\pi(X)\,\bigl(1 - \pi(X)\bigr)}.
-\end{aligned}
-$$
+The unconditional and conditional local quantile treatment effect estimators are similar in spirit
+to the local average treatment effect (LATE) of [Imbens & Angrist 1994](#ref-ia-1994) in that they
+generally identify an effect on the complier subpopulation when the standard LATE assumptions hold.
+They also require a binary instrument and a binary treatment. The instrumental-variable quantile
+regression (IVQR) estimator estimates a population-level structural quantile effect in a framework
+in which the researcher must specify a structural quantile function.
 
-Here $\pi(X) = P(Z = 1 \mid X)$ is the instrument probability, estimated by a logit. The local
-quantile treatment effect is the difference between the two complier quantiles,
-$\Delta_\tau = Q_\tau(Y(1)\mid c) - Q_\tau(Y(0)\mid c)$, and the average effect is the LATE.
-`estimate_unconditional_local_effects` inverts the signed weighted empirical CDFs to obtain the
-quantile effects and reports bootstrap standard errors.
+Throughout the page we use different datasets to demonstrate the mechanics of the `py-qte` package
+for IV estimation. For the binary-instrument, binary-treatment case, we also show how the package
+produces useful descriptive statistics.
+
+The implementations are inspired by the Stata
+[`ivqte`](https://sites.google.com/site/blaisemelly/home/computer-programs/estimation-of-quantile-treatment-effects-in-stata?authuser=0)
+package. The IVQR routine additionally follows the R
+[`IVQR`](https://cran.r-project.org/package=IVQR) package.
 
 {{< include _setup-iv.qmd >}}
 
-## Simulated Data
-
-To check that the estimator recovers the target when its assumptions hold, we simulate data where
-the complier quantile effects are known. The design follows the JTPA-based simulation of
-[Kaplan & Sun (2017)](#ref-kaplan-sun-2017).
-
-Each observation is characterized by a single (observed) covariate and a latent (unobserved) type
-$u_i$. They are generated via:
-
-$$
-x_i \sim \mathcal{N}(0, 1), \qquad u_i \sim \mathcal{U}[0, 1],
-$$
-
-The instrument's value, $Z_i$, is random and whether the instrument is switched on depends on
-covariates. The strength of that dependence is controlled by the `instrument_propensity_slope`. The
-baseline propensity to be assigned is $p_0$ (the `offer_probability` parameter).
-
-$$
-\begin{aligned}
-p_i = P(Z_i = 1 \mid x_i) &= \sigma\!\left(\operatorname{logit}(p_0) + \texttt{instrument\_propensity\_slope} \cdot x_i\right), \\
-Z_i &\sim \operatorname{Bernoulli}(p_i),
-\end{aligned}
-$$
-
-The treatment's potential values are determined as follows: first, there is one-sided non-compliance
-in the sense that if the instrument is switched off the unit will never get treated (there are no
-always-takers). Compliance with the treatment when the instrument is switched on is random. First
-there is a take-up threshold $T(x_i)$ that determines beyond which type, as measured by $u_i$,
-treatment is certain with the instrument switched on. For $u_i$ realizations below the threshold,
-take-up is probabilistic. The threshold $T(x_i)$ itself depends on a base threshold that determines
-the take-up threshold at $x_i = 0$, which is here the mean of the covariate. As $x_i$ increases the
-take-up threshold increases as well.
-
-$$
-\begin{aligned}
-T(x_i) &= \texttt{base\_takeup\_threshold} \cdot \exp\!\left(\texttt{takeup\_threshold\_slope} \cdot x_i\right), \\
-D_i(1) &\sim \operatorname{Bernoulli}\!\left(\min\{1, u_i / T(x_i)\}\right), \qquad D_i(0) = 0, \\
-D_i &= Z_i \cdot D_i(1),
-\end{aligned}
-$$
-
-Lastly, potential outcomes under no treatment are determined by covariates and the type, where a
-larger type at equal covariates means a higher outcome under no treatment. Lastly, the potential
-outcome under treatment is given by the outcome under no treatment plus a scaled version of the
-type.
-
-$$
-\begin{aligned}
-Y_i(0) &= \texttt{covariate\_effect} \cdot x_i + \Phi^{-1}(u_i), \\
-Y_i(1) &= Y_i(0) + \texttt{effect\_scale} \cdot u_i, \\
-Y_i &= D_i \cdot Y_i(1) + (1 - D_i) \cdot Y_i(0),
-\end{aligned}
-$$
-
-Economically, in this model compliers tend to have a higher $U_i$ and also a higher benefit from the
-treatment. This means the LATE is pushed above the ATE. Lastly, the AAI-style weight
-$\nu_0(U) = E[Z \mid U] = P(Z = 1 \mid Y, D, X)$, with $U = (Y, D, X)$, is explicit here since
-$D = 1 \implies Z = 1$:
-
-$$
-\nu_0(U) = \begin{cases}
-1 & \text{if } D = 1, \\
-\dfrac{p\,(1 - q)}{1 - p\,q} & \text{if } D = 0,
-\end{cases}
-$$
-
-where $p = P(Z = 1 \mid X)$, $q = \min\{1, u / T(X)\}$, and
-$u = \Phi(Y - \texttt{covariate\_effect} \cdot X)$ on the $D = 0$ branch.
-
-### Unconditional LATE without Covariates
-
-We start with a scenario where covariates do not matter for the instrument assignment probability or
-for selection into treatment. The latter thus depends only on the latent type.
+@lst-config displays the quantiles used throughout and the bootstrap configuration.
 
 ```{python}
-#| label: simulation
-#| code-summary: "Show code (simulate the data and recover the true LATE)"
-from qte.iv.simulate import get_true_local_effects, simulate_data
+#| label: lst-config
+from qte.bootstrap import BootstrapConfig
 
-REPORT = [0.10, 0.50, 0.90]
-simulated_data = simulate_data(n=100_000, seed=0)
-truth, late = get_true_local_effects(QS, n_oracle=1_000_000, seed=0)
-print(f"True LATE = {late:.3f}")
+QS = [0.10, 0.25, 0.50, 0.75, 0.90]
+BOOTSTRAP = BootstrapConfig(n_iter=50, seed=42, n_workers=4)
 ```
 
-```{python}
-#| label: simulation-estimate
-#| code-summary: "Show code (estimate the local QTE)"
-with timer("simulation"):
-    sim_res = estimate_unconditional_local_effects(
-        simulated_data, "y", "treatment", "instrument", qs=QS, bootstrap_config=BOOTSTRAP
-    )
-```
+## Local (Quantile) Treatment Effects
+
+The object of interest is the local quantile treatment effect (LQTE) for compliers. At quantile
+$\tau \in (0, 1)$, it is defined as
+
+$$
+\Delta_\tau = Q_\tau(Y(1)\mid c) - Q_\tau(Y(0)\mid c),
+$$
+
+where $Q_\tau(Y(d)\mid c)$ is the $\tau$-quantile of the potential outcome $Y(d)$ in the complier
+subpopulation. The corresponding LATE is the difference in means, $E[Y(1) - Y(0) \mid c]$. Both the
+conditional and the unconditional LQTE estimators assume that the standard LATE assumptions hold
+conditional on covariates:
+
+1. **Independence:** $Z \perp (Y(0), Y(1), D(0), D(1)) \mid X$.
+2. **Exclusion:** $Y(z, d) = Y(d)$ for $z \in \{0, 1\}$.
+3. **Monotonicity:** $D(1) \ge D(0)$ almost surely.
+4. **Relevance:** $E[D \mid Z = 1, X] \ne E[D \mid Z = 0, X]$.
+
+Here $D(z)$ is the potential treatment under instrument value $z$, and $Y(z, d)$ is the potential
+outcome under instrument value $z$ and treatment value $d$. Both estimators use Abadie's kappa
+weights ([Abadie 2003](#ref-abadie-2003)) to identify transformations of potential outcomes in the
+subpopulation of compliers. Testable implications of these assumptions for a binary instrument and a
+binary treatment are discussed on the [instrument-validity page](validity.qmd).
+
+### Unconditional Local Quantile Treatment Effects
+
+The unconditional LQTE is the LQTE defined above, i.e. the effect is not conditional on covariates.
+We thus require the potential outcomes' cumulative distribution function, which is the inverse of
+$Q_\tau(\cdot \mid c)$:
+
+$$
+F_{Y(d)\mid c}(y) = \frac{E\!\left[w_d\,\mathbb{1}\{Y \le y\}\right]}{E[w_d]}
+$$
+
+where Abadie's kappa weights are given by
+
+$$
+w_1 = \frac{D\,\bigl(Z - p(X)\bigr)}{p(X)\,\bigl(1 - p(X)\bigr)},
+\qquad\text{and}\qquad
+w_0 = \frac{(1 - D)\,\bigl(p(X) - Z\bigr)}{p(X)\,\bigl(1 - p(X)\bigr)}.
+$$
+
+Here $p(X) = P(Z = 1 \mid X)$ is the instrument probability.
+
+A general problem here is that the empirical CDFs might not be monotone. One must therefore specify
+how to deal with this non-monotonicity. In this setting, one can either use the original weights
+given above and impose an ad hoc rule for the value corresponding to a particular quantile of the
+possibly non-monotone empirical CDF, or project the weights on the outcome and the treatment to make
+them positive.
+
+The following section demonstrates how to conduct an analysis with this estimator using the `py-qte`
+package.
+
+#### Card (1995) Data
+
+The [Card (1995)](#ref-card-1995) data consist of 3,010 men from the 1976 National Longitudinal
+Survey of Young Men. The dataset can be used to study the effect of education on labour market
+outcomes, using whether the man grew up in close proximity to a college as an instrument. The
+instrument `nearc4` indicates whether a man grew up in a local labour market with a four-year
+college, and the outcome of interest `lwage` is the log wage. The treatment is a binary indicator
+for having at least 13 years of education, i.e. _some college_. Following
+[Tübbicke 2023](#ref-tubbicke-2023), who in turn follows [Słoczyński 2021](#ref-sloczynski-2021),
+the estimation sample restricts the data to covariate cells with at least five observations. A cell
+is one of the observed combinations of `black`, `south66`, `south`, `smsa66` and `smsa`; this drops
+22 observations and leaves 2,988. @lst-card-data shows how to load the dataset and produce a table
+of descriptive statistics with the `py-qte` package.
 
 ```{python}
-#| label: simulation-comparison
-#| code-summary: "Show code (IV vs. naive comparisons)"
+#| label: lst-card-data
+from qte.datasets import load_card
+from qte.iv.descriptives import make_descriptive_statistics
 
-
-def naive_quantile_effect(ds: pl.DataFrame, group: str) -> pl.Series:
-    """Quantile difference between the two values of ``group``, ignoring endogeneity."""
-    one = ds.filter(pl.col(group) == 1)["y"]
-    zero = ds.filter(pl.col(group) == 0)["y"]
-    return pl.Series([one.quantile(q) - zero.quantile(q) for q in QS], dtype=pl.Float64)
-
-
-comparison = (
-    sim_res.qtt.select(pl.col("q"), pl.col("effect").alias("IV"), pl.col("se"))
-    .with_columns(truth["effect"].alias("Truth"))
-    .with_columns(naive_quantile_effect(simulated_data, "treatment").alias("Naive (D)"))
-    .with_columns(naive_quantile_effect(simulated_data, "instrument").alias("ITT (Z)"))
-    .filter(pl.col("q").is_in(REPORT))
+CARD_CELLS = ["black", "south66", "south", "smsa66", "smsa"]
+CARD_COVARIATES = (
+    "exper + expersq + black + south + smsa + smsa66 "
+    "+ reg662 + reg663 + reg664 + reg665 + reg666 + reg667 + reg668 + reg669"
 )
-(
-    GT(comparison)
-    .fmt_number(["IV", "Truth", "Naive (D)", "ITT (Z)", "se"], decimals=3)
-    .tab_header(title="Table 3. Simulated Local QTE, IV vs. Naive Comparisons")
+
+sample = load_card(treatment_cutoff=13)
+card = sample.filter(pl.len().over(CARD_CELLS) >= 5)
+print(f"{sample.height} observations, {sample.height - card.height} dropped, {card.height} left")
+
+card_desc = make_descriptive_statistics(
+    card,
+    "lwage",
+    "college",
+    "nearc4",
+    covariates=["exper", "educ", "age", "black", "smsa66", "south66"],
+    labels={
+        "lwage": "Log wage",
+        "college": "College",
+        "exper": "Experience",
+        "educ": "Years of education",
+        "age": "Age",
+        "black": "Black",
+        "smsa66": "SMSA in 1966",
+        "south66": "South in 1966",
+    },
+    title="Card Data, Means and Standard Deviations",
 )
 ```
 
 ```{python}
-#| label: simulation-plot
-#| code-summary: "Show code (simulated QTE plot)"
-print(f"First stage (= complier share) = {sim_res.first_stage:.3f}")
-side_by_side(sim_res, REPORT)
+#| label: tbl-card-data
+card_desc
 ```
 
-The IV estimates track the true complier quantile effects closely. The naive comparison by observed
-treatment status is far too large because it ignores the endogeneity of take-up, and the
-intention-to-treat difference is attenuated by the roughly 62% compliance rate.
+@tbl-card-data reports means and standard deviations for the full sample, by instrument arm and by
+observed treatment status, with mean differences and Welch t-statistics. The estimation below
+conditions the instrument probability on the covariates.
 
-Point estimates are only half the story: the reported standard errors should also be well
-calibrated. We repeat the estimation on many independent samples and record how often the 95%
-bootstrap interval contains the truth, alongside the average standard error and the empirical
-standard deviation of the estimates.
-
-```{python}
-#| label: simulation-coverage
-#| code-summary: "Show code (bootstrap coverage settings)"
-import numpy as np
-
-COVERAGE_REPLICATIONS = 500
-COVERAGE_SAMPLE_SIZE = 2_000
-COVERAGE_BOOTSTRAP = BootstrapConfig(n_iter=50, seed=0, n_workers=4)
-COVERAGE_QUANTILES = [0.10, 0.25, 0.50, 0.75, 0.90]
-
-true_effect = truth["effect"].to_numpy()
-covered = np.zeros((COVERAGE_REPLICATIONS, QS.size))
-standard_errors = np.zeros((COVERAGE_REPLICATIONS, QS.size))
-estimates = np.zeros((COVERAGE_REPLICATIONS, QS.size))
-```
+@lst-card-estimate shows how to estimate the unconditional LQTE with the `py-qte` package. Here we
+use `Estimator.SIGNED` to handle the possibly non-monotone empirical distribution function, as
+described in the theory above.
 
 ```{python}
-#| label: simulation-coverage-estimate
-#| code-summary: "Show code (coverage over repeated samples)"
-with timer("coverage"):
-    for replication in range(COVERAGE_REPLICATIONS):
-        sample = simulate_data(n=COVERAGE_SAMPLE_SIZE, seed=250_000 + replication)
-        res = estimate_unconditional_local_effects(
-            sample,
-            "y",
-            "treatment",
-            "instrument",
-            qs=QS,
-            bootstrap_config=COVERAGE_BOOTSTRAP,
-        )
-        effect = res.qtt["effect"].to_numpy()
-        se = res.qtt["se"].to_numpy()
-        estimates[replication] = effect
-        standard_errors[replication] = se
-        covered[replication] = np.abs(effect - true_effect) <= 1.96 * se
-```
+#| label: lst-card-estimate
+from qte.iv import Estimator, estimate_unconditional_local_effects
 
-```{python}
-#| label: simulation-coverage-comparison
-#| code-summary: "Show code (coverage table)"
-coverage_table = (
-    pl.DataFrame(
-        {
-            "q": QS,
-            "Coverage": covered.mean(axis=0),
-            "Mean SE": standard_errors.mean(axis=0),
-            "Empirical SD": estimates.std(axis=0),
-        }
-    )
-    .filter(pl.col("q").is_in(COVERAGE_QUANTILES))
-)
-(
-    GT(coverage_table)
-    .fmt_number(["Coverage"], decimals=3)
-    .fmt_number(["Mean SE", "Empirical SD"], decimals=3)
-    .tab_header(title="Table 4. Coverage of the 95% Bootstrap Interval")
-)
-```
-
-At every reported quantile the coverage is close to the nominal 0.95, and the mean standard error
-tracks the empirical standard deviation of the estimates. The bootstrap intervals can therefore be
-trusted in this design, not just the point estimates.
-
-## Unconditional LATE with Covariate-Dependent Instrument Slope
-
-Now the instrument probability does depend on the value of the covariate.
-
-```{python}
-#| label: simulation-covariates
-#| code-summary: "Show code (simulate data with a covariate-dependent instrument probability)"
-COVARIATE = {"instrument_propensity_slope": 1.0}
-
-cov = simulate_data(n=100_000, seed=0, **COVARIATE)
-cov_truth, _ = get_true_local_effects(QS, n_oracle=1_000_000, seed=0, **COVARIATE)
-```
-
-```{python}
-#| label: simulation-covariates-estimate
-#| code-summary: "Show code (estimate the local QTE with and without the covariate)"
-COVARIATE_BOOTSTRAP = BootstrapConfig(n_iter=200, seed=0, n_workers=4)
-with timer("covariates"):
-    constant_res = estimate_unconditional_local_effects(
-        cov, "y", "treatment", "instrument", qs=QS, bootstrap_config=COVARIATE_BOOTSTRAP
-    )
-    adjusted_res = estimate_unconditional_local_effects(
-        cov,
-        "y",
-        "treatment",
-        "instrument",
+with timer("card"):
+    card_res = estimate_unconditional_local_effects(
+        card,
+        "lwage",
+        "college",
+        "nearc4",
         qs=QS,
-        instrument_probability_formula="x",
-        bootstrap_config=COVARIATE_BOOTSTRAP,
+        instrument_probability_formula=CARD_COVARIATES,
+        estimator=Estimator.SIGNED,
+        bootstrap_config=BOOTSTRAP,
     )
+
+```
+
+@tbl-card-estimate and @fig-card-estimate show the results in tabular and graphical form. As usual
+in `py-qte`, the quantile effect of interest (here the LQTE) and the corresponding average effect
+(here the LATE) are reported.
+
+```{python}
+#| label: tbl-card-estimate
+card_res.tabulate(quantiles=QS)
 ```
 
 ```{python}
-#| label: simulation-covariates-comparison
-#| code-summary: "Show code (true effect vs. constant and adjusted propensity)"
-covariate_table = (
-    cov_truth.select(pl.col("q"), pl.col("effect").alias("Truth"))
-    .with_columns(constant_res.qtt["effect"].alias("Constant p"))
-    .with_columns(adjusted_res.qtt["effect"].alias("Adjusted for x"))
-    .filter(pl.col("q").is_in(REPORT))
+#| label: fig-card-estimate
+#| fig-cap: "Local quantile treatment effects on the Card data."
+show_chart(card_res.plot())
+```
+
+### Conditional Local Quantile Treatment Effects
+
+The conditional LQTE estimator of [Abadie, Angrist & Imbens 2002](#ref-aai-2002) postulates
+
+$$
+Q_{\theta}(Y \mid X, D, c) = \alpha_{\theta} D + X' \beta_{\theta},
+$$
+
+where $\alpha_{\theta}$ and $\beta_{\theta}$ can be obtained via weighted quantile regression with
+Abadie's kappa weights. Under the maintained assumptions, $\alpha_{\theta}$ corresponds to the
+_conditional_ (on covariate values) LQTE. Notice that, even though the conditional LQTE is assumed
+to be constant across covariates, it does not generally correspond to the unconditional LQTE. This
+is because integrating out the covariates from the conditional quantiles does not give the marginal
+quantile in general.
+
+Generally, the sample version of the above quantile regression problem is difficult to solve because
+Abadie's kappa weights can be negative, which makes the problem non-convex. The paper shows that
+this can be remedied by replacing the weights with their conditional expectation given
+$U = (Y, D, X)$, which is guaranteed to be nonnegative and still identifies $\alpha$ via weighted
+quantile regression as described above. In particular, these weights are given by
+
+$$
+\kappa_\nu(U) = E[\kappa \mid U]
+= 1 - \frac{D\,\bigl(1 - \nu_0(U)\bigr)}{1 - p(X)}
+  - \frac{(1 - D)\,\nu_0(U)}{p(X)},
+$$
+
+where
+
+$$
+\nu_0(U) = E[Z \mid U] = P(Z = 1 \mid Y, D, X),
+\qquad U = (Y, D, X),
+$$
+
+and $p(X) = P(Z = 1 \mid X)$ is the instrument probability.
+
+#### JTPA Data
+
+The JTPA data come from a randomized evaluation of a job-training program. Assignment to training
+(`assignmt`) is randomized, but not everyone assigned to training actually enrolled (`training`), so
+assignment is an instrument for actual training. The extract contains 11,204 applicants; the
+analysis uses the 6,102 women, following [Abadie, Angrist & Imbens 2002](#ref-aai-2002). The outcome
+is total 30-month earnings. @lst-jtpa-data shows how to load the dataset and produce a table of
+descriptive statistics with the `py-qte` package.
+
+```{python}
+#| label: lst-jtpa-data
+from qte.datasets import load_jtpa
+
+JTPA_CONDITIONAL_COVARIATES = (
+    "black + hispanic + married + hsorged + afdc + f2sms + wkless13 + class_tr "
+    "+ ojt_jsa + age2225 + age2629 + age3035 + age3644 + age4554"
 )
-(
-    GT(covariate_table)
-    .fmt_number(["Truth", "Constant p", "Adjusted for x"], decimals=3)
-    .tab_header(title="Table 5. Effects with a Covariate-Dependent Instrument Probability")
+
+sample = load_jtpa()
+jtpa = sample.filter(pl.col("sex") == 0)
+print(f"{sample.height} applicants, {jtpa.height} women")
+
+jtpa_desc = make_descriptive_statistics(
+    jtpa,
+    "earnings",
+    "training",
+    "assignmt",
+    covariates=["age", "black", "hispanic", "married", "hsorged", "afdc", "prevearn"],
+    labels={
+        "earnings": "Earnings",
+        "training": "Training",
+        "age": "Age",
+        "black": "Black",
+        "hispanic": "Hispanic",
+        "married": "Married",
+        "hsorged": "HS or GED",
+        "afdc": "AFDC",
+        "prevearn": "Prior earnings",
+    },
+    title="JTPA Women, Means and Standard Deviations",
 )
 ```
 
+@tbl-jtpa-data shows the descriptive statistics for the dataset.
+
 ```{python}
-#| label: simulation-covariates-plot
-#| code-summary: "Show code (covariate-dependent instrument plot)"
-print(f"Adjusted first stage = {adjusted_res.first_stage:.3f}")
-side_by_side(adjusted_res, REPORT)
+#| label: tbl-jtpa-data
+jtpa_desc
 ```
 
-Taking the instrument probability to be constant leaves the estimates far too large at every
-quantile, while conditioning on `x` tracks the truth. The propensity model is therefore not optional
-when the instrument depends on the covariates.
-
-## The Conditional Estimator
-
-```{python}
-#| label: simulation-conditional
-#| code-summary: "Show code (simulate the data and recover the conditional truth)"
-from qte.iv.simulate import get_true_conditional_effects
-
-conditional_truth = get_true_conditional_effects(QS, n_oracle=1_000_000, seed=0)
-conditional_sim = simulate_data(n=100_000, seed=0)
-```
+@lst-jtpa-estimate shows how to estimate the conditional LQTE with the `py-qte` package. Because
+assignment is randomized (with imperfect compliance), we set `instrument_probability_formula=None`.
+This does not skip the instrument-probability step: the implementation fits an intercept-only logit,
+so the instrument probability is constant. `weight_formula` and `weight_adjustment` specify how the
+adjusted nonnegative weights are computed.
 
 ```{python}
-#| label: simulation-conditional-estimate
-#| code-summary: "Show code (conditional estimator on the simulated data)"
+#| label: lst-jtpa-estimate
 from qte.iv import WeightAdjustment, estimate_conditional_local_effects
 
-with timer("conditional"):
-    conditional_res = estimate_conditional_local_effects(
-        conditional_sim,
-        "y",
-        "treatment",
-        "instrument",
+with timer("jtpa-conditional"):
+    jtpa_res = estimate_conditional_local_effects(
+        jtpa,
+        "earnings",
+        "training",
+        "assignmt",
         qs=QS,
-        covariates="x",
+        covariates=JTPA_CONDITIONAL_COVARIATES,
         instrument_probability_formula=None,
-        weight_formula="poly(y, 6) * poly(x, 6)",
+        weight_formula="poly(earnings, 3) * class_tr",
         weight_adjustment=WeightAdjustment.PLUGIN,
-        bootstrap_config=BootstrapConfig(n_iter=200, seed=0, n_workers=4),
+        bootstrap_config=BOOTSTRAP,
     )
+
+```
+
+Lastly, @tbl-jtpa-estimate and @fig-jtpa-estimate show the results in tabular and graphical form.
+
+```{python}
+#| label: tbl-jtpa-estimate
+jtpa_res.tabulate(quantiles=QS)
 ```
 
 ```{python}
-#| label: simulation-conditional-comparison
-#| code-summary: "Show code (conditional vs. marginal truth)"
-conditional_table = (
-    conditional_truth.select(pl.col("q"), pl.col("effect").alias("Truth (conditional)"))
-    .with_columns(conditional_res.qtt["effect"].alias("Conditional IV"))
-    .join(truth.select(pl.col("q"), pl.col("effect").alias("Truth (marginal)")), on="q")
-    .filter(pl.col("q").is_in(REPORT))
-)
-(
-    GT(conditional_table)
-    .fmt_number(["Truth (conditional)", "Conditional IV", "Truth (marginal)"], decimals=3)
-    .tab_header(title="Table 6. Conditional Estimator on the Simulated Data")
+#| label: fig-jtpa-estimate
+#| fig-cap: "Conditional local quantile treatment effects on the JTPA data."
+show_chart(jtpa_res.plot())
+```
+
+## Instrumental-Variable Quantile Regression
+
+The model underlying the instrumental-variable quantile regression (IVQR) estimator was developed by
+[Chernozhukov & Hansen 2004](#ref-chernozhukov-2004). The model assumes that _potential outcomes_
+are generated in accordance with $Y(d) = q(d, X, U_d)$. The function $q$ is nondecreasing in $U_d$,
+and $U_d \sim U(0, 1)$. Conditional on covariates $X$, $U_d$ is _independent_ of $Z$. _Selection_
+into treatment is determined in accordance with $D = \delta(Z, X, V)$. Conditional on $(Z, X, V)$,
+the $\{U_d\}$ are identically distributed (rank similarity), and the observed data are $Y$, $D$, $X$
+and $Z$.
+
+For this set of assumptions one can show that
+
+$$
+P[Y \le q(D, X, \tau) \mid X, Z] = \tau.
+$$
+
+This is essentially a conditional moment restriction that can be used to estimate quantile treatment
+effects.
+
+In particular, following [Chernozhukov & Hansen 2005](#ref-chernozhukov-2005) and
+[2006](#ref-chernozhukov-2006), the `py-qte` package assumes that
+
+$$
+q_\tau(Y \mid D = d, X = x) = d' \alpha(\tau) + x' \beta(\tau).
+$$
+
+Here again, $\alpha$ corresponds to the treatment effect under the maintained assumptions.
+
+The parameters $\alpha$ and $\beta$ can be estimated via inverse quantile regression. For each
+quantile $\tau$ and each candidate value of $\alpha$ on a user-supplied grid, the outcome is shifted
+to $Y - D\alpha$, the treatment is replaced by its first-stage fitted value, and a conventional
+quantile regression is run on the fitted treatment and the covariates. The selected $\alpha$ then
+minimizes the Wald statistic for the coefficient on the fitted treatment, which reflects the
+exclusion restriction that the instrument $Z$ _does not_ directly influence outcomes. Notice that
+the algorithm generally requires, for each $\tau$, one quantile regression per grid point for
+$\alpha$. Each quantile regression has as parameters the fitted treatment and the covariates. The
+algorithm therefore tends to be computationally demanding, _even though_ the standard errors are
+obtained analytically.
+
+Notice that the `py-qte` implementation is less general than the model. We allow only a single
+treatment variable, whereas the model can accommodate multiple treatment variables. The algorithm
+would quickly run into the curse of dimensionality with multiple treatments because the number of
+grid points to search over grows exponentially. The implementation does, however, allow multiple
+instruments.
+
+### 401(k) Pension Data
+
+The 401(k) pension data of [Chernozhukov & Hansen 2004](#ref-chernozhukov-2004) come from the 1991
+Survey of Income and Program Participation. The outcome is net financial assets (`net_tfa`), the
+endogenous treatment is 401(k) participation (`p401`), and the instrument is 401(k) eligibility
+(`e401`). The controls are income and education categories plus demographic and pension variables.
+@lst-pension-data shows how to load these data and generate a table of descriptive statistics for
+them.
+
+```{python}
+#| label: lst-pension-data
+from qte.datasets import load_pension
+
+pension = load_pension()
+print(f"{pension.height:,} observations")
+
+pension_desc = make_descriptive_statistics(
+    pension,
+    "net_tfa",
+    "p401",
+    "e401",
+    covariates=["age", "educ", "inc", "fsize", "marr", "twoearn", "db", "pira", "hown"],
+    labels={
+        "net_tfa": "Net financial assets",
+        "p401": "401(k) participation",
+        "e401": "401(k) eligibility",
+        "age": "Age",
+        "educ": "Education",
+        "inc": "Income",
+        "fsize": "Family size",
+        "marr": "Married",
+        "twoearn": "Two earners",
+        "db": "Defined benefit",
+        "pira": "IRA",
+        "hown": "Homeowner",
+    },
+    title="401(k) Pension Data, Means and Standard Deviations",
 )
 ```
+
+@tbl-pension-data shows the descriptive statistics.
+
+```{python}
+#| label: tbl-pension-data
+pension_desc
+```
+
+@lst-ivqr-estimate shows how to perform IVQR estimation for the 401(k) data using the same covariate
+specification as the original application. Notice that, alongside the name of the treatment
+variable, we must specify a grid over which to search for the optimal value of the treatment effect.
+
+```{python}
+#| label: lst-ivqr-estimate
+import numpy as np
+
+from qte.iv import IvqrTreatment, estimate_ivqr_effects
+
+PENSION_COVARIATES = (
+    "C(icat) + C(ecat) + a1 + a2 + a3 + a4 "
+    "+ marr + fsize + twoearn + db + pira + hown"
+)
+IVQR_QUANTILES = np.arange(0.1, 1.0, 0.1)
+IVQR_GRID = np.arange(0, 25_001, 250)
+
+with timer("ivqr"):
+    ivqr_res = estimate_ivqr_effects(
+        pension,
+        "net_tfa",
+        treatment=IvqrTreatment("p401", IVQR_GRID),
+        instruments="e401",
+        qs=IVQR_QUANTILES,
+        covariates=PENSION_COVARIATES,
+        n_workers=6,
+    )
+
+```
+
+@tbl-ivqr-estimate and @fig-ivqr-estimate show the results in tabular and graphical form.
+
+```{python}
+#| label: tbl-ivqr-estimate
+ivqr_res.tabulate(quantiles=IVQR_QUANTILES)
+```
+
+```{python}
+#| label: fig-ivqr-estimate
+#| fig-cap: "IVQR quantile effects on the 401(k) pension data."
+show_chart(ivqr_res.plot(highlight_quantiles=IVQR_QUANTILES))
+```
+
+Notice that the reported standard errors are analytical. The reported average effects are averages
+over the requested quantiles, which implies that they are _only meaningful_ when the quantile grid
+is dense. For comparison, we also report the two-stage least squares estimate of the average effect
+in @tbl-ivqr-estimate.
 
 ## References
 
-1. <a id="ref-abadie-2003"></a>Abadie, A. (2003). Semiparametric instrumental variable estimation of
+1. <a id="ref-ia-1994"></a>Imbens, G. W., & Angrist, J. D. (1994). Identification and estimation of
+   local average treatment effects. _Econometrica_, 62(2), 467–475.
+   [doi:10.2307/2951620](https://doi.org/10.2307/2951620)
+2. <a id="ref-abadie-2003"></a>Abadie, A. (2003). Semiparametric instrumental variable estimation of
    treatment response models. _Journal of Econometrics_, 113(2), 231–263.
    [doi:10.1016/S0304-4076(02)00201-4](<https://doi.org/10.1016/S0304-4076(02)00201-4>)
-2. <a id="ref-aai-2002"></a>Abadie, A., Angrist, J., & Imbens, G. (2002). Instrumental variables
+3. <a id="ref-aai-2002"></a>Abadie, A., Angrist, J., & Imbens, G. (2002). Instrumental variables
    estimates of the effect of subsidized training on the quantiles of trainee earnings.
    _Econometrica_, 70(1), 91–117.
    [doi:10.1111/1468-0262.00270](https://doi.org/10.1111/1468-0262.00270)
-3. <a id="ref-card-1995"></a>Card, D. (1995). Using geographic variation in college proximity to
+4. <a id="ref-card-1995"></a>Card, D. (1995). Using geographic variation in college proximity to
    estimate the return to schooling. In L. N. Christofides, E. K. Grant, & R. Swidinsky (Eds.),
    _Aspects of labour market behaviour: Essays in honour of John Vanderkamp_ (pp. 201–222).
    University of Toronto Press.
-4. <a id="ref-frolich-melly-2013"></a>Frölich, M., & Melly, B. (2013). Unconditional quantile
+5. <a id="ref-frolich-melly-2013"></a>Frölich, M., & Melly, B. (2013). Unconditional quantile
    treatment effects under endogeneity. _Journal of Business & Economic Statistics_, 31(3), 346–357.
    [doi:10.1080/07350015.2013.803869](https://doi.org/10.1080/07350015.2013.803869)
-5. <a id="ref-kaplan-sun-2017"></a>Kaplan, D. M., & Sun, Y. (2017). Smoothed estimating equations
-   for instrumental variables quantile regression. _Econometric Theory_, 33(1), 105–157.
-   [doi:10.1017/S0266466615000407](https://doi.org/10.1017/S0266466615000407)
-6. <a id="ref-sloczynski-2021"></a>Słoczyński, T. (2021). When should we (not) interpret linear IV
-   estimands as LATE? IZA Discussion Paper No. 14349. Institute of Labor Economics.
-   [doi:10.2139/ssrn.3842328](https://doi.org/10.2139/ssrn.3842328)
-7. <a id="ref-tubbicke-2023"></a>Tübbicke, S. (2023). When to use matching and weighting or
-   regression in instrumental variable estimation? Evidence from college proximity and returns to
-   college. _Empirical Economics_, 65(6), 2979–2999.
-   [doi:10.1007/s00181-023-02441-7](https://doi.org/10.1007/s00181-023-02441-7)
-8. <a id="ref-chernozhukov-2004"></a>Chernozhukov, V., & Hansen, C. (2004). The effects of 401(k)
+6. <a id="ref-chernozhukov-2004"></a>Chernozhukov, V., & Hansen, C. (2004). The effects of 401(k)
    participation on the wealth distribution: An instrumental quantile regression analysis. _The
    Review of Economics and Statistics_, 86(3), 735–751.
-9. <a id="ref-chernozhukov-2005"></a>Chernozhukov, V., & Hansen, C. (2005). An IV model of quantile
+7. <a id="ref-chernozhukov-2005"></a>Chernozhukov, V., & Hansen, C. (2005). An IV model of quantile
    treatment effects. _Econometrica_, 73(1), 245–261.
-10. <a id="ref-chernozhukov-2006"></a>Chernozhukov, V., & Hansen, C. (2006). Instrumental quantile
-    regression inference for structural and treatment effect models. _Journal of Econometrics_,
-    132(2), 491–525.
+8. <a id="ref-chernozhukov-2006"></a>Chernozhukov, V., & Hansen, C. (2006). Instrumental quantile
+   regression inference for structural and treatment effect models. _Journal of Econometrics_,
+   132(2), 491–525.
+9. <a id="ref-sloczynski-2021"></a>Słoczyński, T. (2021). When should we (not) interpret linear IV
+   estimands as LATE? IZA Discussion Paper No. 14349. Institute of Labor Economics.
+   [doi:10.2139/ssrn.3842328](https://doi.org/10.2139/ssrn.3842328)
+10. <a id="ref-tubbicke-2023"></a>Tübbicke, S. (2023). When to use matching and weighting or
+    regression in instrumental variable estimation? Evidence from college proximity and returns to
+    college. _Empirical Economics_, 65(6), 2979–2999.
+    [doi:10.1007/s00181-023-02441-7](https://doi.org/10.1007/s00181-023-02441-7)

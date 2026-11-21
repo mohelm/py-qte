@@ -1,0 +1,326 @@
+---
+title: "Cross-Sectional Estimators"
+engine: jupyter
+jupyter: python3
+page-layout: full
+format:
+  html:
+    embed-resources: true
+    toc: true
+    toc-location: right
+    toc-depth: 3
+    code-fold: false
+    fig-align: left
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+This page demonstrates the estimators that `py-qte` offers for cross-sectional data. All four
+estimators provide effects for the overall population (QTE) and for the treated group (QTT), but
+they differ in how they adjust for covariates:
+
+1. The unadjusted estimator compares the treated and control outcome distributions directly,
+2. inverse probability weighting (IPW) reweights the observed outcomes by the propensity score,
+3. outcome regression predicts the counterfactual outcome distributions from quantile regressions,
+   and
+4. augmented inverse probability weighting (AIPW) combines the propensity score and the outcome
+   regression.
+
+For the covariate-adjusted estimators, the `target` argument selects the estimand:
+`CausalTarget.QTE` for the overall population or `CausalTarget.QTT` for the treated. For the
+unadjusted estimator, the two estimands coincide when treatment is randomly assigned.
+
+The covariate-adjusted estimators rely on unconfoundedness and overlap: conditional on covariates
+$X$, treatment is independent of the potential outcomes, and both treatment states occur with
+positive probability. The unadjusted estimator requires that the treatment is as good as randomly
+assigned. All estimators compute point estimates on the original sample and bootstrap standard
+errors by resampling rows.
+
+{{< include _setup-cross-sectional.qmd >}}
+
+@lst-config displays the quantiles used throughout and the bootstrap configuration.
+
+```{python}
+#| label: lst-config
+from qte.bootstrap import BootstrapConfig
+
+QS = [0.10, 0.25, 0.50, 0.75, 0.90]
+BOOTSTRAP = BootstrapConfig(n_iter=50, seed=42, n_workers=4)
+```
+
+## LaLonde Data
+
+The LaLonde (1986) data are a standard example for covariate adjustment. We use the version that
+compares the treated men from the experimental sample with the observational PSID comparison group.
+The outcome is 1978 earnings (`re78`), the treatment is `treat`, and the covariates are age,
+education, race, marital status and degree status. The PSID comparison group is not randomly
+assigned, which is why the covariate-adjusted estimators below use it.
+
+```{python}
+#| label: lst-lalonde-data
+from qte.datasets import load_lalonde
+
+COVARIATES = "age + I(age**2) + education + black + hispanic + married + nodegree"
+
+DATA = load_lalonde(controls_source="psid").with_columns(pl.col("treat").cast(pl.Int8))
+print(f"{DATA.height:,} observations, {DATA['treat'].sum():,} treated")
+```
+
+@tbl-lalonde-balance reports the mean of each variable by treatment status.
+
+```{python}
+#| label: tbl-lalonde-balance
+#| code-summary: "Show code (descriptive table)"
+VARIABLES = {
+    "re74": "Earnings 1974",
+    "re75": "Earnings 1975",
+    "re78": "Earnings 1978",
+    "age": "Age",
+    "education": "Education",
+    "black": "Black",
+    "hispanic": "Hispanic",
+    "married": "Married",
+    "nodegree": "No degree",
+}
+
+balance = pl.DataFrame(
+    {
+        "Variable": list(VARIABLES.values()),
+        "Treated": [DATA.filter(pl.col("treat") == 1)[v].mean() for v in VARIABLES],
+        "Control": [DATA.filter(pl.col("treat") == 0)[v].mean() for v in VARIABLES],
+    }
+).with_columns((pl.col("Treated") - pl.col("Control")).alias("Difference"))
+
+(
+    GT(balance)
+    .fmt_number(["Treated", "Control", "Difference"], decimals=1, use_seps=True)
+    .tab_header(title="LaLonde Data, Means by Treatment Status")
+    .tab_source_note("The comparison group is the observational PSID sample.")
+)
+```
+
+## Unadjusted Estimator
+
+The unadjusted estimator takes the difference between the treated and control quantiles at each
+requested probability,
+
+$$
+\hat{\Delta}_{\tau}
+= \hat{Q}_{\tau}(Y \mid D = 1) - \hat{Q}_{\tau}(Y \mid D = 0),
+$$
+
+and reports the difference in means as the average effect. No propensity score or outcome model is
+involved.
+
+```{python}
+#| label: lst-unadjusted-estimate
+from qte.cross_sectional import estimate_unadjusted_effects
+
+with timer("unadjusted"):
+    unadjusted = estimate_unadjusted_effects(
+        DATA,
+        "re78",
+        "treat",
+        qs=QS,
+        bootstrap_config=BOOTSTRAP,
+    )
+
+```
+
+@tbl-unadjusted-estimate and @fig-unadjusted-estimate show the results in tabular and graphical
+form.
+
+```{python}
+#| label: tbl-unadjusted-estimate
+unadjusted.tabulate(quantiles=QS)
+```
+
+```{python}
+#| label: fig-unadjusted-estimate
+#| fig-cap: "Unadjusted quantile treatment effects on the LaLonde data."
+show_chart(unadjusted.plot())
+```
+
+## Inverse Probability Weighting
+
+IPW estimates the counterfactual outcome distributions by weighting each observation with the
+inverse of its probability of receiving the treatment it actually received. With
+$\hat{p}(X) = P(D = 1 \mid X)$, the distribution under treatment $d$ is
+
+$$
+\hat{F}_{Y(d)}(y)
+=
+\frac{\sum_i \mathbf{1}\{D_i = d\}\,\mathbf{1}\{Y_i \le y\} / \hat{p}_d(X_i)}
+     {\sum_i \mathbf{1}\{D_i = d\} / \hat{p}_d(X_i)},
+\qquad
+\hat{p}_1(X) = \hat{p}(X),\quad \hat{p}_0(X) = 1 - \hat{p}(X).
+$$
+
+`propensity_score_formula` specifies the logit model for $\hat{p}(X)$. The `target` argument selects
+`CausalTarget.QTE` for the population or `CausalTarget.QTT` for the treated.
+
+```{python}
+#| label: lst-ipw-estimate
+from qte.cross_sectional import CausalTarget, estimate_ipw_effects
+
+with timer("ipw"):
+    ipw = estimate_ipw_effects(
+        DATA,
+        "re78",
+        "treat",
+        qs=QS,
+        propensity_score_formula=COVARIATES,
+        target=CausalTarget.QTE,
+        bootstrap_config=BOOTSTRAP,
+    )
+
+```
+
+@tbl-ipw-estimate and @fig-ipw-estimate show the results in tabular and graphical form.
+
+```{python}
+#| label: tbl-ipw-estimate
+ipw.tabulate(quantiles=QS)
+```
+
+```{python}
+#| label: fig-ipw-estimate
+#| fig-cap: "IPW quantile treatment effects on the LaLonde data."
+show_chart(ipw.plot())
+```
+
+## Outcome Regression
+
+Outcome regression fits a quantile regression of the outcome on the covariates separately for the
+treated and the control group. For a grid of quantiles $\tau_g$, the fitted conditional quantiles
+$\hat{Q}_{Y(d)}(\tau_g \mid X_i)$ generate a prediction for every unit. Pooling these predictions
+gives the counterfactual distribution
+
+$$
+\hat{F}_{Y(d)}(y)
+=
+\frac{1}{n}\sum_{i=1}^{n}\frac{1}{G}\sum_{g=1}^{G}
+\mathbf{1}\left\{\hat{Q}_{Y(d)}(\tau_g \mid X_i) \le y\right\}.
+$$
+
+The `outcome_regression_config` argument takes either a formula or an `OutcomeRegressionConfig`,
+which also controls the quantile grid and the quantile-regression algorithm.
+
+```{python}
+#| label: lst-outcome-regression-estimate
+from qte.cross_sectional import estimate_outcome_regression_effects
+
+with timer("outcome regression"):
+    outcome_regression = estimate_outcome_regression_effects(
+        DATA,
+        "re78",
+        "treat",
+        qs=QS,
+        outcome_regression_config=COVARIATES,
+        target=CausalTarget.QTE,
+        bootstrap_config=BOOTSTRAP,
+    )
+
+```
+
+@tbl-outcome-regression-estimate and @fig-outcome-regression-estimate show the results in tabular
+and graphical form.
+
+```{python}
+#| label: tbl-outcome-regression-estimate
+outcome_regression.tabulate(quantiles=QS)
+```
+
+```{python}
+#| label: fig-outcome-regression-estimate
+#| fig-cap: "Outcome-regression quantile treatment effects on the LaLonde data."
+show_chart(outcome_regression.plot())
+```
+
+## Augmented Inverse Probability Weighting
+
+AIPW combines the two models. The propensity score reweights the observed outcomes, while the
+outcome regression predicts the outcomes that are not observed. For treatment state $d$, the
+estimated counterfactual distribution is, up to normalization,
+
+$$
+\hat{F}_{Y(d)}(y)
+=
+\frac{1}{n}\sum_{i=1}^{n}
+\left[
+\frac{\mathbf{1}\{D_i = d\}\,\mathbf{1}\{Y_i \le y\}}{\hat{p}_d(X_i)}
+-
+\frac{\mathbf{1}\{D_i = d\} - \hat{p}_d(X_i)}{\hat{p}_d(X_i)}
+\hat{F}_{Y(d)\mid X_i}(y)
+\right].
+$$
+
+The estimator is doubly robust in the sense that it remains consistent if either the propensity
+score or the outcome regression is correctly specified. It takes both formulas, and the same
+`target` argument as IPW.
+
+```{python}
+#| label: lst-aipw-estimate
+from qte.cross_sectional import estimate_aipw_effects
+
+with timer("aipw"):
+    aipw = estimate_aipw_effects(
+        DATA,
+        "re78",
+        "treat",
+        qs=QS,
+        propensity_score_formula=COVARIATES,
+        outcome_regression_config=COVARIATES,
+        target=CausalTarget.QTE,
+        bootstrap_config=BOOTSTRAP,
+    )
+
+```
+
+@tbl-aipw-estimate and @fig-aipw-estimate show the results in tabular and graphical form.
+
+```{python}
+#| label: tbl-aipw-estimate
+aipw.tabulate(quantiles=QS)
+```
+
+```{python}
+#| label: fig-aipw-estimate
+#| fig-cap: "AIPW quantile treatment effects on the LaLonde data."
+show_chart(aipw.plot())
+```
+
+## Summary
+
+@tbl-cross-sectional-summary compares the four estimators on the same quantiles.
+
+```{python}
+#| label: tbl-cross-sectional-summary
+#| code-summary: "Show code (summary table)"
+estimates = {
+    "Unadjusted": unadjusted,
+    "IPW": ipw,
+    "Outcome regression": outcome_regression,
+    "AIPW": aipw,
+}
+summary = pl.DataFrame({"Quantile": QS})
+for name, result in estimates.items():
+    summary = summary.with_columns(
+        pl.Series(name, result.qtt.sort("q")["effect"].to_list())
+    )
+(
+    GT(summary)
+    .fmt_number([c for c in summary.columns if c != "Quantile"], decimals=1, use_seps=True)
+    .tab_header(title="Quantile Treatment Effects, All Four Estimators")
+)
+```
+
+Benchmarks against the R `qte` package, including simulated data, are reported separately on the
+[benchmarks page](benchmarks.qmd).
+
+## References
+
+1. <a id="ref-lalonde-1986"></a>LaLonde, R. J. (1986). Evaluating the econometric evaluations of
+   training programs with experimental data. _The American Economic Review_, 76(4), 604–620.
