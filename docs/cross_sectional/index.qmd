@@ -38,6 +38,8 @@ positive probability. The unadjusted estimator requires that the treatment is as
 assigned. All estimators compute point estimates on the original sample and bootstrap standard
 errors by resampling rows.
 
+The implementations are inspired by the R [`qte`](https://github.com/bcallaway11/qte) package.
+
 {{< include _setup-cross-sectional.qmd >}}
 
 @lst-config displays the quantiles used throughout and the bootstrap configuration.
@@ -317,8 +319,8 @@ for name, result in estimates.items():
 )
 ```
 
-Benchmarks against the R `qte` package, including simulated data, are reported separately on the
-[benchmarks page](benchmarks.qmd).
+Benchmarks against the R [`qte`](https://github.com/bcallaway11/qte) package, including simulated
+data, are reported separately on the [benchmarks page](benchmarks.qmd).
 
 ## References
 
