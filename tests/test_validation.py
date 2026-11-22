@@ -16,6 +16,7 @@ from qte._validation import (
     check_missing_values_in_dataset,
     check_numeric,
     check_outcome,
+    check_outcome_grid,
     check_quantiles,
     check_treatment_group,
     check_treatment_group_is_time_invariant,
@@ -139,6 +140,30 @@ def test_check_grid_accepts_valid():
 def test_check_grid_rejects_invalid(grid):
     with pytest.raises(ValueError):
         check_grid(grid)
+
+
+def test_check_outcome_grid_accepts_valid():
+    check_outcome_grid(2)
+    check_outcome_grid(100)
+    check_outcome_grid(np.array([-1.0, 0.0, 2.5]))
+
+
+@pytest.mark.parametrize(
+    "grid",
+    [
+        0,
+        1,
+        -1,
+        np.array([0.0]),
+        np.array([0.5, 0.5]),
+        np.array([0.5, np.nan]),
+        np.array([]),
+        np.array([[0.5, 1.0]]),
+    ],
+)
+def test_check_outcome_grid_rejects_invalid(grid):
+    with pytest.raises(ValueError):
+        check_outcome_grid(grid)
 
 
 def test_check_quantiles_accepts_valid():

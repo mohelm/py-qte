@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Self
+from typing import Literal, Self
 
 import numpy as np
 import polars as pl
@@ -88,8 +88,15 @@ class Ecdf:
         # against quantile grids: an error of one ulp can push a tie onto the next order statistic.
         return cls(y_unique, np.cumsum(w_unique) / w_unique.sum(), w_unique)
 
-    def evaluate_inverse(self, qs: NDArray) -> NDArray:
-        idx = np.searchsorted(self.probs, qs, side="left")
+    def evaluate_inverse(self, qs: NDArray, *, side: Literal["left", "right"] = "left") -> NDArray:
+        """Return the outcome values whose CDF probabilities bracket ``qs``.
+
+        ``side="left"`` returns the first value whose probability reaches
+        ``qs``. ``side="right"`` returns the value after any exact tie at
+        ``qs``, matching Stata's ``#{F(y) <= tau}`` inversion. The default is
+        the historical behaviour of this helper.
+        """
+        idx = np.searchsorted(self.probs, qs, side=side)
         idx = np.clip(idx, 0, len(self.values) - 1)
         return self.values[idx]
 

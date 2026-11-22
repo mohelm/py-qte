@@ -55,6 +55,26 @@ def check_grid(grid: int | ArrayLike) -> None:
         raise ValueError("Explicit `grid` must be unique, finite and inside (0, 1).")
 
 
+def check_outcome_grid(grid: int | ArrayLike) -> None:
+    """Check an outcome-value grid that is either a size or an explicit sequence."""
+    if isinstance(grid, (int, np.integer)):
+        if grid < 2:
+            raise ValueError("Integer `outcome_grid` must be at least 2.")
+        return
+
+    values = np.asarray(grid, dtype=float)
+    if (
+        values.ndim != 1
+        or values.size < 2
+        or not np.isfinite(values).all()
+        or np.unique(values).size != values.size
+    ):
+        raise ValueError(
+            "Explicit `outcome_grid` must be a finite, unique, one-dimensional sequence "
+            "with at least two values."
+        )
+
+
 def check_columns_are_in_dataset(ds: pl.DataFrame, required_columns: Sequence[ColumnName]) -> None:
     if not isinstance(ds, pl.DataFrame):
         raise TypeError(f"`ds` must be a polars.DataFrame, got {type(ds).__name__}.")

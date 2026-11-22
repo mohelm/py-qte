@@ -1,0 +1,145 @@
+---
+title: "Regression Discontinuity"
+engine: jupyter
+jupyter: python3
+page-layout: full
+format:
+  html:
+    embed-resources: true
+    toc: true
+    toc-location: right
+    toc-depth: 3
+    code-fold: false
+    fig-align: left
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+This page demonstrates the local distribution-regression estimator for regression-discontinuity (RD)
+designs. The estimator follows Frandsen, Frölich & Melly (2012) and targets the quantile treatment
+effect for local compliers at the cutoff. It handles both sharp and fuzzy designs: the sharp design
+is the special case in which the treatment probability jumps from zero to one.
+
+The estimator estimates the complier distribution functions of the treated and untreated potential
+outcomes by local-linear weighted least squares on the running variable, separately on either side
+of the cutoff. The quantile effects are the differences between the inverses of those two
+distribution functions. The implementation mirrors Stata's `rddqte`: the outcome grid is built from
+weighted quantiles of the local sample, the estimated CDFs are rearranged by sorting, and the
+quantiles are read off the inverted CDFs.
+
+A bandwidth must be supplied. The estimator does not select one internally. `outcome_grid` is either
+the number of weighted-quantile points used for the distribution regressions or an explicit sequence
+of outcome values.
+
+{{< include _setup-rdd.qmd >}}
+
+```{python}
+#| label: setup
+import polars as pl
+
+from qte.bootstrap import BootstrapConfig
+from qte.names import EFFECT_ID, QUANTILE_ID
+from qte.rdd import (
+    LocalPolynomialConfig,
+    RunningVariableConfig,
+    estimate_rdd_distribution_effects,
+    get_true_first_stage,
+    get_true_local_effects,
+    simulate_rdd_data,
+)
+
+QS = [0.10, 0.25, 0.50, 0.75, 0.90]
+BOOTSTRAP = BootstrapConfig(n_iter=20, seed=42, n_workers=2)
+```
+
+## Simulated fuzzy design
+
+The simulation follows the Monte Carlo model in the paper. The running variable is normal, the
+treatment effect is heterogeneous and equal to `-eps_1`, and exceeding the cutoff lowers the cost of
+treatment. Treatment is possible on both sides of the cutoff, so the design is fuzzy.
+
+```{python}
+#| label: simulate
+ds = simulate_rdd_data(n=50_000, alpha=2.5, seed=42)
+ds.head()
+```
+
+The true complier effects and the population first stage are available from the simulation helpers.
+
+```{python}
+#| label: truth
+truth, true_late = get_true_local_effects(QS, alpha=2.5, seed=1)
+truth
+```
+
+```{python}
+#| label: first-stage
+get_true_first_stage(alpha=2.5)
+```
+
+## Estimation
+
+```{python}
+#| label: estimate
+res = estimate_rdd_distribution_effects(
+    ds,
+    outcome="y",
+    treatment="treatment",
+    running_variable=RunningVariableConfig("running", 0.0),
+    qs=QS,
+    local_polynomial_config=LocalPolynomialConfig(bandwidth=0.5),
+    outcome_grid=100,
+    bootstrap_config=BOOTSTRAP,
+)
+
+res.qtt
+```
+
+The point estimates should be close to the simulated truth. The first stage is the estimated jump in
+the treatment probability at the cutoff.
+
+```{python}
+#| label: compare
+res.qtt.select(QUANTILE_ID, EFFECT_ID).with_columns(pl.Series("truth", truth[EFFECT_ID]))
+```
+
+```{python}
+#| label: late
+res.att
+```
+
+## Design Plots
+
+The outcome against the running variable, with binned means and local-linear fits on each side of
+the cutoff:
+
+```{python}
+#| label: design-plot
+show_chart(res.plot_design(ds, n_bins=20))
+```
+
+The treatment probability against the running variable shows the first stage:
+
+```{python}
+#| label: treatment-plot
+show_chart(res.plot_treatment(ds, n_bins=20))
+```
+
+## Presentation
+
+```{python}
+#| label: plot
+show_chart(res.plot())
+```
+
+```{python}
+#| label: table
+res.tabulate()
+```
+
+```{python}
+#| label: summary
+res.summarize()
+```

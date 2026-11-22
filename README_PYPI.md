@@ -14,7 +14,9 @@ The available estimators are
   regression and doubly robust;
 - **distributional difference-in-differences** — changes-in-changes and quantile
   difference-in-differences; and
-- **instrumental variables** — local quantile treatment effects for compliers.
+- **instrumental variables** — local quantile treatment effects for compliers; and
+- **regression discontinuity** — local quantile treatment effects for compliers by local
+  distribution regression.
 
 Other features:
 
@@ -180,4 +182,5 @@ The cross-sectional and distributional difference-in-differences estimators reim
 [`qte`](https://github.com/bcallaway11/qte) package by Brantly Callaway. The instrumental-variables
 estimator roughly follows the Stata
 [`ivqte`](https://sites.google.com/site/blaisemelly/home/computer-programs/estimation-of-quantile-treatment-effects-in-stata?authuser=0)
-package by Frölich and Melly.
+package by Frölich and Melly. The regression-discontinuity estimator reimplements the Stata
+[`rddqte`](https://github.com/bmelly/Stata) package of Frandsen, Frölich and Melly.

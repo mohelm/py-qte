@@ -20,6 +20,10 @@ You can find benchmarks comparing the `py-qte` and the `qte` package on the
 - [Estimators](cross_sectional/index.qmd)
 - [Benchmarks](cross_sectional/benchmarks.qmd)
 
+## Regression Discontinuity
+
+- [Estimators](rdd/index.qmd)
+
 ## Difference-in-Differences
 
 - [Distributional Difference-in-Differences](did/index.qmd)

@@ -12,7 +12,9 @@ import yaml
 
 DOCS = Path(__file__).parent.parent / "docs"
 PAGES = sorted(
-    p for p in [*DOCS.glob("*.qmd"), *DOCS.glob("iv/*.qmd")] if not p.name.startswith("_")
+    p
+    for p in DOCS.rglob("*.qmd")
+    if not p.name.startswith("_") and "reference" not in p.relative_to(DOCS).parts
 )
 
 
