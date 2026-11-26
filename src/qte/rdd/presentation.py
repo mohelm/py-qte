@@ -13,11 +13,10 @@ from qte._validation import (
     check_treatment_is_binary,
 )
 from qte.custom_types import ColumnName
-from qte.rdd._types import Side
-from qte.rdd.custom_types import LocalPolynomialConfig, RunningVariableConfig
+from qte.rdd.custom_types import LocalPolynomialConfig, RunningVariableConfig, _Side
 from qte.results import AltairChart
 
-_SIDE_DOMAIN = [Side.LEFT.value, Side.RIGHT.value]
+_SIDE_DOMAIN = [_Side.LEFT.value, _Side.RIGHT.value]
 _SIDE_RANGE = ["#4C78A8", "#E45756"]
 
 
@@ -25,11 +24,11 @@ def _compute_side_bin_means(
     r: NDArray[np.float64],
     values: NDArray[np.float64],
     *,
-    side: Side,
+    side: _Side,
     n_bins: int,
 ) -> pl.DataFrame:
     """Bin one side of the cutoff and return bin means of the running variable and value."""
-    mask = r > 0.0 if side is Side.RIGHT else r <= 0.0
+    mask = r >= 0.0 if side is _Side.RIGHT else r < 0.0
     if not mask.any():
         return pl.DataFrame(
             schema={"running": pl.Float64, "value": pl.Float64, "side": pl.String, "n": pl.Int64}
@@ -69,8 +68,8 @@ def _compute_bin_means(
     """Bin the running variable separately on either side of the cutoff."""
     return pl.concat(
         [
-            _compute_side_bin_means(r, values, side=Side.LEFT, n_bins=n_bins),
-            _compute_side_bin_means(r, values, side=Side.RIGHT, n_bins=n_bins),
+            _compute_side_bin_means(r, values, side=_Side.LEFT, n_bins=n_bins),
+            _compute_side_bin_means(r, values, side=_Side.RIGHT, n_bins=n_bins),
         ]
     )
 
@@ -79,12 +78,12 @@ def _compute_local_linear_line(
     r: NDArray[np.float64],
     values: NDArray[np.float64],
     *,
-    side: Side,
+    side: _Side,
     local_polynomial_config: LocalPolynomialConfig | None,
     n_points: int = 100,
 ) -> pl.DataFrame:
     """Fit a weighted local-linear line on one side of the cutoff."""
-    mask = r > 0.0 if side is Side.RIGHT else r <= 0.0
+    mask = r >= 0.0 if side is _Side.RIGHT else r < 0.0
     if local_polynomial_config is not None:
         mask &= np.abs(r) <= local_polynomial_config.bandwidth
     if mask.sum() < 2:
@@ -244,10 +243,10 @@ def plot_rdd_design(
         pl.concat(
             [
                 _compute_local_linear_line(
-                    r, y, side=Side.LEFT, local_polynomial_config=local_polynomial_config
+                    r, y, side=_Side.LEFT, local_polynomial_config=local_polynomial_config
                 ),
                 _compute_local_linear_line(
-                    r, y, side=Side.RIGHT, local_polynomial_config=local_polynomial_config
+                    r, y, side=_Side.RIGHT, local_polynomial_config=local_polynomial_config
                 ),
             ]
         )
@@ -315,10 +314,10 @@ def plot_rdd_treatment(
         pl.concat(
             [
                 _compute_local_linear_line(
-                    r, d, side=Side.LEFT, local_polynomial_config=local_polynomial_config
+                    r, d, side=_Side.LEFT, local_polynomial_config=local_polynomial_config
                 ),
                 _compute_local_linear_line(
-                    r, d, side=Side.RIGHT, local_polynomial_config=local_polynomial_config
+                    r, d, side=_Side.RIGHT, local_polynomial_config=local_polynomial_config
                 ),
             ]
         )

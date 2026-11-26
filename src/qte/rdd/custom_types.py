@@ -9,6 +9,13 @@ from numpy.typing import NDArray
 from qte.custom_types import ColumnName
 
 
+class _Side(StrEnum):
+    """Side of the cutoff."""
+
+    LEFT = "left"
+    RIGHT = "right"
+
+
 class Kernel(StrEnum):
     """Kernel used to weight observations around the cutoff.
 
@@ -39,6 +46,22 @@ class Kernel(StrEnum):
         if self is Kernel.TRIANGULAR:
             return np.where(np.abs(u) <= 1.0, 1.0 - np.abs(u), 0.0)
         return np.exp(-0.5 * u * u) / np.sqrt(2.0 * np.pi)
+
+
+class RddInference(StrEnum):
+    """Inference method for the RDD distribution estimator.
+
+    Attributes
+    ----------
+    BOOTSTRAP
+        Case bootstrap, pointwise standard errors only.
+    MULTIPLIER
+        Multiplier bootstrap, pointwise standard errors plus a constant-width
+        uniform band and process draws.
+    """
+
+    BOOTSTRAP = "bootstrap"
+    MULTIPLIER = "multiplier"
 
 
 @dataclass(frozen=True)
@@ -80,13 +103,19 @@ class LocalPolynomialConfig:
         positive and finite.
     kernel : `Kernel`, default=`Kernel.EPANECHNIKOV`
         Kernel used to weight observations around the cutoff.
+    degree : int, default=1
+        Degree of the local polynomial. ``1`` is local linear, ``2`` is local
+        quadratic (the CHS bias-corrected fit).
     """
 
     bandwidth: float
     kernel: Kernel = Kernel.EPANECHNIKOV
+    degree: int = 1
 
     def __post_init__(self) -> None:
         """Validate and normalise the smoothing settings."""
         if not np.isfinite(self.bandwidth) or self.bandwidth <= 0.0:
             raise ValueError("`bandwidth` must be a positive finite number.")
+        if self.degree not in (1, 2):
+            raise ValueError("`degree` must be 1 or 2.")
         object.__setattr__(self, "kernel", Kernel(self.kernel))

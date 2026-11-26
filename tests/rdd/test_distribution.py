@@ -6,10 +6,12 @@ import pytest
 from great_tables import GT
 from rich.console import Group
 
+from qte.bootstrap import BootstrapMultiplierConfig
 from qte.names import CI_LB_ID, CI_UB_ID, EFFECT_ID, QUANTILE_ID, SE_ID
 from qte.rdd import (
     Kernel,
     LocalPolynomialConfig,
+    RddInference,
     RunningVariableConfig,
     estimate_rdd_distribution_effects,
     get_true_first_stage,
@@ -122,6 +124,41 @@ def test_rejects_missing_first_stage(fuzzy_data):
             outcome_grid=30,
             weights="_w",
         )
+
+
+def test_multiplier_uniform_bands():
+    ds = simulate_rdd_data(n=20_000, alpha=2.5, seed=1)
+    result = estimate_rdd_distribution_effects(
+        ds,
+        "y",
+        "treatment",
+        RunningVariableConfig("running", 0.0),
+        qs=[0.25, 0.5, 0.75],
+        local_polynomial_config=LocalPolynomialConfig(bandwidth=0.5, degree=2),
+        outcome_grid=60,
+        bootstrap_config=BootstrapMultiplierConfig(n_draws=100, seed=0),
+    )
+
+    assert result.inference is RddInference.MULTIPLIER
+    assert result.uniform_sup_draws is not None
+    assert result.uniform_sup_draws.size == 100
+    assert (result.qtt[SE_ID] > 0).all()
+    half_width = result.uniform_half_width(0.95)
+    assert half_width > 0.0
+
+    uniform = result.get_as_dataframe(0.95, band="uniform")
+    uniform_width = uniform[CI_UB_ID] - uniform[CI_LB_ID]
+    assert np.allclose(uniform_width, 2.0 * half_width)
+    assert result.plot(band="uniform") is not None
+
+    assert result.uniform_sup_t_draws is not None
+    assert result.uniform_sup_t_draws.size == 100
+    critical_value = result.uniform_sup_t_critical_value(0.95)
+    assert critical_value > 0.0
+    sup_t = result.get_as_dataframe(0.95, band="sup-t")
+    sup_t_half_width = (sup_t[CI_UB_ID] - sup_t[CI_LB_ID]) / 2.0
+    assert np.allclose(sup_t_half_width, critical_value * result.qtt[SE_ID])
+    assert result.plot(band="sup-t") is not None
 
 
 def test_accepts_explicit_outcome_grid(fuzzy_data):

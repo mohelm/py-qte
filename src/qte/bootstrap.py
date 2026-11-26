@@ -1,4 +1,4 @@
-"""Bootstrap resampling helpers and the public `BootstrapConfig`."""
+"""Bootstrap resampling and multiplier-bootstrap configuration."""
 
 import itertools
 from collections.abc import Callable, Iterable, Iterator
@@ -39,6 +39,29 @@ class BootstrapConfig:
             raise ValueError("`n_iter` must be at least 1.")
         if self.n_workers < 1:
             raise ValueError("`n_workers` must be at least 1.")
+
+
+@dataclass(frozen=True)
+class BootstrapMultiplierConfig:
+    """Configuration for multiplier-bootstrap inference.
+
+    Parameters
+    ----------
+    n_draws : int, default=2500
+        Number of multiplier draws. Uniform sup-t bands need more draws than
+        pointwise case-bootstrap standard errors; 2500 matches CHS's Stata
+        module.
+    seed : int, optional
+        Seed for the random number generator. ``None`` draws a fresh seed.
+    """
+
+    n_draws: int = 2500
+    seed: int | None = None
+
+    def __post_init__(self) -> None:
+        """Validate the multiplier settings."""
+        if self.n_draws < 2:
+            raise ValueError("`n_draws` must be at least 2.")
 
 
 class _BootstrapEstimates(Protocol):

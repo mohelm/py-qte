@@ -153,6 +153,7 @@ quartodoc:
           include_inherited: true
         - RunningVariableConfig
         - LocalPolynomialConfig
+        - RddInference
         - Kernel
         - plot_rdd_design
         - plot_rdd_treatment
@@ -194,6 +195,7 @@ quartodoc:
       package: qte.bootstrap
       contents:
         - BootstrapConfig
+        - BootstrapMultiplierConfig
     - title: Quantile Regression
       desc: Quantile regression solver and algorithm selection (`qte.quantile_regression`).
       package: qte.quantile_regression

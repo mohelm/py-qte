@@ -39,7 +39,7 @@ of outcome values.
 #| label: setup
 import polars as pl
 
-from qte.bootstrap import BootstrapConfig
+from qte.bootstrap import BootstrapConfig, BootstrapMultiplierConfig
 from qte.names import EFFECT_ID, QUANTILE_ID
 from qte.rdd import (
     LocalPolynomialConfig,
@@ -52,6 +52,7 @@ from qte.rdd import (
 
 QS = [0.10, 0.25, 0.50, 0.75, 0.90]
 BOOTSTRAP = BootstrapConfig(n_iter=20, seed=42, n_workers=2)
+UNIFORM_BOOTSTRAP = BootstrapMultiplierConfig(n_draws=200, seed=42)
 ```
 
 ## Simulated fuzzy design
@@ -108,6 +109,34 @@ res.qtt.select(QUANTILE_ID, EFFECT_ID).with_columns(pl.Series("truth", truth[EFF
 ```{python}
 #| label: late
 res.att
+```
+
+## Uniform Bands
+
+Passing a `BootstrapMultiplierConfig` switches to multiplier draws. With `degree=2` this is the
+CHS-style local-quadratic fit. The pointwise SEs and the uniform critical value come from the same
+draws. `band="sup-t"` uses the studentised sup-t critical value; `band="uniform"` uses the CHS/Stata
+constant-width band.
+
+```{python}
+#| label: uniform
+uniform_res = estimate_rdd_distribution_effects(
+    ds,
+    outcome="y",
+    treatment="treatment",
+    running_variable=RunningVariableConfig("running", 0.0),
+    qs=QS,
+    local_polynomial_config=LocalPolynomialConfig(bandwidth=0.5, degree=2),
+    outcome_grid=60,
+    bootstrap_config=UNIFORM_BOOTSTRAP,
+)
+
+uniform_res.uniform_sup_t_critical_value(0.95)
+```
+
+```{python}
+#| label: uniform-plot
+show_chart(uniform_res.plot(band="sup-t"))
 ```
 
 ## Design Plots

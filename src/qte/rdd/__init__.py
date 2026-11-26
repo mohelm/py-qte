@@ -7,7 +7,7 @@ and instrumental-variables families, the identifying variation comes from a
 discontinuity in the treatment probability along a running variable.
 """
 
-from qte.rdd.custom_types import Kernel, LocalPolynomialConfig, RunningVariableConfig
+from qte.rdd.custom_types import Kernel, LocalPolynomialConfig, RddInference, RunningVariableConfig
 from qte.rdd.distribution import estimate_rdd_distribution_effects
 from qte.rdd.presentation import plot_rdd_design, plot_rdd_treatment
 from qte.rdd.results import RddDistributionResult
@@ -21,6 +21,7 @@ __all__ = [
     "Kernel",
     "LocalPolynomialConfig",
     "RddDistributionResult",
+    "RddInference",
     "RunningVariableConfig",
     "estimate_rdd_distribution_effects",
     "get_true_first_stage",
