@@ -223,3 +223,11 @@ estimator roughly follows the Stata
 [`ivqte`](https://sites.google.com/site/blaisemelly/home/computer-programs/estimation-of-quantile-treatment-effects-in-stata?authuser=0)
 package by Frölich and Melly. The regression-discontinuity estimator reimplements the Stata
 [`rddqte`](https://github.com/bmelly/Stata) package of Frandsen, Frölich and Melly.
+
+# License
+
+This project is licensed under GPL-3.0-or-later. The Frisch-Newton quantile-regression solver under
+`src/qte/quantile_regression/_ext/rqfnb.f` is directly derived from the R
+[`quantreg`](https://cran.r-project.org/package=quantreg) package by Roger Koenker, which is
+licensed GPL (>= 2). The project would need a clean-room reimplementation of that Fortran solver
+before it could move to a permissive license.
