@@ -4,16 +4,16 @@ import pytest
 from numpy.testing import assert_allclose
 
 from qte.bootstrap import BootstrapConfig
-from qte.cross_sectional import (
+from qte.names import EFFECT_ID
+from qte.unconfounded import (
     estimate_aipw_effects,
     estimate_ipw_effects,
     estimate_unadjusted_effects,
     simulate_covariate_data,
     simulate_simple_data,
 )
-from qte.cross_sectional.custom_types import CausalTarget
-from qte.cross_sectional.simulate import get_true_means, get_true_quantiles
-from qte.names import EFFECT_ID
+from qte.unconfounded.custom_types import CausalTarget
+from qte.unconfounded.simulate import get_true_means, get_true_quantiles
 
 QS = (0.25, 0.5, 0.75)
 CFG = BootstrapConfig(n_iter=8, seed=1)

@@ -7,17 +7,17 @@ from polars.testing import assert_frame_equal, assert_series_equal
 
 from qte.bootstrap import BootstrapConfig
 from qte.constants import QUARTILES
-from qte.cross_sectional import (
+from qte.names import EFFECT_ID, QUANTILE_ID
+from qte.quantile_regression import QuantileRegressionAlgorithms
+from qte.unconfounded import (
     OutcomeRegressionConfig,
     estimate_aipw_effects,
     estimate_ipw_effects,
     estimate_outcome_regression_effects,
     estimate_unadjusted_effects,
 )
-from qte.cross_sectional.custom_types import CausalTarget, resolve_grid
-from qte.cross_sectional.results import QteResult
-from qte.names import EFFECT_ID, QUANTILE_ID
-from qte.quantile_regression import QuantileRegressionAlgorithms
+from qte.unconfounded.custom_types import CausalTarget, resolve_grid
+from qte.unconfounded.results import QteResult
 
 
 def make_data(n_treated: int = 500, n_control: int | None = None) -> pl.DataFrame:

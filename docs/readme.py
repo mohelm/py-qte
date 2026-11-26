@@ -19,11 +19,11 @@ from pathlib import Path
 
 from qte.bootstrap import BootstrapMultiplierConfig
 from qte.constants import DECILES
-from qte.cross_sectional import estimate_aipw_effects
 from qte.datasets import load_ddk_2011, load_lalonde, load_mpdta
 from qte.distributional_did import TrtGroupConfig, estimate_changes_in_changes_effects
 from qte.rdd import LocalPolynomialConfig, RunningVariableConfig, estimate_rdd_distribution_effects
 from qte.results import AltairChart, _BasicQteResult
+from qte.unconfounded import estimate_aipw_effects
 
 _ROOT = Path(__file__).resolve().parent.parent
 

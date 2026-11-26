@@ -15,7 +15,7 @@ quarto render # or quarto render <document>.qmd
 ```
 
 The website is then rendered into `docs/_site`. Quarto runs every `.qmd` in its own session, so any
-document with R or Python chunks needs the activation chunk that `cross_sectional/benchmarks.qmd`
+document with R or Python chunks needs the activation chunk that `unconfounded/benchmarks.qmd`
 starts with (`renv::load()` + `use_virtualenv()`). Documents with no executable code (such as the
 generated `reference/` pages) don't need it.
 

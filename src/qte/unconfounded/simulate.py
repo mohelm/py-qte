@@ -1,4 +1,4 @@
-"""Simulate cross-sectional data for quantile treatment effect estimators.
+"""Simulate unconfounded data for quantile treatment effect estimators.
 
 Two independent designs are provided.
 
@@ -41,7 +41,6 @@ from numpy.typing import ArrayLike, NDArray
 from scipy.special import expit
 
 from qte.constants import MEDIAN
-from qte.cross_sectional.custom_types import CausalTarget
 from qte.helpers import _as_iterable_array, _get_quantile_differences
 from qte.names import (
     EFFECT_ID,
@@ -51,6 +50,7 @@ from qte.names import (
     POTENTIAL_OUTCOME_CTRL_ID,
     POTENTIAL_OUTCOME_TREAT_ID,
 )
+from qte.unconfounded.custom_types import CausalTarget
 
 TREATMENT_COL = "treat"
 N_USED_COVARIATES = 5

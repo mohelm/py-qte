@@ -8,7 +8,10 @@
 #   quarto render docs --execute-params docs/fast_params.yml
 #   quarto render docs --execute-params docs/prd_params.yml
 # Override single values with -P, e.g. -P n_sim_confounded:1000000
-docs_dir <- dirname(knitr::current_input(dir = TRUE))
+# The renv project and the Python environment live one level above this
+# benchmark directory, i.e. at the docs root and the repository root.
+benchmark_dir <- dirname(knitr::current_input(dir = TRUE))
+docs_dir <- normalizePath(file.path(benchmark_dir, ".."))
 
 # Force all libraries to be loaded from the renv environment.
 options(renv.config.synchronized.check = FALSE)

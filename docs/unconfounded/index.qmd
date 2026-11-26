@@ -1,5 +1,5 @@
 ---
-title: "Cross-Sectional Estimators"
+title: "Unconfounded Estimators"
 engine: jupyter
 jupyter: python3
 page-layout: full
@@ -17,7 +17,7 @@ execute:
   message: false
 ---
 
-This page demonstrates the estimators that `py-qte` offers for cross-sectional data. All four
+This page demonstrates the estimators that `py-qte` offers for unconfounded data. All four
 estimators provide effects for the overall population (QTE) and for the treated group (QTT), but
 they differ in how they adjust for covariates:
 
@@ -40,7 +40,7 @@ errors by resampling rows.
 
 The implementations are inspired by the R [`qte`](https://github.com/bcallaway11/qte) package.
 
-{{< include _setup-cross-sectional.qmd >}}
+{{< include _setup-unconfounded.qmd >}}
 
 @lst-config displays the quantiles used throughout and the bootstrap configuration.
 
@@ -118,7 +118,7 @@ involved.
 
 ```{python}
 #| label: lst-unadjusted-estimate
-from qte.cross_sectional import estimate_unadjusted_effects
+from qte.unconfounded import estimate_unadjusted_effects
 
 with timer("unadjusted"):
     unadjusted = estimate_unadjusted_effects(
@@ -165,7 +165,7 @@ $$
 
 ```{python}
 #| label: lst-ipw-estimate
-from qte.cross_sectional import CausalTarget, estimate_ipw_effects
+from qte.unconfounded import CausalTarget, estimate_ipw_effects
 
 with timer("ipw"):
     ipw = estimate_ipw_effects(
@@ -212,7 +212,7 @@ which also controls the quantile grid and the quantile-regression algorithm.
 
 ```{python}
 #| label: lst-outcome-regression-estimate
-from qte.cross_sectional import estimate_outcome_regression_effects
+from qte.unconfounded import estimate_outcome_regression_effects
 
 with timer("outcome regression"):
     outcome_regression = estimate_outcome_regression_effects(
@@ -265,7 +265,7 @@ score or the outcome regression is correctly specified. It takes both formulas, 
 
 ```{python}
 #| label: lst-aipw-estimate
-from qte.cross_sectional import estimate_aipw_effects
+from qte.unconfounded import estimate_aipw_effects
 
 with timer("aipw"):
     aipw = estimate_aipw_effects(
@@ -296,10 +296,10 @@ show_chart(aipw.plot())
 
 ## Summary
 
-@tbl-cross-sectional-summary compares the four estimators on the same quantiles.
+@tbl-unconfounded-summary compares the four estimators on the same quantiles.
 
 ```{python}
-#| label: tbl-cross-sectional-summary
+#| label: tbl-unconfounded-summary
 #| code-summary: "Show code (summary table)"
 estimates = {
     "Unadjusted": unadjusted,

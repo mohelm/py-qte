@@ -1,4 +1,4 @@
-"""Custom types for the cross-sectional estimators."""
+"""Custom types for the unconfounded estimators."""
 
 from dataclasses import dataclass
 from enum import StrEnum
@@ -13,9 +13,9 @@ from qte.quantile_regression import QuantileRegressionAlgorithms
 
 
 class CausalTarget(StrEnum):
-    """Causal estimand a cross-sectional estimator targets.
+    """Causal estimand a unconfounded estimator targets.
 
-    Use a member as the ``target`` argument of the cross-sectional estimators,
+    Use a member as the ``target`` argument of the unconfounded estimators,
     for example ``CausalTarget.QTT``.
 
     Attributes
@@ -29,7 +29,7 @@ class CausalTarget(StrEnum):
     --------
     Target the effect on the treated instead of the whole population:
 
-    >>> from qte.cross_sectional import CausalTarget, estimate_ipw_effects
+    >>> from qte.unconfounded import CausalTarget, estimate_ipw_effects
     >>> from qte.datasets import load_lalonde
     >>> res = estimate_ipw_effects(
     ...     load_lalonde(),
@@ -45,7 +45,7 @@ class CausalTarget(StrEnum):
 
 
 class Estimator(StrEnum):
-    """Cross-sectional estimator that produced a result.
+    """Unconfounded estimator that produced a result.
 
     This is an output field: read it from ``result.estimator`` to see how an
     estimate was produced, and compare it against a member.
@@ -65,7 +65,7 @@ class Estimator(StrEnum):
     --------
     Inspect which estimator produced a result:
 
-    >>> from qte.cross_sectional import Estimator, estimate_unadjusted_effects
+    >>> from qte.unconfounded import Estimator, estimate_unadjusted_effects
     >>> from qte.datasets import load_lalonde
     >>> res = estimate_unadjusted_effects(load_lalonde(), "re78", "treat")
     >>> res.estimator is Estimator.UNADJUSTED

@@ -25,18 +25,18 @@ from qte._validation import (
     check_weights,
     get_formula_columns,
 )
-from qte.cross_sectional import (
-    OutcomeRegressionConfig,
-    estimate_aipw_effects,
-    estimate_ipw_effects,
-    estimate_outcome_regression_effects,
-    estimate_unadjusted_effects,
-)
 from qte.distributional_did import (
     estimate_changes_in_changes_effects,
     estimate_distributional_did_effects,
     estimate_mean_did_effects,
     estimate_quantile_did_effects,
+)
+from qte.unconfounded import (
+    OutcomeRegressionConfig,
+    estimate_aipw_effects,
+    estimate_ipw_effects,
+    estimate_outcome_regression_effects,
+    estimate_unadjusted_effects,
 )
 
 

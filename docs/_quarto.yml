@@ -3,7 +3,7 @@ project:
   output-dir: _site
   render:
     - "*.qmd"
-    - "cross_sectional/*.qmd"
+    - "unconfounded/*.qmd"
     - "did/*.qmd"
     - "iv/*.qmd"
     - "rdd/*.qmd"
@@ -20,12 +20,12 @@ website:
   repo-actions: [source, issue]
   navbar:
     left:
-      - text: "Cross-Sectional"
+      - text: "Unconfounded"
         menu:
           - text: "Estimators"
-            href: cross_sectional/index.qmd
+            href: unconfounded/index.qmd
           - text: "Benchmarks"
-            href: cross_sectional/benchmarks.qmd
+            href: unconfounded/benchmarks.qmd
       - text: "IV"
         menu:
           - text: "Estimators"
@@ -63,7 +63,7 @@ interlinks:
   # alias strips the package prefix. The value must be a one-element list:
   # Quarto coerces a bare empty string to `[]`, which would register nothing.
   aliases:
-    qte.cross_sectional:
+    qte.unconfounded:
       - ""
     qte.iv:
       - ""
@@ -96,9 +96,9 @@ quartodoc:
     display_name: name
     render_interlinks: true
   sections:
-    - title: Cross-Sectional Estimators
-      desc: Quantile treatment effect estimators for cross-sectional data (`qte.cross_sectional`).
-      package: qte.cross_sectional
+    - title: Unconfounded Estimators
+      desc: Quantile treatment effect estimators under unconfoundedness (`qte.unconfounded`).
+      package: qte.unconfounded
       contents:
         - estimate_unadjusted_effects
         - estimate_ipw_effects
@@ -110,8 +110,8 @@ quartodoc:
         - Estimator
         - OutcomeRegressionConfig
     - title: Simulation
-      desc: Simulation functions for the cross-sectional estimators (`qte.cross_sectional.simulate`).
-      package: qte.cross_sectional.simulate
+      desc: Simulation functions for the unconfounded estimators (`qte.unconfounded.simulate`).
+      package: qte.unconfounded.simulate
       contents:
         - simulate_simple_data
         - simulate_covariate_data

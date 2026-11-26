@@ -2,16 +2,16 @@ import numpy as np
 import polars as pl
 from numpy.typing import NDArray
 
-from qte.cross_sectional.custom_types import (
+from qte.custom_types import ColumnName, DataFrame
+from qte.helpers import _get_mean_differences, _get_quantile_differences
+from qte.stats import estimate_outcome_model, get_quantiles
+from qte.unconfounded.custom_types import (
     CausalTarget,
     OutcomeRegressionConfig,
     resolve_grid,
 )
-from qte.cross_sectional.or_helpers import make_weights, predict_outcome_model
-from qte.cross_sectional.results import _QteIntermediateResult
-from qte.custom_types import ColumnName, DataFrame
-from qte.helpers import _get_mean_differences, _get_quantile_differences
-from qte.stats import estimate_outcome_model, get_quantiles
+from qte.unconfounded.or_helpers import make_weights, predict_outcome_model
+from qte.unconfounded.results import _QteIntermediateResult
 
 
 def compute_outcome_regression_effects(

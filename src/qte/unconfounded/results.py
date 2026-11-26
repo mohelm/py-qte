@@ -2,9 +2,9 @@ from dataclasses import dataclass
 
 import polars as pl
 
-from qte.cross_sectional.custom_types import CausalTarget, Estimator
 from qte.custom_types import FormulaRhs
 from qte.results import _BasicQteResult
+from qte.unconfounded.custom_types import CausalTarget, Estimator
 
 
 @dataclass(frozen=True)
@@ -15,7 +15,7 @@ class _QteIntermediateResult:
 
 @dataclass
 class QteResult(_BasicQteResult):
-    """Result of a cross-sectional quantile treatment effect estimation.
+    """Result of a unconfounded quantile treatment effect estimation.
 
     Use `plot`, `tabulate`, `summarize` or `get_as_dataframe` to present the
     estimates. Instances are returned by the ``estimate_*`` functions; the

@@ -1,5 +1,5 @@
 ```{python}
-#| label: setup-cross-sectional
+#| label: setup-unconfounded
 #| echo: false
 import base64
 import time

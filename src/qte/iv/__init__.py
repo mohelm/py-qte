@@ -7,7 +7,7 @@ It also provides the structural instrumental-variable quantile regression of
 Chernozhukov and Hansen (`estimate_ivqr_effects`) and
 `perform_instrument_validity_test`, which checks the testable implication of
 those assumptions for a binary treatment and a binary instrument. The family
-lives apart from the cross-sectional estimators because its estimands are not
+lives apart from the unconfounded estimators because its estimands are not
 effects on the whole population.
 """
 

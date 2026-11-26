@@ -75,7 +75,7 @@ import polars as pl
 from great_tables import GT, loc, md, px, style
 
 from qte.bootstrap import BootstrapConfig
-from qte.cross_sectional import estimate_aipw_effects, estimate_unadjusted_effects
+from qte.unconfounded import estimate_aipw_effects, estimate_unadjusted_effects
 from qte.datasets import load_lalonde
 
 DATA = load_lalonde(controls_source="psid")
@@ -249,15 +249,15 @@ strategy based on threads is close to optimal for larger datasets. See @tbl-py-o
 Overall, these results stress the importance of algorithmic choices and parallelization strategies
 for the bootstrap iterations.
 
-## Cross-Sectional Data
+## Unconfounded Data
 
 ```{r}
 #| include: false
 num_rows_lalonde <- py$DATA$height
 ```
 
-We compare cross-sectional estimators on the Lalonde dataset. The Lalonde dataset is a relatively
-small dataset with only `{r} formatC(num_rows_lalonde, format = "d", big.mark = ",")` observations.
+We compare unconfounded estimators on the Lalonde dataset. The Lalonde dataset is a relatively small
+dataset with only `{r} formatC(num_rows_lalonde, format = "d", big.mark = ",")` observations.
 
 ### Estimation under Unconfoundedness
 
@@ -546,7 +546,7 @@ well the `py-qte` and the `qte` package do on large dataset we resort to simulat
 #| label: sim-data
 #| code-summary: "Show code (Python simulating the datasets)"
 #| time_it: true
-from qte.cross_sectional import simulate_covariate_data, simulate_simple_data
+from qte.unconfounded import simulate_covariate_data, simulate_simple_data
 
 
 def add_correct_features(ds):

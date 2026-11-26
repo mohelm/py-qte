@@ -10,7 +10,7 @@ benchmarks.
 
 The available estimators are
 
-- **Cross-sectional quantile treatment effects** — unadjusted, inverse probability weighted, outcome
+- **Unconfounded quantile treatment effects** — unadjusted, inverse probability weighted, outcome
   regression and doubly robust;
 - **distributional difference-in-differences** — changes-in-changes and quantile
   difference-in-differences; and
@@ -46,13 +46,13 @@ computations. On Windows a fallback (based on the `statsmodels` library) will be
 
 # Examples
 
-## Cross-Sectional Data
+## Unconfounded Data
 
 We can estimate quantile treatment (and average) treatment effects using an augmented inverse
 probability weighting (AIPW) estimator.
 
 ```python
-from qte.cross_sectional import estimate_aipw_effects
+from qte.unconfounded import estimate_aipw_effects
 from qte.datasets import load_lalonde
 
 ds = load_lalonde()
@@ -217,7 +217,7 @@ See [`RELEASING.md`](RELEASING.md) for how to cut a release.
 
 # Credits
 
-The cross-sectional and distributional difference-in-differences estimators reimplement the R
+The unconfounded and distributional difference-in-differences estimators reimplement the R
 [`qte`](https://github.com/bcallaway11/qte) package by Brantly Callaway. The instrumental-variables
 estimator roughly follows the Stata
 [`ivqte`](https://sites.google.com/site/blaisemelly/home/computer-programs/estimation-of-quantile-treatment-effects-in-stata?authuser=0)

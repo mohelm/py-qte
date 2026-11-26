@@ -2,7 +2,7 @@
 
 The family implements the local distribution-regression estimator of Frandsen,
 Frölich and Melly (2012) for sharp and fuzzy RD designs. It targets the quantile
-treatment effect for local compliers at the cutoff. Unlike the cross-sectional
+treatment effect for local compliers at the cutoff. Unlike the unconfounded
 and instrumental-variables families, the identifying variation comes from a
 discontinuity in the treatment probability along a running variable.
 """

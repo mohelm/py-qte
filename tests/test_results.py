@@ -2,8 +2,6 @@ import altair as alt
 import polars as pl
 import pytest
 
-from qte.cross_sectional.custom_types import CausalTarget, Estimator
-from qte.cross_sectional.results import QteResult
 from qte.names import (
     EFFECT_ID,
     MEAN_CONTROL_ID,
@@ -13,6 +11,8 @@ from qte.names import (
     QUANTILE_TREATED_VAL_ID,
     SE_ID,
 )
+from qte.unconfounded.custom_types import CausalTarget, Estimator
+from qte.unconfounded.results import QteResult
 
 
 @pytest.fixture

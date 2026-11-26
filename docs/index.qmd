@@ -13,12 +13,12 @@ currently inspired by the R [`qte`](https://github.com/bcallaway11/qte) package 
 package.
 
 You can find benchmarks comparing the `py-qte` and the `qte` package on the
-[cross-sectional benchmarks page](cross_sectional/benchmarks.qmd).
+[unconfounded benchmarks page](unconfounded/benchmarks.qmd).
 
-## Cross-Sectional
+## Unconfounded
 
-- [Estimators](cross_sectional/index.qmd)
-- [Benchmarks](cross_sectional/benchmarks.qmd)
+- [Estimators](unconfounded/index.qmd)
+- [Benchmarks](unconfounded/benchmarks.qmd)
 
 ## Regression Discontinuity
 

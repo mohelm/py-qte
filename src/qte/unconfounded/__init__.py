@@ -19,26 +19,26 @@ from qte.bootstrap import (
     _make_bootstrap_runs,
 )
 from qte.constants import MEDIAN
-from qte.cross_sectional.aipw import compute_aipw_effects
-from qte.cross_sectional.custom_types import (
-    CausalTarget,
-    Estimator,
-    OutcomeRegressionConfig,
-    make_outcome_regression_config,
-)
-from qte.cross_sectional.ipw import compute_ipw_effects as compute_ipw_effects
-from qte.cross_sectional.outcome_regression import compute_outcome_regression_effects
-from qte.cross_sectional.results import QteResult
-from qte.cross_sectional.simulate import (
-    simulate_covariate_data as simulate_covariate_data,
-)
-from qte.cross_sectional.simulate import simulate_simple_data as simulate_simple_data
-from qte.cross_sectional.unadjusted import compute_unadjusted_effects
 from qte.custom_types import (
     ColumnName,
     FormulaRhs,
 )
 from qte.helpers import _as_iterable_array
+from qte.unconfounded.aipw import compute_aipw_effects
+from qte.unconfounded.custom_types import (
+    CausalTarget,
+    Estimator,
+    OutcomeRegressionConfig,
+    make_outcome_regression_config,
+)
+from qte.unconfounded.ipw import compute_ipw_effects as compute_ipw_effects
+from qte.unconfounded.outcome_regression import compute_outcome_regression_effects
+from qte.unconfounded.results import QteResult
+from qte.unconfounded.simulate import (
+    simulate_covariate_data as simulate_covariate_data,
+)
+from qte.unconfounded.simulate import simulate_simple_data as simulate_simple_data
+from qte.unconfounded.unadjusted import compute_unadjusted_effects
 
 
 def estimate_unadjusted_effects(

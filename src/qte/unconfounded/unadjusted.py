@@ -2,10 +2,10 @@ import numpy as np
 import polars as pl
 from numpy.typing import ArrayLike
 
-from qte.cross_sectional.results import _QteIntermediateResult
 from qte.custom_types import ColumnName
 from qte.helpers import _as_iterable_array, _get_mean_differences, _get_quantile_differences
 from qte.stats import get_quantiles
+from qte.unconfounded.results import _QteIntermediateResult
 
 
 def compute_unadjusted_effects(

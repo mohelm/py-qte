@@ -2,11 +2,11 @@ import numpy as np
 import polars as pl
 from numpy.typing import NDArray
 
-from qte.cross_sectional.custom_types import CausalTarget
-from qte.cross_sectional.results import _QteIntermediateResult
 from qte.custom_types import ColumnName, FormulaRhs
 from qte.helpers import _get_mean_differences, _get_quantile_differences
 from qte.stats import estimate_propensity_score, get_quantiles
+from qte.unconfounded.custom_types import CausalTarget
+from qte.unconfounded.results import _QteIntermediateResult
 
 
 def compute_ipw_effects(
