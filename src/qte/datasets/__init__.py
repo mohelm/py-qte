@@ -142,3 +142,23 @@ def load_jtpa() -> pl.DataFrame:
     """
     with importlib.resources.path("qte.datasets", "jtpa.parquet") as path:
         return pl.read_parquet(path)
+
+
+def load_ddk_2011() -> pl.DataFrame:
+    """Load the Duflo, Dupas and Kremer (2011) tracking dataset.
+
+    The data come from the randomized evaluation of tracking in Kenyan primary
+    schools. The running variable is the student's baseline test percentile,
+    ``percentile``; the cutoff is 50. In tracking schools, ``highstream``
+    indicates assignment to the upper-ability section, and ``ts_std`` is the
+    standardized endline test score. The dataset is distributed with the R
+    package ``QTE.RD`` and is the empirical example in Qu and Yoon (2025).
+
+    Returns
+    -------
+    polars.DataFrame
+        Student-level tracking, baseline percentile, section assignment and
+        endline test scores.
+    """
+    with importlib.resources.path("qte.datasets", "ddk_2011.parquet") as path:
+        return pl.read_parquet(path)

@@ -115,6 +115,11 @@ def _compute_local_linear_line(
     )
 
 
+def _restore_running_scale(frame: pl.DataFrame, cutoff: float) -> pl.DataFrame:
+    """Convert centred running-variable values back to the original scale."""
+    return frame.with_columns((pl.col("running") + cutoff).alias("running"))
+
+
 def _make_design_chart(
     points: pl.DataFrame,
     fits: pl.DataFrame,
@@ -238,17 +243,20 @@ def plot_rdd_design(
 
     r = ds[running.name].to_numpy() - running.cutoff
     y = ds[outcome].to_numpy()
-    points = _compute_bin_means(r, y, n_bins=n_bins)
+    points = _restore_running_scale(_compute_bin_means(r, y, n_bins=n_bins), running.cutoff)
     fits = (
-        pl.concat(
-            [
-                _compute_local_linear_line(
-                    r, y, side=_Side.LEFT, local_polynomial_config=local_polynomial_config
-                ),
-                _compute_local_linear_line(
-                    r, y, side=_Side.RIGHT, local_polynomial_config=local_polynomial_config
-                ),
-            ]
+        _restore_running_scale(
+            pl.concat(
+                [
+                    _compute_local_linear_line(
+                        r, y, side=_Side.LEFT, local_polynomial_config=local_polynomial_config
+                    ),
+                    _compute_local_linear_line(
+                        r, y, side=_Side.RIGHT, local_polynomial_config=local_polynomial_config
+                    ),
+                ]
+            ),
+            running.cutoff,
         )
         if show_fit
         else pl.DataFrame(schema={"running": pl.Float64, "value": pl.Float64, "side": pl.String})
@@ -309,17 +317,20 @@ def plot_rdd_treatment(
 
     r = ds[running.name].to_numpy() - running.cutoff
     d = ds[treatment].to_numpy().astype(float)
-    points = _compute_bin_means(r, d, n_bins=n_bins)
+    points = _restore_running_scale(_compute_bin_means(r, d, n_bins=n_bins), running.cutoff)
     fits = (
-        pl.concat(
-            [
-                _compute_local_linear_line(
-                    r, d, side=_Side.LEFT, local_polynomial_config=local_polynomial_config
-                ),
-                _compute_local_linear_line(
-                    r, d, side=_Side.RIGHT, local_polynomial_config=local_polynomial_config
-                ),
-            ]
+        _restore_running_scale(
+            pl.concat(
+                [
+                    _compute_local_linear_line(
+                        r, d, side=_Side.LEFT, local_polynomial_config=local_polynomial_config
+                    ),
+                    _compute_local_linear_line(
+                        r, d, side=_Side.RIGHT, local_polynomial_config=local_polynomial_config
+                    ),
+                ]
+            ),
+            running.cutoff,
         )
         if show_fit
         else pl.DataFrame(schema={"running": pl.Float64, "value": pl.Float64, "side": pl.String})

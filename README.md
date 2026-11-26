@@ -136,6 +136,46 @@ res.plot()  # Vega-Altair plot
 res.tabulate()  # Great Tables output
 ```
 
+## Regression Discontinuity Design
+
+We can estimate local quantile treatment effects for compliers at a cutoff with local distribution
+regression.
+
+```python
+import polars as pl
+
+from qte.bootstrap import BootstrapMultiplierConfig
+from qte.datasets import load_ddk_2011
+from qte.rdd import LocalPolynomialConfig, RunningVariableConfig, estimate_rdd_distribution_effects
+
+ds = load_ddk_2011().filter(pl.col("tracking") == 1).drop_nulls(["ts_std", "percentile"])
+
+res = estimate_rdd_distribution_effects(
+    ds,
+    outcome="ts_std",
+    treatment="highstream",
+    running_variable=RunningVariableConfig("percentile", 50.0),
+    qs=[0.1, 0.25, 0.5, 0.75, 0.9],
+    local_polynomial_config=LocalPolynomialConfig(bandwidth=20.0),
+    bootstrap_config=BootstrapMultiplierConfig(n_draws=2500, seed=42),
+)
+
+res.plot(band="uniform")  # Vega-Altair plot
+res.tabulate()  # Great Tables output
+```
+
+<table width="100%" border="0" cellpadding="0" cellspacing="0">
+  <tr>
+    <td width="48%" valign="top" align="center">
+      <img src="assets/rdd_results.svg" width="100%">
+    </td>
+    <td width="4%"></td>
+    <td width="48%" valign="top" align="center">
+      <img src="assets/rdd_table.png" width="100%">
+    </td>
+  </tr>
+</table>
+
 ---
 
 # Development

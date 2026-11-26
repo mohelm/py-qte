@@ -3,6 +3,7 @@ import pytest
 
 from qte.datasets import (
     load_card,
+    load_ddk_2011,
     load_engel_with_weights,
     load_jtpa,
     load_lalonde,
@@ -100,3 +101,18 @@ def test_load_pension():
     } <= set(ds.columns)
     assert set(ds["p401"].unique().to_list()) == {0, 1}
     assert set(ds["e401"].unique().to_list()) == {0, 1}
+
+
+def test_load_ddk_2011():
+    ds = load_ddk_2011()
+    assert isinstance(ds, pl.DataFrame)
+    assert ds.shape == (5_795, 10)
+    assert {
+        "totalscore",
+        "tracking",
+        "percentile",
+        "highstream",
+        "ts_std",
+    } <= set(ds.columns)
+    assert set(ds["tracking"].unique().to_list()) <= {0, 1}
+    assert set(ds["highstream"].unique().to_list()) <= {0, 1}

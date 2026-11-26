@@ -190,6 +190,7 @@ quartodoc:
         - load_card
         - load_jtpa
         - load_pension
+        - load_ddk_2011
     - title: Bootstrap
       desc: Shared bootstrap configuration for the estimators (`qte.bootstrap`).
       package: qte.bootstrap

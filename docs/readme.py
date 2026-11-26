@@ -17,11 +17,13 @@ import tempfile
 import tomllib
 from pathlib import Path
 
+from qte.bootstrap import BootstrapMultiplierConfig
 from qte.constants import DECILES
 from qte.cross_sectional import estimate_aipw_effects
-from qte.datasets import load_lalonde, load_mpdta
+from qte.datasets import load_ddk_2011, load_lalonde, load_mpdta
 from qte.distributional_did import TrtGroupConfig, estimate_changes_in_changes_effects
-from qte.results import _BasicQteResult
+from qte.rdd import LocalPolynomialConfig, RunningVariableConfig, estimate_rdd_distribution_effects
+from qte.results import AltairChart, _BasicQteResult
 
 _ROOT = Path(__file__).resolve().parent.parent
 
@@ -70,24 +72,30 @@ def generate_pypi_readme() -> None:
 
 
 def generate_readme_assets(
-    res: _BasicQteResult, model_id: str, out_dir: str | Path = "assets"
+    res: _BasicQteResult,
+    model_id: str,
+    out_dir: str | Path = "assets",
+    *,
+    chart: AltairChart | None = None,
 ) -> None:
     """Save the README plot and table for a fitted result.
 
     Parameters
     ----------
     res : _BasicQteResult
-        Fitted result exposing ``plot`` and ``tabulate``.
+        Fitted result exposing ``tabulate`` (and ``plot`` when ``chart`` is omitted).
     model_id : str
         Stem for the artifact names. ``"aipw_qte"`` writes ``aipw_qte_results.svg``
         and ``aipw_qte_table.png``.
     out_dir : str or Path, optional
         Directory to write the artifacts to.
+    chart : Altair chart, optional
+        Chart to save instead of ``res.plot()``.
     """
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
 
-    res.plot().save(out / f"{model_id}_results.svg")
+    (chart if chart is not None else res.plot()).save(out / f"{model_id}_results.svg")
 
     # Great Tables has no PNG export without selenium, so render its HTML in a
     # headless Firefox and crop the surrounding whitespace with Pillow. A
@@ -178,6 +186,20 @@ def main() -> None:
         bootstrap_config=50,
     )
     generate_readme_assets(res.overall, "distributional_did")
+
+    import polars as pl
+
+    ds = load_ddk_2011().filter(pl.col("tracking") == 1).drop_nulls(["ts_std", "percentile"])
+    res = estimate_rdd_distribution_effects(
+        ds,
+        "ts_std",
+        "highstream",
+        RunningVariableConfig("percentile", 50.0),
+        qs=[0.1, 0.25, 0.5, 0.75, 0.9],
+        local_polynomial_config=LocalPolynomialConfig(bandwidth=20.0),
+        bootstrap_config=BootstrapMultiplierConfig(n_draws=2500, seed=42),
+    )
+    generate_readme_assets(res, "rdd", chart=res.plot(band="uniform"))
 
 
 if __name__ == "__main__":
