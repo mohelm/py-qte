@@ -1,4 +1,4 @@
-project('py-qte', 'c', version: '0.1.0a2')
+project('py-qte', 'c', version: '0.1.0a3')
 
 py_mod = import('python')
 
