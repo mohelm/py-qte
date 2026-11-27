@@ -3818,10 +3818,62 @@ vertical-align: -.125em;
 </button>
           <div class="collapse navbar-collapse" id="navbarCollapse">
             <ul class="navbar-nav navbar-nav-scroll me-auto">
-  <li class="nav-item">
-    <a class="nav-link" href="../benchmark.html"> 
-<span class="menu-text">Benchmark</span></a>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-unconfounded" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Unconfounded</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-unconfounded">    
+        <li>
+    <a class="dropdown-item" href="../unconfounded/index.html">
+ <span class="dropdown-text">Estimators</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="../unconfounded/benchmarks.html">
+ <span class="dropdown-text">Benchmarks</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-iv" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">IV</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-iv">    
+        <li>
+    <a class="dropdown-item" href="../iv/index.html">
+ <span class="dropdown-text">Estimators</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../iv/validity.html">
+ <span class="dropdown-text">Instrument Validity</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-regression-discontinuity" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Regression Discontinuity</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-regression-discontinuity">    
+        <li>
+    <a class="dropdown-item" href="../rdd/index.html">
+ <span class="dropdown-text">Estimators</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-difference-in-differences" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Difference-in-Differences</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-difference-in-differences">    
+        <li>
+    <a class="dropdown-item" href="../did/index.html">
+ <span class="dropdown-text">Estimators</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../did/aggregation.html">
+ <span class="dropdown-text">Aggregating Estimates</span></a>
+  </li>  
+    </ul>
+  </li>
   <li class="nav-item">
     <a class="nav-link active" href="../reference/index.html" aria-current="page"> 
 <span class="menu-text">Reference</span></a>
@@ -3858,7 +3910,7 @@ vertical-align: -.125em;
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
             <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
- <span class="menu-text">Cross-Sectional Estimators</span></a>
+ <span class="menu-text">Unconfounded Estimators</span></a>
           <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
@@ -3906,6 +3958,12 @@ vertical-align: -.125em;
  <span class="menu-text">Estimator</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/OutcomeRegressionConfig.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">OutcomeRegressionConfig</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item sidebar-item-section">
@@ -3946,7 +4004,7 @@ vertical-align: -.125em;
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
             <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
- <span class="menu-text">Nonlinear Difference-in-Differences</span></a>
+ <span class="menu-text">Instrumental Variables</span></a>
           <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
@@ -3954,20 +4012,238 @@ vertical-align: -.125em;
       <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../reference/estimate_nonlinear_did_for_panel.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">estimate_nonlinear_did_for_panel</span></a>
+  <a href="../reference/estimate_unconditional_local_effects.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">estimate_unconditional_local_effects</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../reference/NonlinearDidResults.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">NonlinearDidResults</span></a>
+  <a href="../reference/UnconditionalLocalQteResult.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">UnconditionalLocalQteResult</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../reference/NonlinearDidResult.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">NonlinearDidResult</span></a>
+  <a href="../reference/estimate_conditional_local_effects.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">estimate_conditional_local_effects</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/ConditionalLocalQteResult.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ConditionalLocalQteResult</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/estimate_ivqr_effects.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">estimate_ivqr_effects</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/IvqrTreatment.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">IvqrTreatment</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/IvqrResult.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">IvqrResult</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/InstrumentProbabilityResult.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">InstrumentProbabilityResult</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/perform_instrument_validity_test.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">perform_instrument_validity_test</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/InstrumentValidityResult.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">InstrumentValidityResult</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/ValidityWeighting.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ValidityWeighting</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/Estimator.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Estimator</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/WeightAdjustment.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">WeightAdjustment</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
+ <span class="menu-text">IV Simulation</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/simulate_data.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">simulate_data</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/get_true_local_effects.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">get_true_local_effects</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true">
+ <span class="menu-text">Regression Discontinuity</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/estimate_rdd_distribution_effects.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">estimate_rdd_distribution_effects</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/RddDistributionResult.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">RddDistributionResult</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/RunningVariableConfig.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">RunningVariableConfig</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/LocalPolynomialConfig.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">LocalPolynomialConfig</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/RddInference.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">RddInference</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/Kernel.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Kernel</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/plot_rdd_design.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">plot_rdd_design</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/plot_rdd_treatment.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">plot_rdd_treatment</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true">
+ <span class="menu-text">RDD Simulation</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/simulate_rdd_data.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">simulate_rdd_data</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/get_true_local_effects.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">get_true_local_effects</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/get_true_first_stage.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">get_true_first_stage</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="true">
+ <span class="menu-text">Distributional Difference-in-Differences</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-7" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/estimate_changes_in_changes_effects.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">estimate_changes_in_changes_effects</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/estimate_quantile_did_effects.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">estimate_quantile_did_effects</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/estimate_mean_did_effects.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">estimate_mean_did_effects</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/estimate_distributional_did_effects.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">estimate_distributional_did_effects</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/DistributionalDidResults.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">DistributionalDidResults</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/DistributionalDidResult.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">DistributionalDidResult</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -3978,8 +4254,14 @@ vertical-align: -.125em;
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../reference/CounterfactualModel.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">CounterfactualModel</span></a>
+  <a href="../reference/Estimator.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Estimator</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/SamplingScheme.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">SamplingScheme</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -3998,13 +4280,13 @@ vertical-align: -.125em;
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-8" role="navigation" aria-expanded="true">
  <span class="menu-text">Data</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-8" role="navigation" aria-expanded="true" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-8" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../reference/load_lalonde.html" class="sidebar-item-text sidebar-link">
@@ -4023,21 +4305,68 @@ vertical-align: -.125em;
  <span class="menu-text">load_engel_with_weights</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/load_card.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">load_card</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/load_jtpa.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">load_jtpa</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/load_pension.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">load_pension</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/load_ddk_2011.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">load_ddk_2011</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true">
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-9" role="navigation" aria-expanded="true">
  <span class="menu-text">Bootstrap</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true" aria-label="Toggle section">
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-9" role="navigation" aria-expanded="true" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-9" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../reference/BootstrapConfig.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">BootstrapConfig</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/BootstrapMultiplierConfig.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">BootstrapMultiplierConfig</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-10" role="navigation" aria-expanded="true">
+ <span class="menu-text">Quantile Regression</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-10" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-10" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/QuantileRegressionAlgorithms.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">QuantileRegressionAlgorithms</span></a>
   </div>
 </li>
       </ul>
@@ -4056,97 +4385,253 @@ vertical-align: -.125em;
 
 <section id="function-reference" class="level1 doc doc-index">
 <h1 class="doc doc-index">Function reference</h1>
-<section id="cross-sectional-estimators" class="level2">
-<h2 class="anchored" data-anchor-id="cross-sectional-estimators">Cross-Sectional Estimators</h2>
-<p>Quantile treatment effect estimators for cross-sectional data (<code>qte.cross_sectional</code>).</p>
+<section id="unconfounded-estimators" class="level2">
+<h2 class="anchored" data-anchor-id="unconfounded-estimators">Unconfounded Estimators</h2>
+<p>Quantile treatment effect estimators under unconfoundedness (<code>qte.unconfounded</code>).</p>
 <table class="caption-top table">
 <tbody>
 <tr class="odd">
-<td><a href="../reference/estimate_unadjusted_effects.html#qte.cross_sectional.estimate_unadjusted_effects">estimate_unadjusted_effects</a></td>
+<td><a href="../reference/estimate_unadjusted_effects.html#qte.unconfounded.estimate_unadjusted_effects">estimate_unadjusted_effects</a></td>
 <td>Estimate a quantile treatment effect by the unadjusted difference in quantiles.</td>
 </tr>
 <tr class="even">
-<td><a href="../reference/estimate_ipw_effects.html#qte.cross_sectional.estimate_ipw_effects">estimate_ipw_effects</a></td>
+<td><a href="../reference/estimate_ipw_effects.html#qte.unconfounded.estimate_ipw_effects">estimate_ipw_effects</a></td>
 <td>Estimate a quantile treatment effect by inverse probability weighting.</td>
 </tr>
 <tr class="odd">
-<td><a href="../reference/estimate_outcome_regression_effects.html#qte.cross_sectional.estimate_outcome_regression_effects">estimate_outcome_regression_effects</a></td>
+<td><a href="../reference/estimate_outcome_regression_effects.html#qte.unconfounded.estimate_outcome_regression_effects">estimate_outcome_regression_effects</a></td>
 <td>Estimate a quantile treatment effect by outcome regression.</td>
 </tr>
 <tr class="even">
-<td><a href="../reference/estimate_aipw_effects.html#qte.cross_sectional.estimate_aipw_effects">estimate_aipw_effects</a></td>
+<td><a href="../reference/estimate_aipw_effects.html#qte.unconfounded.estimate_aipw_effects">estimate_aipw_effects</a></td>
 <td>Estimate a quantile treatment effect by augmented inverse probability weighting.</td>
 </tr>
 <tr class="odd">
-<td><a href="../reference/QteResult.html#qte.cross_sectional.QteResult">QteResult</a></td>
-<td>Result of a cross-sectional quantile treatment effect estimation.</td>
+<td><a href="../reference/QteResult.html#qte.unconfounded.QteResult">QteResult</a></td>
+<td>Result of a unconfounded quantile treatment effect estimation.</td>
 </tr>
 <tr class="even">
-<td><a href="../reference/CausalTarget.html#qte.cross_sectional.CausalTarget">CausalTarget</a></td>
-<td>Causal estimand a cross-sectional estimator targets.</td>
+<td><a href="../reference/CausalTarget.html#qte.unconfounded.CausalTarget">CausalTarget</a></td>
+<td>Causal estimand a unconfounded estimator targets.</td>
 </tr>
 <tr class="odd">
-<td><a href="../reference/Estimator.html#qte.cross_sectional.Estimator">Estimator</a></td>
-<td>Cross-sectional estimator that produced a result.</td>
+<td><a href="../reference/Estimator.html#qte.unconfounded.Estimator">Estimator</a></td>
+<td>Unconfounded estimator that produced a result.</td>
+</tr>
+<tr class="even">
+<td><a href="../reference/OutcomeRegressionConfig.html#qte.unconfounded.OutcomeRegressionConfig">OutcomeRegressionConfig</a></td>
+<td>Configuration of the outcome (quantile) regression step.</td>
 </tr>
 </tbody>
 </table>
 </section>
 <section id="simulation" class="level2">
 <h2 class="anchored" data-anchor-id="simulation">Simulation</h2>
-<p>Simulation functions for the cross-sectional estimators (<code>qte.cross_sectional.simulate</code>).</p>
+<p>Simulation functions for the unconfounded estimators (<code>qte.unconfounded.simulate</code>).</p>
 <table class="caption-top table">
 <tbody>
 <tr class="odd">
-<td><a href="../reference/simulate_simple_data.html#qte.cross_sectional.simulate.simulate_simple_data">simulate_simple_data</a></td>
+<td><a href="../reference/simulate_simple_data.html#qte.unconfounded.simulate.simulate_simple_data">simulate_simple_data</a></td>
 <td>Simulate a randomised experiment without covariates.</td>
 </tr>
 <tr class="even">
-<td><a href="../reference/simulate_covariate_data.html#qte.cross_sectional.simulate.simulate_covariate_data">simulate_covariate_data</a></td>
+<td><a href="../reference/simulate_covariate_data.html#qte.unconfounded.simulate.simulate_covariate_data">simulate_covariate_data</a></td>
 <td>Simulate the fixed observational setting with covariates.</td>
 </tr>
 <tr class="odd">
-<td><a href="../reference/get_true_quantiles.html#qte.cross_sectional.simulate.get_true_quantiles">get_true_quantiles</a></td>
+<td><a href="../reference/get_true_quantiles.html#qte.unconfounded.simulate.get_true_quantiles">get_true_quantiles</a></td>
 <td>Simulation-based potential-outcome quantiles and the quantile effect.</td>
 </tr>
 <tr class="even">
-<td><a href="../reference/get_true_means.html#qte.cross_sectional.simulate.get_true_means">get_true_means</a></td>
+<td><a href="../reference/get_true_means.html#qte.unconfounded.simulate.get_true_means">get_true_means</a></td>
 <td>Simulation-based potential-outcome means and the average effect.</td>
 </tr>
 </tbody>
 </table>
 </section>
-<section id="nonlinear-difference-in-differences" class="level2">
-<h2 class="anchored" data-anchor-id="nonlinear-difference-in-differences">Nonlinear Difference-in-Differences</h2>
-<p>Changes-in-changes and quantile difference-in-differences estimators for panel data (<code>qte.nonlinear_did</code>).</p>
+<section id="instrumental-variables" class="level2">
+<h2 class="anchored" data-anchor-id="instrumental-variables">Instrumental Variables</h2>
+<p>Local quantile treatment effects for compliers (<code>qte.iv</code>).</p>
 <table class="caption-top table">
 <tbody>
 <tr class="odd">
-<td><a href="../reference/estimate_nonlinear_did_for_panel.html#qte.nonlinear_did.estimate_nonlinear_did_for_panel">estimate_nonlinear_did_for_panel</a></td>
-<td>Estimate nonlinear difference-in-differences effects for panel data.</td>
+<td><a href="../reference/estimate_unconditional_local_effects.html#qte.iv.estimate_unconditional_local_effects">estimate_unconditional_local_effects</a></td>
+<td>Estimate the local quantile treatment effect for compliers.</td>
 </tr>
 <tr class="even">
-<td><a href="../reference/NonlinearDidResults.html#qte.nonlinear_did.NonlinearDidResults">NonlinearDidResults</a></td>
-<td>The four aggregations returned by <a href="../reference/estimate_nonlinear_did_for_panel.html#qte.nonlinear_did.estimate_nonlinear_did_for_panel" title="0"><code>estimate_nonlinear_did_for_panel</code></a>.</td>
+<td><a href="../reference/UnconditionalLocalQteResult.html#qte.iv.UnconditionalLocalQteResult">UnconditionalLocalQteResult</a></td>
+<td>Result of a local quantile treatment effect estimation.</td>
 </tr>
 <tr class="odd">
-<td><a href="../reference/NonlinearDidResult.html#qte.nonlinear_did.NonlinearDidResult">NonlinearDidResult</a></td>
-<td>Result for one aggregation of a nonlinear difference-in-differences estimation.</td>
+<td><a href="../reference/estimate_conditional_local_effects.html#qte.iv.estimate_conditional_local_effects">estimate_conditional_local_effects</a></td>
+<td>Estimate conditional quantile treatment effects for compliers as in Abadie et al. (2002).</td>
 </tr>
 <tr class="even">
-<td><a href="../reference/TrtGroupConfig.html#qte.nonlinear_did.TrtGroupConfig">TrtGroupConfig</a></td>
+<td><a href="../reference/ConditionalLocalQteResult.html#qte.iv.ConditionalLocalQteResult">ConditionalLocalQteResult</a></td>
+<td>Result of a conditional local quantile treatment effect estimation.</td>
+</tr>
+<tr class="odd">
+<td><a href="../reference/estimate_ivqr_effects.html#qte.iv.estimate_ivqr_effects">estimate_ivqr_effects</a></td>
+<td>Estimate an instrumental-variable quantile regression.</td>
+</tr>
+<tr class="even">
+<td><a href="../reference/IvqrTreatment.html#qte.iv.IvqrTreatment">IvqrTreatment</a></td>
+<td>An endogenous treatment and the grid for its structural coefficient.</td>
+</tr>
+<tr class="odd">
+<td><a href="../reference/IvqrResult.html#qte.iv.IvqrResult">IvqrResult</a></td>
+<td>Result of an instrumental-variable quantile regression.</td>
+</tr>
+<tr class="even">
+<td><a href="../reference/InstrumentProbabilityResult.html#qte.iv.InstrumentProbabilityResult">InstrumentProbabilityResult</a></td>
+<td>Coefficient estimates from the logit model for the instrument probability.</td>
+</tr>
+<tr class="odd">
+<td><a href="../reference/perform_instrument_validity_test.html#qte.iv.perform_instrument_validity_test">perform_instrument_validity_test</a></td>
+<td>Test instrument validity with the Kitagawa (2015) test.</td>
+</tr>
+<tr class="even">
+<td><a href="../reference/InstrumentValidityResult.html#qte.iv.InstrumentValidityResult">InstrumentValidityResult</a></td>
+<td>Result of the Kitagawa (2015) instrument-validity test.</td>
+</tr>
+<tr class="odd">
+<td><a href="../reference/ValidityWeighting.html#qte.iv.ValidityWeighting">ValidityWeighting</a></td>
+<td>Weighting of the Kitagawa instrument-validity test statistic.</td>
+</tr>
+<tr class="even">
+<td><a href="../reference/Estimator.html#qte.iv.Estimator">Estimator</a></td>
+<td>Weighting scheme for the complier quantile treatment effect.</td>
+</tr>
+<tr class="odd">
+<td><a href="../reference/WeightAdjustment.html#qte.iv.WeightAdjustment">WeightAdjustment</a></td>
+<td>How the nonnegative complier weights are formed.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="iv-simulation" class="level2">
+<h2 class="anchored" data-anchor-id="iv-simulation">IV Simulation</h2>
+<p>Simulation functions for the instrumental-variables estimator (<code>qte.iv.simulate</code>).</p>
+<table class="caption-top table">
+<tbody>
+<tr class="odd">
+<td><a href="../reference/simulate_data.html#qte.iv.simulate.simulate_data">simulate_data</a></td>
+<td>Simulate a binary-instrument, binary-treatment design with non-compliance.</td>
+</tr>
+<tr class="even">
+<td><a href="../reference/get_true_local_effects.html#qte.iv.simulate.get_true_local_effects">get_true_local_effects</a></td>
+<td>Simulation-based true complier quantile and average effects.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="regression-discontinuity" class="level2">
+<h2 class="anchored" data-anchor-id="regression-discontinuity">Regression Discontinuity</h2>
+<p>Local quantile treatment effects for compliers in regression-discontinuity designs (<code>qte.rdd</code>).</p>
+<table class="caption-top table">
+<tbody>
+<tr class="odd">
+<td><a href="../reference/estimate_rdd_distribution_effects.html#qte.rdd.estimate_rdd_distribution_effects">estimate_rdd_distribution_effects</a></td>
+<td>Estimate local quantile treatment effects by local distribution regression.</td>
+</tr>
+<tr class="even">
+<td><a href="../reference/RddDistributionResult.html#qte.rdd.RddDistributionResult">RddDistributionResult</a></td>
+<td>Result of a local distribution-regression RD estimation.</td>
+</tr>
+<tr class="odd">
+<td><a href="../reference/RunningVariableConfig.html#qte.rdd.RunningVariableConfig">RunningVariableConfig</a></td>
+<td>Running variable and the cutoff at which treatment status jumps.</td>
+</tr>
+<tr class="even">
+<td><a href="../reference/LocalPolynomialConfig.html#qte.rdd.LocalPolynomialConfig">LocalPolynomialConfig</a></td>
+<td>Local-polynomial smoothing settings.</td>
+</tr>
+<tr class="odd">
+<td><a href="../reference/RddInference.html#qte.rdd.RddInference">RddInference</a></td>
+<td>Inference method for the RDD distribution estimator.</td>
+</tr>
+<tr class="even">
+<td><a href="../reference/Kernel.html#qte.rdd.Kernel">Kernel</a></td>
+<td>Kernel used to weight observations around the cutoff.</td>
+</tr>
+<tr class="odd">
+<td><a href="../reference/plot_rdd_design.html#qte.rdd.plot_rdd_design">plot_rdd_design</a></td>
+<td>Plot the outcome against the running variable around the cutoff.</td>
+</tr>
+<tr class="even">
+<td><a href="../reference/plot_rdd_treatment.html#qte.rdd.plot_rdd_treatment">plot_rdd_treatment</a></td>
+<td>Plot the treatment probability against the running variable.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="rdd-simulation" class="level2">
+<h2 class="anchored" data-anchor-id="rdd-simulation">RDD Simulation</h2>
+<p>Simulation functions for the regression-discontinuity estimator (<code>qte.rdd.simulate</code>).</p>
+<table class="caption-top table">
+<tbody>
+<tr class="odd">
+<td><a href="../reference/simulate_rdd_data.html#qte.rdd.simulate.simulate_rdd_data">simulate_rdd_data</a></td>
+<td>Simulate a fuzzy RD design with heterogeneous quantile effects.</td>
+</tr>
+<tr class="even">
+<td><a href="../reference/get_true_local_effects.html#qte.rdd.simulate.get_true_local_effects">get_true_local_effects</a></td>
+<td>Compute the complier quantile effects and LATE of the simulated design.</td>
+</tr>
+<tr class="odd">
+<td><a href="../reference/get_true_first_stage.html#qte.rdd.simulate.get_true_first_stage">get_true_first_stage</a></td>
+<td>Return the population share of local compliers.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="distributional-difference-in-differences" class="level2">
+<h2 class="anchored" data-anchor-id="distributional-difference-in-differences">Distributional Difference-in-Differences</h2>
+<p>Changes-in-changes and quantile difference-in-differences estimators for panel data (<code>qte.distributional_did</code>).</p>
+<table class="caption-top table">
+<tbody>
+<tr class="odd">
+<td><a href="../reference/estimate_changes_in_changes_effects.html#qte.distributional_did.estimate_changes_in_changes_effects">estimate_changes_in_changes_effects</a></td>
+<td>Estimate quantile treatment effects with changes-in-changes.</td>
+</tr>
+<tr class="even">
+<td><a href="../reference/estimate_quantile_did_effects.html#qte.distributional_did.estimate_quantile_did_effects">estimate_quantile_did_effects</a></td>
+<td>Estimate quantile treatment effects with quantile difference-in-differences.</td>
+</tr>
+<tr class="odd">
+<td><a href="../reference/estimate_mean_did_effects.html#qte.distributional_did.estimate_mean_did_effects">estimate_mean_did_effects</a></td>
+<td>Estimate treatment effects with mean difference-in-differences.</td>
+</tr>
+<tr class="even">
+<td><a href="../reference/estimate_distributional_did_effects.html#qte.distributional_did.estimate_distributional_did_effects">estimate_distributional_did_effects</a></td>
+<td>Estimate quantile treatment effects with distributional difference-in-differences.</td>
+</tr>
+<tr class="odd">
+<td><a href="../reference/DistributionalDidResults.html#qte.distributional_did.DistributionalDidResults">DistributionalDidResults</a></td>
+<td>The four aggregations returned by <a href="../reference/estimate_changes_in_changes_effects.html#qte.distributional_did.estimate_changes_in_changes_effects" title="0"><code>estimate_changes_in_changes_effects</code></a> or <a href="../reference/estimate_quantile_did_effects.html#qte.distributional_did.estimate_quantile_did_effects" title="0"><code>estimate_quantile_did_effects</code></a>.</td>
+</tr>
+<tr class="even">
+<td><a href="../reference/DistributionalDidResult.html#qte.distributional_did.DistributionalDidResult">DistributionalDidResult</a></td>
+<td>Result for one aggregation of a distributional difference-in-differences estimation.</td>
+</tr>
+<tr class="odd">
+<td><a href="../reference/TrtGroupConfig.html#qte.distributional_did.TrtGroupConfig">TrtGroupConfig</a></td>
 <td>Lazy configuration for the treatment group column.</td>
 </tr>
+<tr class="even">
+<td><a href="../reference/Estimator.html#qte.distributional_did.Estimator">Estimator</a></td>
+<td>Estimator that produced a result.</td>
+</tr>
 <tr class="odd">
-<td><a href="../reference/CounterfactualModel.html#qte.nonlinear_did.CounterfactualModel">CounterfactualModel</a></td>
-<td>Model used to construct the counterfactual distribution.</td>
+<td><a href="../reference/SamplingScheme.html#qte.distributional_did.SamplingScheme">SamplingScheme</a></td>
+<td>Sampling scheme of the input data.</td>
 </tr>
 <tr class="even">
-<td><a href="../reference/ControlGroup.html#qte.nonlinear_did.ControlGroup">ControlGroup</a></td>
+<td><a href="../reference/ControlGroup.html#qte.distributional_did.ControlGroup">ControlGroup</a></td>
 <td>Comparison group used for the counterfactual.</td>
 </tr>
 <tr class="odd">
-<td><a href="../reference/BasePeriod.html#qte.nonlinear_did.BasePeriod">BasePeriod</a></td>
+<td><a href="../reference/BasePeriod.html#qte.distributional_did.BasePeriod">BasePeriod</a></td>
 <td>Pre-treatment period the post-treatment effect is compared to.</td>
 </tr>
 </tbody>
@@ -4169,6 +4654,22 @@ vertical-align: -.125em;
 <td><a href="../reference/load_engel_with_weights.html#qte.datasets.load_engel_with_weights">load_engel_with_weights</a></td>
 <td>Load Engel (1857) food expenditure data with a sampling weights column.</td>
 </tr>
+<tr class="even">
+<td><a href="../reference/load_card.html#qte.datasets.load_card">load_card</a></td>
+<td>Load the Card (1995) college-proximity dataset.</td>
+</tr>
+<tr class="odd">
+<td><a href="../reference/load_jtpa.html#qte.datasets.load_jtpa">load_jtpa</a></td>
+<td>Load the JTPA job-training data used in Abadie, Angrist &amp; Imbens (2002).</td>
+</tr>
+<tr class="even">
+<td><a href="../reference/load_pension.html#qte.datasets.load_pension">load_pension</a></td>
+<td>Load the 401(k) pension data of Chernozhukov and Hansen (2004).</td>
+</tr>
+<tr class="odd">
+<td><a href="../reference/load_ddk_2011.html#qte.datasets.load_ddk_2011">load_ddk_2011</a></td>
+<td>Load the Duflo, Dupas and Kremer (2011) tracking dataset.</td>
+</tr>
 </tbody>
 </table>
 </section>
@@ -4180,6 +4681,22 @@ vertical-align: -.125em;
 <tr class="odd">
 <td><a href="../reference/BootstrapConfig.html#qte.bootstrap.BootstrapConfig">BootstrapConfig</a></td>
 <td>Configuration for the bootstrap.</td>
+</tr>
+<tr class="even">
+<td><a href="../reference/BootstrapMultiplierConfig.html#qte.bootstrap.BootstrapMultiplierConfig">BootstrapMultiplierConfig</a></td>
+<td>Configuration for multiplier-bootstrap inference.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="quantile-regression" class="level2">
+<h2 class="anchored" data-anchor-id="quantile-regression">Quantile Regression</h2>
+<p>Quantile regression solver and algorithm selection (<code>qte.quantile_regression</code>).</p>
+<table class="caption-top table">
+<tbody>
+<tr class="odd">
+<td><a href="../reference/QuantileRegressionAlgorithms.html#qte.quantile_regression.QuantileRegressionAlgorithms">QuantileRegressionAlgorithms</a></td>
+<td>Algorithm used to fit the quantile regression coefficient process.</td>
 </tr>
 </tbody>
 </table>

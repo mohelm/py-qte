@@ -3853,10 +3853,62 @@ vertical-align: -.125em;
 </button>
           <div class="collapse navbar-collapse" id="navbarCollapse">
             <ul class="navbar-nav navbar-nav-scroll me-auto">
-  <li class="nav-item">
-    <a class="nav-link" href="../benchmark.html"> 
-<span class="menu-text">Benchmark</span></a>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-unconfounded" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Unconfounded</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-unconfounded">    
+        <li>
+    <a class="dropdown-item" href="../unconfounded/index.html">
+ <span class="dropdown-text">Estimators</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="../unconfounded/benchmarks.html">
+ <span class="dropdown-text">Benchmarks</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-iv" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">IV</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-iv">    
+        <li>
+    <a class="dropdown-item" href="../iv/index.html">
+ <span class="dropdown-text">Estimators</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../iv/validity.html">
+ <span class="dropdown-text">Instrument Validity</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-regression-discontinuity" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Regression Discontinuity</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-regression-discontinuity">    
+        <li>
+    <a class="dropdown-item" href="../rdd/index.html">
+ <span class="dropdown-text">Estimators</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-difference-in-differences" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Difference-in-Differences</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-difference-in-differences">    
+        <li>
+    <a class="dropdown-item" href="../did/index.html">
+ <span class="dropdown-text">Estimators</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../did/aggregation.html">
+ <span class="dropdown-text">Aggregating Estimates</span></a>
+  </li>  
+    </ul>
+  </li>
   <li class="nav-item">
     <a class="nav-link active" href="../reference/index.html" aria-current="page"> 
 <span class="menu-text">Reference</span></a>
@@ -3872,7 +3924,7 @@ vertical-align: -.125em;
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../reference/estimate_unadjusted_effects.html">Cross-Sectional Estimators</a></li><li class="breadcrumb-item"><a href="../reference/estimate_outcome_regression_effects.html">estimate_outcome_regression_effects</a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../reference/estimate_unadjusted_effects.html">Unconfounded Estimators</a></li><li class="breadcrumb-item"><a href="../reference/estimate_outcome_regression_effects.html">estimate_outcome_regression_effects</a></li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
     </div>
@@ -3893,7 +3945,7 @@ vertical-align: -.125em;
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
             <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
- <span class="menu-text">Cross-Sectional Estimators</span></a>
+ <span class="menu-text">Unconfounded Estimators</span></a>
           <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
@@ -3941,6 +3993,12 @@ vertical-align: -.125em;
  <span class="menu-text">Estimator</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/OutcomeRegressionConfig.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">OutcomeRegressionConfig</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item sidebar-item-section">
@@ -3981,7 +4039,7 @@ vertical-align: -.125em;
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
             <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
- <span class="menu-text">Nonlinear Difference-in-Differences</span></a>
+ <span class="menu-text">Instrumental Variables</span></a>
           <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
@@ -3989,20 +4047,238 @@ vertical-align: -.125em;
       <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../reference/estimate_nonlinear_did_for_panel.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">estimate_nonlinear_did_for_panel</span></a>
+  <a href="../reference/estimate_unconditional_local_effects.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">estimate_unconditional_local_effects</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../reference/NonlinearDidResults.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">NonlinearDidResults</span></a>
+  <a href="../reference/UnconditionalLocalQteResult.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">UnconditionalLocalQteResult</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../reference/NonlinearDidResult.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">NonlinearDidResult</span></a>
+  <a href="../reference/estimate_conditional_local_effects.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">estimate_conditional_local_effects</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/ConditionalLocalQteResult.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ConditionalLocalQteResult</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/estimate_ivqr_effects.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">estimate_ivqr_effects</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/IvqrTreatment.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">IvqrTreatment</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/IvqrResult.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">IvqrResult</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/InstrumentProbabilityResult.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">InstrumentProbabilityResult</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/perform_instrument_validity_test.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">perform_instrument_validity_test</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/InstrumentValidityResult.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">InstrumentValidityResult</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/ValidityWeighting.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ValidityWeighting</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/Estimator.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Estimator</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/WeightAdjustment.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">WeightAdjustment</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
+ <span class="menu-text">IV Simulation</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/simulate_data.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">simulate_data</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/get_true_local_effects.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">get_true_local_effects</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true">
+ <span class="menu-text">Regression Discontinuity</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/estimate_rdd_distribution_effects.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">estimate_rdd_distribution_effects</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/RddDistributionResult.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">RddDistributionResult</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/RunningVariableConfig.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">RunningVariableConfig</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/LocalPolynomialConfig.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">LocalPolynomialConfig</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/RddInference.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">RddInference</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/Kernel.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Kernel</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/plot_rdd_design.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">plot_rdd_design</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/plot_rdd_treatment.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">plot_rdd_treatment</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true">
+ <span class="menu-text">RDD Simulation</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/simulate_rdd_data.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">simulate_rdd_data</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/get_true_local_effects.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">get_true_local_effects</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/get_true_first_stage.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">get_true_first_stage</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="true">
+ <span class="menu-text">Distributional Difference-in-Differences</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-7" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/estimate_changes_in_changes_effects.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">estimate_changes_in_changes_effects</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/estimate_quantile_did_effects.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">estimate_quantile_did_effects</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/estimate_mean_did_effects.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">estimate_mean_did_effects</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/estimate_distributional_did_effects.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">estimate_distributional_did_effects</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/DistributionalDidResults.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">DistributionalDidResults</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/DistributionalDidResult.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">DistributionalDidResult</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -4013,8 +4289,14 @@ vertical-align: -.125em;
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../reference/CounterfactualModel.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">CounterfactualModel</span></a>
+  <a href="../reference/Estimator.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Estimator</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/SamplingScheme.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">SamplingScheme</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -4033,13 +4315,13 @@ vertical-align: -.125em;
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-8" role="navigation" aria-expanded="true">
  <span class="menu-text">Data</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-8" role="navigation" aria-expanded="true" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-8" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../reference/load_lalonde.html" class="sidebar-item-text sidebar-link">
@@ -4058,21 +4340,68 @@ vertical-align: -.125em;
  <span class="menu-text">load_engel_with_weights</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/load_card.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">load_card</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/load_jtpa.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">load_jtpa</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/load_pension.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">load_pension</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/load_ddk_2011.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">load_ddk_2011</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true">
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-9" role="navigation" aria-expanded="true">
  <span class="menu-text">Bootstrap</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true" aria-label="Toggle section">
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-9" role="navigation" aria-expanded="true" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-9" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../reference/BootstrapConfig.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">BootstrapConfig</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/BootstrapMultiplierConfig.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">BootstrapMultiplierConfig</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-10" role="navigation" aria-expanded="true">
+ <span class="menu-text">Quantile Regression</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-10" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-10" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/QuantileRegressionAlgorithms.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">QuantileRegressionAlgorithms</span></a>
   </div>
 </li>
       </ul>
@@ -4084,20 +4413,20 @@ vertical-align: -.125em;
 <!-- margin-sidebar -->
     
 <!-- main -->
-<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../reference/estimate_unadjusted_effects.html">Cross-Sectional Estimators</a></li><li class="breadcrumb-item"><a href="../reference/estimate_outcome_regression_effects.html">estimate_outcome_regression_effects</a></li></ol></nav></header>
+<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../reference/estimate_unadjusted_effects.html">Unconfounded Estimators</a></li><li class="breadcrumb-item"><a href="../reference/estimate_outcome_regression_effects.html">estimate_outcome_regression_effects</a></li></ol></nav></header>
 
 
 
 
-<section id="qte.cross_sectional.estimate_outcome_regression_effects" class="level1">
+<section id="qte.unconfounded.estimate_outcome_regression_effects" class="level1">
 <h1>estimate_outcome_regression_effects</h1>
-<div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>cross_sectional.estimate_outcome_regression_effects(</span>
+<div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>unconfounded.estimate_outcome_regression_effects(</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    ds: pl.DataFrame,</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    outcome: ColumnName,</span>
 <span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    treatment: ColumnName,</span>
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    qs: ArrayLike <span class="op">=</span> MEDIAN,</span>
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    <span class="op">*</span>,</span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    outcome_regression_formula: FormulaRhs,</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    outcome_regression_config: FormulaRhs <span class="op">|</span> OutcomeRegressionConfig,</span>
 <span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>    target: CausalTarget <span class="op">=</span> CausalTarget.QTE,</span>
 <span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>    weights: ColumnName <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>,</span>
 <span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>    bootstrap_config: BootstrapConfig <span class="op">|</span> <span class="bu">int</span> <span class="op">=</span> <span class="dv">100</span>,</span>
@@ -4141,14 +4470,14 @@ vertical-align: -.125em;
 <td><code>0.5</code></td>
 </tr>
 <tr class="odd">
-<td>outcome_regression_formula</td>
-<td><code>FormulaRhs</code></td>
-<td>Right-hand side of the outcome regression formula.</td>
+<td>outcome_regression_config</td>
+<td>FormulaRhs or <a href="../reference/OutcomeRegressionConfig.html#qte.unconfounded.OutcomeRegressionConfig" title="0"><code>OutcomeRegressionConfig</code></a></td>
+<td>Outcome regression specification. A string is shorthand for <code>OutcomeRegressionConfig(formula=...)</code>.</td>
 <td><em>required</em></td>
 </tr>
 <tr class="even">
 <td>target</td>
-<td><a href="../reference/CausalTarget.html#qte.cross_sectional.CausalTarget" title="0"><code>CausalTarget</code></a></td>
+<td><a href="../reference/CausalTarget.html#qte.unconfounded.CausalTarget" title="0"><code>CausalTarget</code></a></td>
 <td>Estimand to target, <code>QTE</code> (population) or <code>QTT</code> (treated).</td>
 <td><code>CausalTarget.QTE</code></td>
 </tr>
@@ -4180,7 +4509,7 @@ vertical-align: -.125em;
 <tbody>
 <tr class="odd">
 <td></td>
-<td><a href="../reference/QteResult.html#qte.cross_sectional.QteResult" title="0"><code>QteResult</code></a></td>
+<td><a href="../reference/QteResult.html#qte.unconfounded.QteResult" title="0"><code>QteResult</code></a></td>
 <td>Estimated effects with bootstrap standard errors.</td>
 </tr>
 </tbody>
@@ -4188,7 +4517,7 @@ vertical-align: -.125em;
 </section>
 <section id="see-also" class="level2 doc-section doc-section-see-also">
 <h2 class="doc-section doc-section-see-also anchored" data-anchor-id="see-also">See Also</h2>
-<p><a href="../reference/estimate_unadjusted_effects.html#qte.cross_sectional.estimate_unadjusted_effects" title="0"><code>estimate_unadjusted_effects</code></a>, <a href="../reference/estimate_ipw_effects.html#qte.cross_sectional.estimate_ipw_effects" title="0"><code>estimate_ipw_effects</code></a>, <a href="../reference/estimate_aipw_effects.html#qte.cross_sectional.estimate_aipw_effects" title="0"><code>estimate_aipw_effects</code></a></p>
+<p><a href="../reference/estimate_unadjusted_effects.html#qte.unconfounded.estimate_unadjusted_effects" title="0"><code>estimate_unadjusted_effects</code></a>, <a href="../reference/estimate_ipw_effects.html#qte.unconfounded.estimate_ipw_effects" title="0"><code>estimate_ipw_effects</code></a>, <a href="../reference/estimate_aipw_effects.html#qte.unconfounded.estimate_aipw_effects" title="0"><code>estimate_aipw_effects</code></a></p>
 
 
 </section>
